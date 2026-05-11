@@ -1,0 +1,197 @@
+import { useState } from "react";
+import { COUNTRY_FLAGS, COLORS as C } from "./utils/metrics";
+import { COUNTRIES } from "./data/countries";
+import LoginPage from "./components/LoginPage";
+import IntroPage from "./components/IntroPage";
+import Overview from "./components/Overview";
+import Expenses from "./components/Expenses";
+import Revenue from "./components/Revenue";
+import GapView from "./components/GapView";
+import Activities from "./components/Activities";
+import GuidedWizard from "./components/GuidedWizard";
+import AdminDashboard from "./components/AdminDashboard";
+
+// Mock credentials — Phase 2 will use Supabase Auth
+const MOCK_USERS = {
+  "admin@mrct.org":      { password: "mrct2026",    role: "admin",    country: null },
+  "kenya@trace.org":     { password: "kenya2026",   role: "country",  country: "Kenya" },
+  "nigeria@trace.org":   { password: "nigeria2026", role: "country",  country: "Nigeria" },
+  "rwanda@trace.org":    { password: "rwanda2026",  role: "country",  country: "Rwanda" },
+  "tanzania@trace.org":  { password: "tz2026",      role: "country",  country: "Tanzania" },
+  "zimbabwe@trace.org":  { password: "zim2026",     role: "country",  country: "Zimbabwe" },
+};
+
+const COUNTRY_NAMES = Object.keys(COUNTRIES);
+
+const ADMIN_VIEWS = [
+  { id: "intro",    label: "Intro"         },
+  { id: "wizard",   label: "Guided Wizard" },
+  { id: "overview", label: "Overview"      },
+  { id: "expenses", label: "Expenses"      },
+  { id: "revenue",  label: "Revenue"       },
+  { id: "gap",      label: "Gap Analysis"  },
+  { id: "activities",label: "Activities"  },
+  { id: "admin",    label: "Admin 🔐" },
+];
+
+const COUNTRY_VIEWS = [
+  { id: "intro",    label: "Intro"         },
+  { id: "wizard",   label: "Guided Wizard" },
+  { id: "overview", label: "Overview"      },
+  { id: "expenses", label: "Expenses"      },
+  { id: "revenue",  label: "Revenue"       },
+  { id: "gap",      label: "Gap Analysis"  },
+  { id: "activities",label: "Activities"  },
+];
+
+export default function App() {
+  const [session, setSession] = useState(null); // { email, role, country }
+  const [view, setView] = useState("intro");
+  const [selectedCountry, setSelectedCountry] = useState("Kenya");
+
+  function handleLogin(email, password) {
+    const user = MOCK_USERS[email.toLowerCase()];
+    if (!user || user.password !== password) return "Invalid email or password.";
+    const country = user.country || "Kenya";
+    setSession({ email: email.toLowerCase(), role: user.role, country });
+    setSelectedCountry(country);
+    setView("intro");
+    return null;
+  }
+
+  function handleLogout() {
+    setSession(null);
+    setView("intro");
+  }
+
+  if (!session) return <LoginPage onLogin={handleLogin} />;
+
+  const isAdmin = session.role === "admin";
+  const views = isAdmin ? ADMIN_VIEWS : COUNTRY_VIEWS;
+  const countryData = COUNTRIES[selectedCountry];
+  const flag = COUNTRY_FLAGS[selectedCountry] || "";
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "100svh" }}>
+      <Header
+        isAdmin={isAdmin}
+        selectedCountry={selectedCountry}
+        flag={flag}
+        countryNames={COUNTRY_NAMES}
+        onCountryChange={(c) => setSelectedCountry(c)}
+        onLogout={handleLogout}
+        email={session.email}
+      />
+      <NavBar views={views} current={view} onSelect={setView} />
+      <main style={{ flex: 1, padding: "20px 16px", maxWidth: 1200, margin: "0 auto", width: "100%" }}>
+        {view === "intro"      && <IntroPage />}
+        {view === "wizard"     && <GuidedWizard country={selectedCountry} data={countryData} />}
+        {view === "overview"   && <Overview country={selectedCountry} data={countryData} flag={flag} />}
+        {view === "expenses"   && <Expenses country={selectedCountry} data={countryData} flag={flag} />}
+        {view === "revenue"    && <Revenue country={selectedCountry} data={countryData} flag={flag} />}
+        {view === "gap"        && <GapView country={selectedCountry} data={countryData} flag={flag} />}
+        {view === "activities" && <Activities country={selectedCountry} data={countryData} flag={flag} />}
+        {view === "admin"      && isAdmin && <AdminDashboard countries={COUNTRIES} flags={COUNTRY_FLAGS} onNavigate={(c, v) => { setSelectedCountry(c); setView(v); }} />}
+      </main>
+      <footer style={{ background: C.navy, color: "#fff", padding: "12px 20px", fontSize: 12, textAlign: "center", opacity: 0.85 }}>
+        TRACE Financial Dashboard · MRCT Center at Harvard · Prototype {new Date().getFullYear()}
+      </footer>
+    </div>
+  );
+}
+
+function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange, onLogout, email }) {
+  return (
+    <header style={{
+      background: C.navy,
+      color: "#fff",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: "10px 20px",
+      gap: 12,
+      flexWrap: "wrap",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <img src="/trace-logo.png" alt="TRACE" style={{ height: 40, objectFit: "contain" }} />
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: 0.5 }}>Financial Dashboard</div>
+          <div style={{ fontSize: 11, opacity: 0.7 }}>MRCT Center at Harvard</div>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        {isAdmin ? (
+          <select
+            value={selectedCountry}
+            onChange={(e) => onCountryChange(e.target.value)}
+            style={{
+              background: C.darkNavy,
+              color: "#fff",
+              border: `1px solid ${C.teal}`,
+              borderRadius: 6,
+              padding: "6px 10px",
+              fontSize: 14,
+              minHeight: 44,
+            }}
+          >
+            {countryNames.map((c) => (
+              <option key={c} value={c}>{COUNTRY_FLAGS[c]} {c}</option>
+            ))}
+          </select>
+        ) : (
+          <div style={{ fontSize: 15, fontWeight: 600 }}>{flag} {selectedCountry}</div>
+        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, opacity: 0.7 }}>{email}</span>
+          <button
+            onClick={onLogout}
+            style={{
+              background: "rgba(255,255,255,0.12)",
+              color: "#fff",
+              borderRadius: 6,
+              padding: "6px 12px",
+              fontSize: 13,
+              minHeight: 44,
+              border: "1px solid rgba(255,255,255,0.2)",
+            }}
+          >
+            Sign out
+          </button>
+        </div>
+        <img src="/mrct-shield.png" alt="MRCT" style={{ height: 36, objectFit: "contain", opacity: 0.9 }} />
+      </div>
+    </header>
+  );
+}
+
+function NavBar({ views, current, onSelect }) {
+  return (
+    <nav style={{
+      background: C.darkNavy,
+      display: "flex",
+      overflowX: "auto",
+      borderBottom: `3px solid ${C.teal}`,
+    }}>
+      {views.map((v) => (
+        <button
+          key={v.id}
+          onClick={() => onSelect(v.id)}
+          style={{
+            color: current === v.id ? C.yellow : "rgba(255,255,255,0.75)",
+            borderBottom: current === v.id ? `3px solid ${C.yellow}` : "3px solid transparent",
+            padding: "12px 18px",
+            fontSize: 13,
+            fontWeight: current === v.id ? 700 : 400,
+            whiteSpace: "nowrap",
+            minHeight: 44,
+            marginBottom: -3,
+            transition: "color 0.15s",
+          }}
+        >
+          {v.label}
+        </button>
+      ))}
+    </nav>
+  );
+}

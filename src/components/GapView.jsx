@@ -1,0 +1,149 @@
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { gm, fmt, fmtPct, COLORS as C } from "../utils/metrics";
+
+export default function GapView({ country, data: d, flag }) {
+  const m = gm(d);
+
+  const totalReviews = d.fees ? d.fees.reduce((s, f) => s + (f.ctPro || 0) + (f.ctStu || 0), 0) : 0;
+  const initialReviews = d.fees ? d.fees.filter((f) => f.type?.toLowerCase().includes("initial") || f.type?.toLowerCase().includes("full")).reduce((s, f) => s + (f.ctPro || 0) + (f.ctStu || 0), 0) : 0;
+  const otherReviews = totalReviews - initialReviews;
+
+  const chartData = [
+    { name: "Regular Expenses", value: m.te, fill: C.red },
+    { name: "Regular Revenue", value: m.tr, fill: C.teal },
+    { name: "Irregular Expenses", value: m.ti, fill: "#8c6bad" },
+    { name: "Irregular Revenue", value: m.tri, fill: C.steelblue },
+  ];
+
+  const growthRows = d.growthPressures || [];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <SectionHeader title={`${flag} ${country} — Gap Analysis`} subtitle="Where revenue does and does not cover expenses" />
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
+        <GapKPI label="Regular Budget Gap" val={m.rg} />
+        <GapKPI label="Irregular Budget Gap" val={m.ig} />
+        <GapKPI label="Combined Gap" val={m.cg} large />
+      </div>
+
+      <Card title="Advocacy Summary">
+        <p style={{ fontSize: 14, color: C.navy, lineHeight: 1.75, background: C.lightBG, borderRadius: 8, padding: "14px 18px" }}>
+          {country} conducts <strong>{initialReviews}</strong> initial review{initialReviews !== 1 ? "s" : ""},
+          {otherReviews > 0 ? ` ${otherReviews} other type${otherReviews !== 1 ? "s" : ""} of review,` : ""}
+          {" "}(totaling <strong>{totalReviews}</strong> total),
+          generating <strong>{fmt(d.revFees)}</strong> in review fees.
+          {" "}The regular budget has a gap of <strong style={{ color: m.rg >= 0 ? C.green : C.red }}>{fmt(m.rg)}</strong>,
+          meaning review fees {m.rg >= 0 ? "fully cover" : "do not fully cover"} operating costs.
+        </p>
+      </Card>
+
+      <Card title="Revenue vs. Expenses — Regular and Irregular">
+        <p style={narrativeStyle}>
+          This chart compares all revenue and expense sources. Bars that exceed their paired revenue bar indicate a gap in that budget category.
+        </p>
+        <div style={{ height: 260, marginTop: 12 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} margin={{ top: 4, right: 20, left: 10, bottom: 30 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="name" fontSize={11} angle={-15} textAnchor="end" interval={0} />
+              <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} fontSize={11} />
+              <Tooltip formatter={(v) => fmt(v)} />
+              <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                {chartData.map((entry, i) => (
+                  <rect key={i} fill={entry.fill} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      {growthRows.length > 0 && (
+        <Card title="Growth Pressures on Expenses">
+          <p style={narrativeStyle}>
+            These activities are expected to require more resources in the coming year. The percentage shown is an estimated increase over current spending.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
+            {growthRows.map((row, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "#f9f4fb", borderRadius: 7, border: `1px solid #e8d9f0` }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: C.navy }}>{row.activity}</div>
+                  {row.note && <div style={{ fontSize: 12, color: C.blueGrey, marginTop: 2 }}>{row.note}</div>}
+                </div>
+                {row.pct !== undefined && (
+                  <div style={{ textAlign: "right", minWidth: 60 }}>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: C.purple }}>+{row.pct}%</div>
+                    <div style={{ fontSize: 11, color: C.blueGrey }}>expected increase</div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <Card title="Summary Table">
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead>
+            <tr style={{ background: C.lightBG }}>
+              {["", "Expenses", "Revenue", "Gap"].map((h) => (
+                <th key={h} style={{ padding: "8px 12px", textAlign: "right", color: C.navy, fontWeight: 700, fontSize: 12, textAlign: h === "" ? "left" : "right" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              { label: "Regular", exp: m.te, rev: m.tr, gap: m.rg },
+              { label: "Irregular", exp: m.ti, rev: m.tri, gap: m.ig },
+            ].map((row) => (
+              <tr key={row.label} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                <td style={{ padding: "9px 12px", fontWeight: 600 }}>{row.label}</td>
+                <td style={{ padding: "9px 12px", textAlign: "right" }}>{fmt(row.exp)}</td>
+                <td style={{ padding: "9px 12px", textAlign: "right" }}>{fmt(row.rev)}</td>
+                <td style={{ padding: "9px 12px", textAlign: "right", fontWeight: 700, color: row.gap >= 0 ? C.green : C.red }}>{fmt(row.gap)}</td>
+              </tr>
+            ))}
+            <tr style={{ background: C.lightBG, fontWeight: 700 }}>
+              <td style={{ padding: "9px 12px" }}>Combined</td>
+              <td style={{ padding: "9px 12px", textAlign: "right" }}>{fmt(m.te + m.ti)}</td>
+              <td style={{ padding: "9px 12px", textAlign: "right" }}>{fmt(m.tr + m.tri)}</td>
+              <td style={{ padding: "9px 12px", textAlign: "right", color: m.cg >= 0 ? C.green : C.red }}>{fmt(m.cg)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  );
+}
+
+function GapKPI({ label, val, large = false }) {
+  const color = val >= 0 ? C.green : C.red;
+  return (
+    <div style={{ flex: large ? "1 1 200px" : "1 1 150px", background: "#fff", border: `1px solid #dde`, borderTop: `3px solid ${color}`, borderRadius: 9, padding: "14px 16px" }}>
+      <div style={{ fontSize: 11, color: C.blueGrey, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</div>
+      <div style={{ fontSize: large ? 28 : 22, fontWeight: 800, color, marginTop: 4 }}>{fmt(val)}</div>
+      <div style={{ fontSize: 12, color, marginTop: 2 }}>{val >= 0 ? "surplus" : "deficit"}</div>
+    </div>
+  );
+}
+
+function Card({ title, children }) {
+  return (
+    <div style={{ background: "#fff", borderRadius: 9, border: "1px solid #dde", overflow: "hidden" }}>
+      <div style={{ background: C.lightBG, padding: "10px 16px", fontSize: 13, fontWeight: 700, color: C.navy, borderBottom: "1px solid #dde" }}>{title}</div>
+      <div style={{ padding: "14px 16px" }}>{children}</div>
+    </div>
+  );
+}
+
+function SectionHeader({ title, subtitle }) {
+  return (
+    <div style={{ background: C.navy, borderRadius: 9, padding: "14px 20px", color: "#fff" }}>
+      <div style={{ fontSize: 18, fontWeight: 700 }}>{title}</div>
+      {subtitle && <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>{subtitle}</div>}
+    </div>
+  );
+}
+
+const narrativeStyle = { fontSize: 13, color: "#555", lineHeight: 1.6, fontStyle: "italic" };
