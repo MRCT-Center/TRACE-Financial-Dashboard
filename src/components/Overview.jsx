@@ -1,10 +1,11 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { gm, fmtPct, COLORS as C } from "../utils/metrics";
 import { useCurrency } from "../utils/CurrencyContext";
+import EditableCell from "./EditableCell";
 
 const EXP_COLORS = [C.navy, C.teal, C.steelblue, C.purple, C.blueGrey, C.darkTeal, C.orange];
 
-export default function Overview({ country, data: d, flag }) {
+export default function Overview({ country, data: d, flag, onEdit }) {
   const m = gm(d);
   const { fmt } = useCurrency();
 
@@ -18,7 +19,7 @@ export default function Overview({ country, data: d, flag }) {
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 20 }}>
         <RevDependencyCard d={d} m={m} />
-        <InKindCard d={d} />
+        <InKindCard d={d} onEdit={onEdit} />
       </div>
     </div>
   );
@@ -241,42 +242,39 @@ function DepBar({ label, pct, color }) {
   );
 }
 
-function InKindCard({ d }) {
+function InKindCard({ d, onEdit }) {
   const { fmt } = useCurrency();
-  const ik = d.ikReg;
-  const hasData = ik && ik.total > 0;
+  const ik = d.ikReg || { federal: 0, institutional: 0, other: 0, total: 0 };
 
   return (
     <Card title="In-Kind Contributions" style={{ flex: "1 1 280px" }}>
-      {!hasData ? (
-        <p style={narrativeStyle}>No in-kind contribution data recorded for this country yet.</p>
-      ) : (
-        <>
-          <p style={narrativeStyle}>
-            In-kind contributions are non-cash support — staff time, office space, or equipment donated by
-            federal agencies, universities, or other institutions. These are not yet included in gap calculations.
-          </p>
-          <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-            {[
-              { label: "Federal", val: ik.federal },
-              { label: "Institutional", val: ik.institutional },
-              { label: "Other", val: ik.other },
-            ].map(({ label, val }) => (
-              <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", background: "#f4f6f8", borderRadius: 6 }}>
-                <span style={{ fontSize: 13, color: C.navy }}>{label}</span>
-                <strong style={{ fontSize: 13, color: C.steelblue }}>{fmt(val)}</strong>
-              </div>
-            ))}
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: C.navy, borderRadius: 6, marginTop: 2 }}>
-              <span style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>Total in-kind</span>
-              <strong style={{ fontSize: 13, color: C.yellow }}>{fmt(ik.total)}</strong>
-            </div>
-            <div style={{ fontSize: 11, color: C.blueGrey, fontStyle: "italic", marginTop: 4 }}>
-              In-kind contributions will factor into gap calculations in Phase 2.
-            </div>
+      <p style={narrativeStyle}>
+        In-kind contributions are non-cash support — staff time, office space, or equipment donated by
+        federal agencies, universities, or other institutions. Click any value to edit. These are not yet included in gap calculations.
+      </p>
+      <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+        {[
+          { label: "Federal",       field: "federal" },
+          { label: "Institutional", field: "institutional" },
+          { label: "Other",         field: "other" },
+        ].map(({ label, field }) => (
+          <div key={field} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "#f4f6f8", borderRadius: 6 }}>
+            <span style={{ fontSize: 13, color: C.navy }}>{label}</span>
+            <strong style={{ fontSize: 13, color: C.steelblue }}>
+              <EditableCell value={ik[field] || 0} display={fmt(ik[field] || 0)} path={`ikReg.${field}`} onEdit={onEdit} />
+            </strong>
           </div>
-        </>
-      )}
+        ))}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: C.navy, borderRadius: 6, marginTop: 2 }}>
+          <span style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>Total in-kind</span>
+          <strong style={{ fontSize: 13, color: C.yellow }}>
+            <EditableCell value={ik.total || 0} display={fmt(ik.total || 0)} path="ikReg.total" onEdit={onEdit} />
+          </strong>
+        </div>
+        <div style={{ fontSize: 11, color: C.blueGrey, fontStyle: "italic", marginTop: 4 }}>
+          In-kind contributions will factor into gap calculations in Phase 2.
+        </div>
+      </div>
     </Card>
   );
 }

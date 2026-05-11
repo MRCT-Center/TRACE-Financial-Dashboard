@@ -1,6 +1,7 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { gm, COLORS as C } from "../utils/metrics";
 import { useCurrency } from "../utils/CurrencyContext";
+import EditableCell from "./EditableCell";
 
 const REG_LABELS = {
   secSal: "Secretariat — Salaries",
@@ -13,10 +14,10 @@ const REG_LABELS = {
   recGov: "Recurring — Gov't",
 };
 
-export default function Expenses({ country, data: d, flag }) {
+export default function Expenses({ country, data: d, flag, onEdit }) {
   const { fmt } = useCurrency();
   const m = gm(d);
-  const regRows = Object.entries(d.er).filter(([, v]) => v > 0).map(([k, v]) => ({ category: REG_LABELS[k] || k, amount: v }));
+  const regRows = Object.entries(d.er).map(([k, v]) => ({ key: k, category: REG_LABELS[k] || k, amount: v }));
   const necTotal = (d.er.nSal || 0) + (d.er.nBen || 0) + (d.er.nRec || 0);
   const secTotal = m.te - necTotal;
 
@@ -34,7 +35,7 @@ export default function Expenses({ country, data: d, flag }) {
       <Card title="Regular Expenses — Breakdown">
         <p style={narrativeStyle}>
           Regular expenses are the recurring annual costs of running your secretariat and ethics committee.
-          Salaries and benefits make up the bulk of these costs for most committees.
+          Salaries and benefits make up the bulk of these costs for most committees. Click any amount to edit.
         </p>
         <div style={{ height: 240, marginTop: 14 }}>
           <ResponsiveContainer width="100%" height="100%">
@@ -47,6 +48,28 @@ export default function Expenses({ country, data: d, flag }) {
             </BarChart>
           </ResponsiveContainer>
         </div>
+        <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 16, fontSize: 13 }}>
+          <thead>
+            <tr style={{ background: C.lightBG }}>
+              <th style={{ textAlign: "left", padding: "7px 10px", color: C.navy, fontWeight: 700, fontSize: 12 }}>Category</th>
+              <th style={{ textAlign: "right", padding: "7px 10px", color: C.navy, fontWeight: 700, fontSize: 12 }}>Amount (USD)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {regRows.map(({ key, category, amount }) => (
+              <tr key={key} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                <td style={{ padding: "8px 10px", color: "#333" }}>{category}</td>
+                <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 500, color: C.navy }}>
+                  <EditableCell value={amount} display={fmt(amount)} path={`er.${key}`} onEdit={onEdit} />
+                </td>
+              </tr>
+            ))}
+            <tr style={{ background: "#f8f8f8", fontWeight: 700 }}>
+              <td style={{ padding: "8px 10px" }}>Total</td>
+              <td style={{ padding: "8px 10px", textAlign: "right", color: C.navy }}>{fmt(m.te)}</td>
+            </tr>
+          </tbody>
+        </table>
       </Card>
 
       {d.necDetail && (
@@ -56,15 +79,22 @@ export default function Expenses({ country, data: d, flag }) {
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 12 }}>
             {[
-              { label: "Reviewer payments (review time)", val: d.necDetail.reviewPay },
-              { label: "Reviewer training time", val: d.necDetail.reviewTrain },
-              { label: "Travel time supplement", val: d.necDetail.travelTime },
-              { label: "Travel cost supplement", val: d.necDetail.travelCost },
-              { label: "Meeting hosting", val: d.necDetail.meetings },
-            ].map(({ label, val }) => (
-              <div key={label} style={{ flex: "1 1 160px", background: "#f4f6f8", borderRadius: 7, padding: "12px 14px" }}>
+              { label: "Reviewer payments (review time)", field: "reviewPay" },
+              { label: "Reviewer training time",          field: "reviewTrain" },
+              { label: "Travel time supplement",          field: "travelTime" },
+              { label: "Travel cost supplement",          field: "travelCost" },
+              { label: "Meeting hosting",                 field: "meetings" },
+            ].map(({ label, field }) => (
+              <div key={field} style={{ flex: "1 1 160px", background: "#f4f6f8", borderRadius: 7, padding: "12px 14px" }}>
                 <div style={{ fontSize: 12, color: C.blueGrey }}>{label}</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: C.purple, marginTop: 4 }}>{fmt(val)}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: C.purple, marginTop: 4 }}>
+                  <EditableCell
+                    value={d.necDetail[field]}
+                    display={fmt(d.necDetail[field])}
+                    path={`necDetail.${field}`}
+                    onEdit={onEdit}
+                  />
+                </div>
               </div>
             ))}
           </div>
@@ -90,9 +120,15 @@ export default function Expenses({ country, data: d, flag }) {
               <tbody>
                 {d.irrProj.map((p, i) => (
                   <tr key={i} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                    <td style={{ padding: "9px 12px" }}>{p.name}</td>
-                    <td style={{ padding: "9px 12px", color: C.blueGrey }}>{p.funder}</td>
-                    <td style={{ padding: "9px 12px", fontWeight: 600, color: C.navy }}>{fmt(p.amount)}</td>
+                    <td style={{ padding: "9px 12px" }}>
+                      <EditableCell value={p.name} path={`irrProj.${i}.name`} onEdit={onEdit} type="text" align="left" />
+                    </td>
+                    <td style={{ padding: "9px 12px", color: C.blueGrey }}>
+                      <EditableCell value={p.funder} path={`irrProj.${i}.funder`} onEdit={onEdit} type="text" align="left" />
+                    </td>
+                    <td style={{ padding: "9px 12px", fontWeight: 600, color: C.navy }}>
+                      <EditableCell value={p.amount} display={fmt(p.amount)} path={`irrProj.${i}.amount`} onEdit={onEdit} />
+                    </td>
                   </tr>
                 ))}
                 <tr style={{ background: "#f8f8f8", fontWeight: 700 }}>

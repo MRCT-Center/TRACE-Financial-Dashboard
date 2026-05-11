@@ -25,6 +25,20 @@ const MOCK_USERS = {
 
 const COUNTRY_NAMES = Object.keys(COUNTRIES);
 
+function deepSet(obj, path, value) {
+  const keys = path.split(".");
+  const clone = Array.isArray(obj) ? [...obj] : { ...obj };
+  let cur = clone;
+  for (let i = 0; i < keys.length - 1; i++) {
+    const k = keys[i];
+    const next = cur[k];
+    cur[k] = Array.isArray(next) ? [...next] : { ...next };
+    cur = cur[k];
+  }
+  cur[keys[keys.length - 1]] = value;
+  return clone;
+}
+
 const ADMIN_VIEWS = [
   { id: "intro",     label: "Intro"         },
   { id: "wizard",    label: "Guided Wizard" },
@@ -104,6 +118,12 @@ export default function App() {
     if (error) console.warn("Save failed:", error.message);
   }
 
+  const handleEdit = useCallback(async (path, value) => {
+    const current = countryCache[selectedCountry];
+    const updated = deepSet(current, path, value);
+    await saveCountryData(selectedCountry, updated);
+  }, [selectedCountry, countryCache]); // eslint-disable-line
+
   function handleLogin(email, password) {
     const user = MOCK_USERS[email.toLowerCase()];
     if (!user || user.password !== password) return "Invalid email or password.";
@@ -149,10 +169,10 @@ export default function App() {
               onSave={(updates) => saveCountryData(selectedCountry, updates)}
             />
           )}
-          {view === "overview"   && <Overview country={selectedCountry} data={countryData} flag={flag} />}
-          {view === "expenses"   && <Expenses country={selectedCountry} data={countryData} flag={flag} />}
-          {view === "revenue"    && <Revenue country={selectedCountry} data={countryData} flag={flag} />}
-          {view === "gap"        && <GapView country={selectedCountry} data={countryData} flag={flag} />}
+          {view === "overview"   && <Overview country={selectedCountry} data={countryData} flag={flag} onEdit={handleEdit} />}
+          {view === "expenses"   && <Expenses country={selectedCountry} data={countryData} flag={flag} onEdit={handleEdit} />}
+          {view === "revenue"    && <Revenue country={selectedCountry} data={countryData} flag={flag} onEdit={handleEdit} />}
+          {view === "gap"        && <GapView country={selectedCountry} data={countryData} flag={flag} onEdit={handleEdit} />}
           {view === "activities" && <Activities country={selectedCountry} data={countryData} flag={flag} />}
           {view === "admin"      && isAdmin && (
             <AdminDashboard
@@ -163,7 +183,7 @@ export default function App() {
           )}
         </main>
         <footer style={{ background: C.navy, color: "#fff", padding: "12px 20px", fontSize: 12, textAlign: "center", opacity: 0.85 }}>
-          TRACE Financial Dashboard · MRCT Center at Harvard · Prototype {new Date().getFullYear()}
+          TRACE Financial Dashboard · MRCT Center · Prototype {new Date().getFullYear()}
         </footer>
       </div>
     </CurrencyProvider>
@@ -243,7 +263,7 @@ function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange,
             Sign out
           </button>
         </div>
-        <img src="/mrct-shield.png" alt="MRCT" style={{ height: 36, objectFit: "contain", opacity: 0.9 }} />
+        <img src="/mrct-shield.png" alt="MRCT Center" style={{ height: 36, objectFit: "contain", opacity: 0.9 }} />
       </div>
     </header>
   );

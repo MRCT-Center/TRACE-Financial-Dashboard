@@ -13,7 +13,7 @@ const WORKBOOK_TABS = [
 const HOW_TO_START = [
   { icon: "📝", heading: "New to this tool?", body: "Start with the Guided Wizard — it will walk you through entering your country's data step by step.", view: "wizard" },
   { icon: "📊", heading: "Reviewing existing data?", body: "Go to Overview for a high-level summary, then use Expenses, Revenue, or Gap Analysis to explore specific areas.", view: "overview" },
-  { icon: "🌍", heading: "MRCT Admin?", body: "Use the country selector in the top menu to switch between countries. The Admin tab shows cross-country comparisons and data completeness.", view: "admin", adminOnly: true },
+  { icon: "🌍", heading: "MRCT Center Admin?", body: "Use the country selector in the top menu to switch between countries. The Admin tab shows cross-country comparisons and data completeness.", view: "admin", adminOnly: true },
 ];
 
 export default function IntroPage({ onNavigate, isAdmin }) {
@@ -72,15 +72,33 @@ export default function IntroPage({ onNavigate, isAdmin }) {
 
         <Section title="About the TRACE project">
           <p style={bodyText}>
-            TRACE is a Gates Foundation-funded initiative led by the MRCT Center at Harvard's
-            Brigham and Women's Hospital. It works with research ethics committees in five
-            sub-Saharan African countries to strengthen ethical oversight of clinical trials,
-            build local capacity, and advance sustainable financing for ethics review.
+            TRACE is a multi-country initiative working with ethics committees and regulators in Rwanda,
+            Tanzania, Nigeria, Zimbabwe, and Kenya to strengthen and harmonize clinical trial oversight.
+            By improving capacity, governance, and digital systems, TRACE makes ethics and regulatory
+            processes more transparent, predictable, and efficient while ensuring strong participant protection.
           </p>
           <p style={{ ...bodyText, marginTop: 10 }}>
-            This dashboard supports that mission by giving country teams and MRCT staff a shared,
-            data-driven view of the financial health of each REC.
+            TRACE is led by the MRCT Center at Harvard's Brigham and Women's Hospital, with support from the Gates Foundation.
+            This dashboard supports the TRACE mission by giving country teams and MRCT Center staff a shared,
+            data-driven view of the financial health of each ethics committee.
           </p>
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 10 }}>Key objectives</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+              {[
+                "Streamline and harmonize clinical trial ethics review processes in participating countries.",
+                "Build capacity for National Ethics Committees (NECs) and Institutional Review Boards (IRBs), in collaboration with National Regulatory Authorities (NRAs).",
+                "Strengthen and optimize digital systems for ethics and clinical trial oversight to improve efficiency, transparency, and coordination within each TRACE country.",
+                "Engage policymakers, regulators, and institutional stakeholders to strengthen ethics governance and coordination.",
+                "Ensure all NECs implement a financial sustainability plan to support long-term operational effectiveness.",
+              ].map((obj, i) => (
+                <div key={i} style={{ display: "flex", gap: 10, padding: "9px 12px", background: "#f4f6f8", borderRadius: 6, borderLeft: `3px solid ${C.teal}` }}>
+                  <span style={{ color: C.teal, fontWeight: 700, minWidth: 20, fontSize: 13 }}>{i + 1}.</span>
+                  <span style={{ fontSize: 13, color: "#333", lineHeight: 1.55 }}>{obj}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </Section>
 
         <Section title="How to get started">

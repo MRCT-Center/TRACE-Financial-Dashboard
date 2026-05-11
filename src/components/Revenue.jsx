@@ -1,8 +1,9 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from "recharts";
 import { gm, fmtPct, COLORS as C } from "../utils/metrics";
 import { useCurrency } from "../utils/CurrencyContext";
+import EditableCell from "./EditableCell";
 
-export default function Revenue({ country, data: d, flag }) {
+export default function Revenue({ country, data: d, flag, onEdit }) {
   const { fmt } = useCurrency();
   const m = gm(d);
 
@@ -126,7 +127,7 @@ export default function Revenue({ country, data: d, flag }) {
 
       <Card title="Fee Schedule">
         <p style={narrativeStyle}>
-          Full fee schedule for all review types. Counts shown separately for professional and student submissions.
+          Full fee schedule for all review types. Counts shown separately for professional and student submissions. Click any value to edit.
         </p>
         <div style={{ overflowX: "auto", marginTop: 12 }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -141,11 +142,21 @@ export default function Revenue({ country, data: d, flag }) {
               {feeRows.map((f, i) => (
                 <tr key={i} style={{ borderBottom: "1px solid #f0f0f0" }}>
                   <td style={{ padding: "9px 10px" }}>{f.type}</td>
-                  <td style={{ padding: "9px 10px" }}>{fmt(f.ind)}</td>
-                  <td style={{ padding: "9px 10px", color: C.blueGrey }}>{f.ctPro || 0}</td>
-                  <td style={{ padding: "9px 10px" }}>{fmt(f.ngo)}</td>
-                  <td style={{ padding: "9px 10px", color: C.blueGrey }}>{f.ctStu || 0}</td>
-                  <td style={{ padding: "9px 10px", fontWeight: 600, color: C.navy }}>{fmt(f.rev || 0)}</td>
+                  <td style={{ padding: "9px 10px" }}>
+                    <EditableCell value={f.ind} display={fmt(f.ind)} path={`fees.${i}.ind`} onEdit={onEdit} />
+                  </td>
+                  <td style={{ padding: "9px 10px", color: C.blueGrey }}>
+                    <EditableCell value={f.ctPro || 0} path={`fees.${i}.ctPro`} onEdit={onEdit} />
+                  </td>
+                  <td style={{ padding: "9px 10px" }}>
+                    <EditableCell value={f.ngo} display={fmt(f.ngo)} path={`fees.${i}.ngo`} onEdit={onEdit} />
+                  </td>
+                  <td style={{ padding: "9px 10px", color: C.blueGrey }}>
+                    <EditableCell value={f.ctStu || 0} path={`fees.${i}.ctStu`} onEdit={onEdit} />
+                  </td>
+                  <td style={{ padding: "9px 10px", fontWeight: 600, color: C.navy }}>
+                    <EditableCell value={f.rev || 0} display={fmt(f.rev || 0)} path={`fees.${i}.rev`} onEdit={onEdit} />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -154,28 +165,33 @@ export default function Revenue({ country, data: d, flag }) {
       </Card>
 
       <Card title="Irregular Revenue">
-        {(!d.ri || Object.values(d.ri).every((v) => v === 0)) ? (
-          <p style={narrativeStyle}>No irregular revenue recorded.</p>
-        ) : (
-          <>
-            <p style={narrativeStyle}>
-              Irregular revenue comes from time-limited grants and project funding. It does not recur annually.
-            </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 12 }}>
-              {Object.entries(d.ri).filter(([, v]) => v > 0).map(([k, v]) => (
-                <div key={k} style={{ flex: "1 1 150px", background: "#f4f6f8", borderRadius: 7, padding: "12px 14px" }}>
-                  <div style={{ fontSize: 12, color: C.blueGrey, textTransform: "capitalize" }}>{k}</div>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: C.purple, marginTop: 4 }}>{fmt(v)}</div>
+        <p style={narrativeStyle}>
+          Irregular revenue comes from time-limited grants and project funding. It does not recur annually. Click any value to edit.
+        </p>
+        {d.ri && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 12 }}>
+            {Object.entries(d.ri).map(([k, v]) => (
+              <div key={k} style={{ flex: "1 1 150px", background: "#f4f6f8", borderRadius: 7, padding: "12px 14px" }}>
+                <div style={{ fontSize: 12, color: C.blueGrey, textTransform: "capitalize" }}>{k}</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: C.purple, marginTop: 4 }}>
+                  <EditableCell value={v} display={fmt(v)} path={`ri.${k}`} onEdit={onEdit} />
                 </div>
-              ))}
-            </div>
-            {d.grantEnd && (
-              <div style={{ marginTop: 12, fontSize: 12, color: C.blueGrey, background: "#fff8e8", borderRadius: 6, padding: "8px 12px", borderLeft: `3px solid ${C.yellow}` }}>
-                Primary grant ends: <strong>{d.grantEnd}</strong>
               </div>
-            )}
-          </>
+            ))}
+          </div>
         )}
+        <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, background: "#fff8e8", borderRadius: 6, padding: "8px 12px", borderLeft: `3px solid ${C.yellow}`, fontSize: 12, color: C.blueGrey }}>
+          Primary grant ends:&nbsp;
+          <strong>
+            <EditableCell
+              value={d.grantEnd || ""}
+              path="grantEnd"
+              onEdit={onEdit}
+              type="text"
+              align="left"
+            />
+          </strong>
+        </div>
       </Card>
     </div>
   );
