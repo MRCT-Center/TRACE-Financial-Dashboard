@@ -44,15 +44,23 @@ export default function Revenue({ country, data: d, flag }) {
           Each bar shows total fee revenue for a review type, split between professional (sponsor-funded) and student reviews.
           Professional reviews typically generate more revenue per review.
         </p>
+        {/* Custom legend above the chart so it never overlaps */}
+        <div style={{ display: "flex", gap: 16, marginTop: 10, marginBottom: 4 }}>
+          {[{ label: "Professional", color: C.navy }, { label: "Student", color: C.teal }].map(({ label, color }) => (
+            <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#444" }}>
+              <div style={{ width: 12, height: 12, borderRadius: 3, background: color, flexShrink: 0 }} />
+              {label}
+            </div>
+          ))}
+        </div>
         {stackedData.length > 0 ? (
-          <div style={{ height: 240, marginTop: 14 }}>
+          <div style={{ height: 240 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stackedData} margin={{ top: 4, right: 20, left: 4, bottom: 20 }}>
+              <BarChart data={stackedData} margin={{ top: 4, right: 20, left: 4, bottom: 24 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="type" fontSize={11} angle={-20} textAnchor="end" interval={0} />
                 <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} fontSize={11} />
                 <Tooltip formatter={(v, name) => [fmt(v), name === "professional" ? "Professional" : "Student"]} />
-                <Legend formatter={(v) => v === "professional" ? "Professional" : "Student"} />
                 <Bar dataKey="professional" stackId="a" fill={C.navy} name="professional" />
                 <Bar dataKey="student" stackId="a" fill={C.teal} name="student" radius={[4, 4, 0, 0]} />
               </BarChart>
