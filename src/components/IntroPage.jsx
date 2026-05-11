@@ -127,6 +127,25 @@ export default function IntroPage({ onNavigate, isAdmin }) {
           </div>
         </Section>
 
+        <Section title="MRCT Center's role in TRACE" logo={<img src="/mrct-shield.png" alt="MRCT Center" style={{ height: 40, objectFit: "contain" }} />}>
+          <p style={bodyText}>
+            The Multi-Regional Clinical Trials Center of Brigham and Women's Hospital and Harvard (MRCT Center)
+            is the training partner within TRACE, funded by the Gates Foundation. The MRCT Center supports the
+            distinct needs of each country, focused on capacity building and financial sustainability, with particular
+            attention to registration, accreditation pathways, in-country reliance, and sustainable financing models.
+          </p>
+          <p style={{ ...bodyText, marginTop: 10 }}>
+            In parallel, the MRCT Center team has developed harmonized foundational training and is now working on
+            advanced training and post-approval monitoring activities. These resources can be applied consistently
+            across partner countries while remaining responsive to local contexts and priorities.
+          </p>
+          <p style={{ ...bodyText, marginTop: 10 }}>
+            This financial dashboard was developed by the MRCT Center as part of that capacity-building work —
+            to give country teams a shared, structured way to understand their ethics review system's finances
+            and plan for long-term sustainability.
+          </p>
+        </Section>
+
         <Section title="Why this dashboard?">
           <p style={{ ...bodyText, marginBottom: 14 }}>
             This dashboard was developed to help ethics committees across TRACE countries build a clear,
