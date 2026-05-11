@@ -76,7 +76,7 @@ export default function IntroPage({ onNavigate, isAdmin }) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
-        <Section title="About the TRACE project">
+        <Section title="About the TRACE Project" logo={<img src="/trace-logo.png" alt="TRACE" style={{ height: 40, objectFit: "contain" }} />}>
           <p style={bodyText}>
             TRACE (Trial Regulation and Clinical Ethics Optimization) is a multi-country initiative
             launched in 2025 to strengthen and harmonize clinical trial ethics and regulatory oversight
@@ -213,10 +213,13 @@ export default function IntroPage({ onNavigate, isAdmin }) {
   );
 }
 
-function Section({ title, children }) {
+function Section({ title, children, logo }) {
   return (
     <div style={{ background: "#fff", borderRadius: 9, padding: "22px 24px", border: "1px solid #dde" }}>
-      <h2 style={{ fontSize: 16, fontWeight: 700, color: C.navy, marginBottom: 14, paddingBottom: 10, borderBottom: "1px solid #eee" }}>{title}</h2>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, paddingBottom: 10, borderBottom: "1px solid #eee" }}>
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: C.navy, margin: 0 }}>{title}</h2>
+        {logo && logo}
+      </div>
       {children}
     </div>
   );
