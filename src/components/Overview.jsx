@@ -2,6 +2,7 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis
 import { gm, fmtPct, COLORS as C } from "../utils/metrics";
 import { useCurrency } from "../utils/CurrencyContext";
 import EditableCell from "./EditableCell";
+import InfoTip, { Def } from "./InfoTip";
 
 const EXP_COLORS = [C.navy, C.teal, C.steelblue, C.purple, C.blueGrey, C.darkTeal, C.orange];
 
@@ -247,7 +248,7 @@ function InKindCard({ d, onEdit }) {
   const ik = d.ikReg || { federal: 0, institutional: 0, other: 0, total: 0 };
 
   return (
-    <Card title="In-Kind Contributions" style={{ flex: "1 1 280px" }}>
+    <Card title={<>In-Kind Contributions<InfoTip title="What are in-kind contributions?">Non-cash support from federal agencies, universities, and other institutions — donated staff time, office space, equipment, and utilities. These are real resources that don't appear in the formal budget but matter for understanding true operating costs and financial sustainability.<br /><br /><strong style={{ color: "#a90533" }}>Advocacy note:</strong> Some funders may view documented in-kind contributions as evidence they have "given enough" and use it as justification not to provide additional monetary funding. Use with care in advocacy materials.</InfoTip></>} style={{ flex: "1 1 280px" }}>
       <p style={narrativeStyle}>
         In-kind contributions are non-cash support — staff time, office space, or equipment donated by
         federal agencies, universities, or other institutions. Click any value to edit. These are not yet included in gap calculations.
@@ -281,8 +282,8 @@ function InKindCard({ d, onEdit }) {
 
 function Card({ title, children, style = {} }) {
   return (
-    <div style={{ background: "#fff", borderRadius: 9, border: "1px solid #dde", overflow: "hidden", ...style }}>
-      <div style={{ background: C.lightBG, padding: "10px 16px", fontSize: 13, fontWeight: 700, color: C.navy, borderBottom: "1px solid #dde" }}>
+    <div style={{ background: "#fff", borderRadius: 9, border: "1px solid #dde", ...style }}>
+      <div style={{ background: C.lightBG, padding: "10px 16px", fontSize: 13, fontWeight: 700, color: C.navy, borderBottom: "1px solid #dde", borderRadius: "9px 9px 0 0" }}>
         {title}
       </div>
       <div style={{ padding: "14px 16px" }}>{children}</div>

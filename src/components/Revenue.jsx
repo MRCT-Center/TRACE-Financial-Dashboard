@@ -2,6 +2,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { gm, fmtPct, COLORS as C } from "../utils/metrics";
 import { useCurrency } from "../utils/CurrencyContext";
 import EditableCell from "./EditableCell";
+import InfoTip, { Def } from "./InfoTip";
 
 export default function Revenue({ country, data: d, flag, onEdit }) {
   const { fmt } = useCurrency();
@@ -74,7 +75,7 @@ export default function Revenue({ country, data: d, flag, onEdit }) {
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 20 }}>
         {funderData.length > 0 && (
-          <Card title="Revenue from Fees by Funder Type" style={{ flex: "1 1 260px" }}>
+          <Card title={<>Revenue from Fees by Funder Type<InfoTip title="Funder types"><Def term="Industry / Sponsor">Pharmaceutical companies, CROs, and other commercial sponsors conducting clinical trials. Typically pay the full professional fee rate.</Def><Def term="Institution / NGO">Universities, research institutes, NGOs, and government-funded studies. Often qualify for the reduced (student/institutional) fee rate.</Def>The split reflects who is funding the research — not who conducts it.</InfoTip></>} style={{ flex: "1 1 260px" }}>
             <p style={narrativeStyle}>
               Industry-sponsored trials typically pay higher fees. Institution and NGO studies often qualify for reduced rates.
             </p>
@@ -125,7 +126,7 @@ export default function Revenue({ country, data: d, flag, onEdit }) {
         </Card>
       </div>
 
-      <Card title="Fee Schedule">
+      <Card title={<>Fee Schedule<InfoTip title="Review types and fees"><Def term="Initial / Full review">New study protocols requiring full board consideration. The most time-intensive review type.</Def><Def term="Minimal risk">Expedited review by one or two reviewers. Lower fee reflects reduced committee time.</Def><Def term="More than minimal risk">Requires full board discussion. Highest fee tier.</Def><Def term="Accelerated review">Urgent protocols needing faster turnaround — typically public health emergencies.</Def><Def term="Continuing review">Annual re-approval of ongoing studies to confirm conditions haven't changed.</Def><Def term="Major amendment">Significant changes to study design, consent documents, or principal investigator.</Def><Def term="Minor amendment">Non-substantive administrative changes that don't affect participant risk.</Def></InfoTip></>}>
         <p style={narrativeStyle}>
           Full fee schedule for all review types. Counts shown separately for professional and student submissions. Click any value to edit.
         </p>
@@ -164,7 +165,7 @@ export default function Revenue({ country, data: d, flag, onEdit }) {
         </div>
       </Card>
 
-      <Card title="Irregular Revenue">
+      <Card title={<>Irregular Revenue<InfoTip title="Irregular revenue">Time-limited grants and project funding that does not recur annually. Most irregular revenue is restricted — it can only be used for the specific project it was granted for, not to cover general operating costs. A high dependency on a single grant source creates financial risk if that grant ends or is not renewed.</InfoTip></>}>
         <p style={narrativeStyle}>
           Irregular revenue comes from time-limited grants and project funding. It does not recur annually. Click any value to edit.
         </p>
@@ -208,8 +209,8 @@ function KPI({ label, val, color }) {
 
 function Card({ title, children, style = {} }) {
   return (
-    <div style={{ background: "#fff", borderRadius: 9, border: "1px solid #dde", overflow: "hidden", ...style }}>
-      <div style={{ background: C.lightBG, padding: "10px 16px", fontSize: 13, fontWeight: 700, color: C.navy, borderBottom: "1px solid #dde" }}>{title}</div>
+    <div style={{ background: "#fff", borderRadius: 9, border: "1px solid #dde", ...style }}>
+      <div style={{ background: C.lightBG, padding: "10px 16px", fontSize: 13, fontWeight: 700, color: C.navy, borderBottom: "1px solid #dde", borderRadius: "9px 9px 0 0" }}>{title}</div>
       <div style={{ padding: "14px 16px" }}>{children}</div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { gm, fmtPct, COLORS as C } from "../utils/metrics";
 import { useCurrency } from "../utils/CurrencyContext";
+import InfoTip, { Def } from "./InfoTip";
 
 export default function GapView({ country, data: d, flag }) {
   const { fmt } = useCurrency();
@@ -29,7 +30,7 @@ export default function GapView({ country, data: d, flag }) {
         <GapKPI label="Combined Gap" val={m.cg} large />
       </div>
 
-      <Card title="Advocacy Summary">
+      <Card title={<>Advocacy Summary<InfoTip title="Using this for advocacy">This summary is designed to help make the case to policymakers, ministries, and funders — showing what the ethics committee does and what it costs. Review volume, fee structures, and funding gaps are all ethics maturity indicators that support requests for increased and sustainable funding.</InfoTip></>}>
         <p style={{ fontSize: 14, color: C.navy, lineHeight: 1.75, background: C.lightBG, borderRadius: 8, padding: "14px 18px" }}>
           {country} conducts <strong>{initialReviews}</strong> initial review{initialReviews !== 1 ? "s" : ""},
           {otherReviews > 0 ? ` ${otherReviews} other type${otherReviews !== 1 ? "s" : ""} of review,` : ""}
@@ -85,7 +86,7 @@ export default function GapView({ country, data: d, flag }) {
         </Card>
       )}
 
-      <Card title="Summary Table">
+      <Card title={<>Summary Table<InfoTip title="Reading the combined gap">The combined gap adds regular and irregular budgets together. Important caveat: irregular revenue is typically restricted to specific projects and cannot be used to cover general operating costs. Even if the combined gap looks positive, a regular budget deficit may represent real operational risk — the two budgets should be read separately as well as together.</InfoTip></>}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ background: C.lightBG }}>
@@ -133,8 +134,8 @@ function GapKPI({ label, val, large = false }) {
 
 function Card({ title, children }) {
   return (
-    <div style={{ background: "#fff", borderRadius: 9, border: "1px solid #dde", overflow: "hidden" }}>
-      <div style={{ background: C.lightBG, padding: "10px 16px", fontSize: 13, fontWeight: 700, color: C.navy, borderBottom: "1px solid #dde" }}>{title}</div>
+    <div style={{ background: "#fff", borderRadius: 9, border: "1px solid #dde" }}>
+      <div style={{ background: C.lightBG, padding: "10px 16px", fontSize: 13, fontWeight: 700, color: C.navy, borderBottom: "1px solid #dde", borderRadius: "9px 9px 0 0" }}>{title}</div>
       <div style={{ padding: "14px 16px" }}>{children}</div>
     </div>
   );

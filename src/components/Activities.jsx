@@ -1,4 +1,5 @@
 import { COLORS as C } from "../utils/metrics";
+import InfoTip from "./InfoTip";
 
 const ACTIVITY_DESCRIPTIONS = {
   "Managing and leading": "Drafting and updating SOPs; drafting and communicating policies; updating forms; creating email and letter templates; reviewing website plans; networking and engaging new partners; hiring and managing staff; managing budgets; organizing meetings.",
@@ -51,7 +52,7 @@ export default function Activities({ country, data: d, flag }) {
         <Card title="Activity Expectations">
           <p style={narrativeStyle}>
             Each activity shows whether the country team expects effort to increase, decrease, or remain the same —
-            both in the near term (next year) and long term (3–5 years). Hover over the activity name for a full description.
+            both in the near term (next year) and long term (3–5 years). Click the ℹ button next to any activity name for a full description.
           </p>
           <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "8px 12px", padding: "6px 10px", fontSize: 11, fontWeight: 700, color: C.blueGrey, textTransform: "uppercase", letterSpacing: 0.5 }}>
@@ -65,8 +66,9 @@ export default function Activities({ country, data: d, flag }) {
               const longStyle = TREND_COLORS[a.longTerm?.toLowerCase()] || TREND_COLORS["remain the same"];
               return (
                 <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "8px 12px", padding: "10px", background: i % 2 === 0 ? "#f9f9fb" : "#fff", borderRadius: 7, alignItems: "start" }}>
-                  <div title={desc} style={{ fontSize: 13, color: C.navy, cursor: "help", lineHeight: 1.4 }}>
-                    {a.name}
+                  <div style={{ fontSize: 13, color: C.navy, lineHeight: 1.4 }}>
+                    <span>{a.name}</span>
+                    {desc && desc !== a.name && <InfoTip title={a.name}>{desc}</InfoTip>}
                     {a.note && <div style={{ fontSize: 11, color: C.blueGrey, marginTop: 3, fontStyle: "italic" }}>{a.note}</div>}
                   </div>
                   <TrendBadge label={TREND_LABELS[a.nearTerm?.toLowerCase()] || a.nearTerm} style={nearStyle} />
@@ -114,8 +116,8 @@ function KPI({ label, val, color }) {
 
 function Card({ title, children }) {
   return (
-    <div style={{ background: "#fff", borderRadius: 9, border: "1px solid #dde", overflow: "hidden" }}>
-      <div style={{ background: C.lightBG, padding: "10px 16px", fontSize: 13, fontWeight: 700, color: C.navy, borderBottom: "1px solid #dde" }}>{title}</div>
+    <div style={{ background: "#fff", borderRadius: 9, border: "1px solid #dde" }}>
+      <div style={{ background: C.lightBG, padding: "10px 16px", fontSize: 13, fontWeight: 700, color: C.navy, borderBottom: "1px solid #dde", borderRadius: "9px 9px 0 0" }}>{title}</div>
       <div style={{ padding: "14px 16px" }}>{children}</div>
     </div>
   );
