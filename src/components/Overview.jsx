@@ -1,10 +1,12 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
-import { gm, fmt, fmtPct, COLORS as C } from "../utils/metrics";
+import { gm, fmtPct, COLORS as C } from "../utils/metrics";
+import { useCurrency } from "../utils/CurrencyContext";
 
 const EXP_COLORS = [C.navy, C.teal, C.steelblue, C.purple, C.blueGrey, C.darkTeal, C.orange];
 
 export default function Overview({ country, data: d, flag }) {
   const m = gm(d);
+  const { fmt } = useCurrency();
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -23,6 +25,7 @@ export default function Overview({ country, data: d, flag }) {
 }
 
 function PageHeader({ country, flag, m }) {
+  const { fmt } = useCurrency();
   const gap = m.cg;
   return (
     <div style={{ background: C.navy, borderRadius: 10, padding: "18px 24px", color: "#fff", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
@@ -42,6 +45,7 @@ function PageHeader({ country, flag, m }) {
 }
 
 function KPIColumns({ m, d }) {
+  const { fmt } = useCurrency();
   const ikTotal = m.ik;
   const cols = [
     {
@@ -110,6 +114,7 @@ function KPIColumns({ m, d }) {
 }
 
 function ExpensePieCard({ d }) {
+  const { fmt } = useCurrency();
   const erLabels = {
     secSal: "Secretariat salaries", secBen: "Secretariat benefits", secRec: "Secretariat recurring",
     nSal: "NEC payments", nBen: "NEC benefits", nRec: "NEC recurring",
@@ -165,6 +170,7 @@ function ExpensePieCard({ d }) {
 }
 
 function IrrExpenseCard({ d }) {
+  const { fmt } = useCurrency();
   if (!d.irrProj || d.irrProj.length === 0) {
     return (
       <Card title="Irregular Expenses by Funder" style={{ flex: "1 1 300px" }}>
@@ -236,6 +242,7 @@ function DepBar({ label, pct, color }) {
 }
 
 function InKindCard({ d }) {
+  const { fmt } = useCurrency();
   const ik = d.ikReg;
   const hasData = ik && ik.total > 0;
 
@@ -286,6 +293,7 @@ function Card({ title, children, style = {} }) {
 }
 
 function PieLegend({ items }) {
+  const { fmt } = useCurrency();
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", marginTop: 10 }}>
       {items.map((item) => (

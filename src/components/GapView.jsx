@@ -1,7 +1,9 @@
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { gm, fmt, fmtPct, COLORS as C } from "../utils/metrics";
+import { gm, fmtPct, COLORS as C } from "../utils/metrics";
+import { useCurrency } from "../utils/CurrencyContext";
 
 export default function GapView({ country, data: d, flag }) {
+  const { fmt } = useCurrency();
   const m = gm(d);
 
   const totalReviews = d.fees ? d.fees.reduce((s, f) => s + (f.ctPro || 0) + (f.ctStu || 0), 0) : 0;
@@ -118,6 +120,7 @@ export default function GapView({ country, data: d, flag }) {
 }
 
 function GapKPI({ label, val, large = false }) {
+  const { fmt } = useCurrency();
   const color = val >= 0 ? C.green : C.red;
   return (
     <div style={{ flex: large ? "1 1 200px" : "1 1 150px", background: "#fff", border: `1px solid #dde`, borderTop: `3px solid ${color}`, borderRadius: 9, padding: "14px 16px" }}>

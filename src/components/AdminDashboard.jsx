@@ -1,5 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { gm, fmt, fmtPct, COLORS as C } from "../utils/metrics";
+import { gm, fmt, COLORS as C } from "../utils/metrics";
+// Admin always shows USD for cross-country comparison — uses metrics fmt directly, not currency context
 
 export default function AdminDashboard({ countries, flags, onNavigate }) {
   const countryNames = Object.keys(countries);

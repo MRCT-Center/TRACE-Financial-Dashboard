@@ -18,7 +18,7 @@ const HOW_TO_START = [
 
 export default function IntroPage() {
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto" }}>
+    <div style={{ maxWidth: 960, margin: "0 auto", width: "100%" }}>
       <div style={{ background: C.navy, borderRadius: 10, padding: "28px 32px", color: "#fff", marginBottom: 24 }}>
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: C.yellow, marginBottom: 8 }}>
           TRACE — Trial REsearch and Accountability for Clinical Ethics

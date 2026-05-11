@@ -94,7 +94,7 @@ export default function GuidedWizard({ country, data }) {
   }
 
   return (
-    <div style={{ maxWidth: 760, margin: "0 auto" }}>
+    <div style={{ maxWidth: 960, margin: "0 auto", width: "100%" }}>
       <div style={{ background: C.navy, borderRadius: 10, padding: "16px 22px", color: "#fff", marginBottom: 20 }}>
         <div style={{ fontSize: 18, fontWeight: 700 }}>Guided Wizard — {country}</div>
         <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>Enter data step by step. Each step requires a data source and notes before advancing.</div>

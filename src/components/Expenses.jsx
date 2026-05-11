@@ -1,5 +1,6 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { gm, fmt, COLORS as C } from "../utils/metrics";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { gm, COLORS as C } from "../utils/metrics";
+import { useCurrency } from "../utils/CurrencyContext";
 
 const REG_LABELS = {
   secSal: "Secretariat — Salaries",
@@ -13,6 +14,7 @@ const REG_LABELS = {
 };
 
 export default function Expenses({ country, data: d, flag }) {
+  const { fmt } = useCurrency();
   const m = gm(d);
   const regRows = Object.entries(d.er).filter(([, v]) => v > 0).map(([k, v]) => ({ category: REG_LABELS[k] || k, amount: v }));
   const necTotal = (d.er.nSal || 0) + (d.er.nBen || 0) + (d.er.nRec || 0);

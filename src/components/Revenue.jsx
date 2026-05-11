@@ -1,7 +1,9 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from "recharts";
-import { gm, fmt, fmtPct, COLORS as C } from "../utils/metrics";
+import { gm, fmtPct, COLORS as C } from "../utils/metrics";
+import { useCurrency } from "../utils/CurrencyContext";
 
 export default function Revenue({ country, data: d, flag }) {
+  const { fmt } = useCurrency();
   const m = gm(d);
 
   // Build stacked fee chart data — use authoritative `rev` field, split by count ratio

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { COUNTRY_FLAGS, COLORS as C } from "./utils/metrics";
 import { COUNTRIES } from "./data/countries";
+import { CurrencyProvider, COUNTRY_CURRENCIES, CURRENCIES, useCurrency } from "./utils/CurrencyContext";
 import LoginPage from "./components/LoginPage";
 import IntroPage from "./components/IntroPage";
 import Overview from "./components/Overview";
@@ -72,35 +73,40 @@ export default function App() {
   const flag = COUNTRY_FLAGS[selectedCountry] || "";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "100svh" }}>
-      <Header
-        isAdmin={isAdmin}
-        selectedCountry={selectedCountry}
-        flag={flag}
-        countryNames={COUNTRY_NAMES}
-        onCountryChange={(c) => setSelectedCountry(c)}
-        onLogout={handleLogout}
-        email={session.email}
-      />
-      <NavBar views={views} current={view} onSelect={setView} />
-      <main style={{ flex: 1, padding: "20px 16px", maxWidth: 1200, margin: "0 auto", width: "100%" }}>
-        {view === "intro"      && <IntroPage />}
-        {view === "wizard"     && <GuidedWizard country={selectedCountry} data={countryData} />}
-        {view === "overview"   && <Overview country={selectedCountry} data={countryData} flag={flag} />}
-        {view === "expenses"   && <Expenses country={selectedCountry} data={countryData} flag={flag} />}
-        {view === "revenue"    && <Revenue country={selectedCountry} data={countryData} flag={flag} />}
-        {view === "gap"        && <GapView country={selectedCountry} data={countryData} flag={flag} />}
-        {view === "activities" && <Activities country={selectedCountry} data={countryData} flag={flag} />}
-        {view === "admin"      && isAdmin && <AdminDashboard countries={COUNTRIES} flags={COUNTRY_FLAGS} onNavigate={(c, v) => { setSelectedCountry(c); setView(v); }} />}
-      </main>
-      <footer style={{ background: C.navy, color: "#fff", padding: "12px 20px", fontSize: 12, textAlign: "center", opacity: 0.85 }}>
-        TRACE Financial Dashboard · MRCT Center at Harvard · Prototype {new Date().getFullYear()}
-      </footer>
-    </div>
+    <CurrencyProvider country={selectedCountry}>
+      <div style={{ display: "flex", flexDirection: "column", minHeight: "100svh" }}>
+        <Header
+          isAdmin={isAdmin}
+          selectedCountry={selectedCountry}
+          flag={flag}
+          countryNames={COUNTRY_NAMES}
+          onCountryChange={(c) => setSelectedCountry(c)}
+          onLogout={handleLogout}
+          email={session.email}
+        />
+        <NavBar views={views} current={view} onSelect={setView} />
+        <main style={{ flex: 1, padding: "20px 16px", maxWidth: 1200, margin: "0 auto", width: "100%" }}>
+          {view === "intro"      && <IntroPage />}
+          {view === "wizard"     && <GuidedWizard country={selectedCountry} data={countryData} />}
+          {view === "overview"   && <Overview country={selectedCountry} data={countryData} flag={flag} />}
+          {view === "expenses"   && <Expenses country={selectedCountry} data={countryData} flag={flag} />}
+          {view === "revenue"    && <Revenue country={selectedCountry} data={countryData} flag={flag} />}
+          {view === "gap"        && <GapView country={selectedCountry} data={countryData} flag={flag} />}
+          {view === "activities" && <Activities country={selectedCountry} data={countryData} flag={flag} />}
+          {view === "admin"      && isAdmin && <AdminDashboard countries={COUNTRIES} flags={COUNTRY_FLAGS} onNavigate={(c, v) => { setSelectedCountry(c); setView(v); }} />}
+        </main>
+        <footer style={{ background: C.navy, color: "#fff", padding: "12px 20px", fontSize: 12, textAlign: "center", opacity: 0.85 }}>
+          TRACE Financial Dashboard · MRCT Center at Harvard · Prototype {new Date().getFullYear()}
+        </footer>
+      </div>
+    </CurrencyProvider>
   );
 }
 
 function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange, onLogout, email }) {
+  const { showLocal, setShowLocal, displayCode, currency } = useCurrency();
+  const isUSD = displayCode === "USD";
+
   return (
     <header style={{
       background: C.navy,
@@ -113,7 +119,11 @@ function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange,
       flexWrap: "wrap",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <img src="/trace-logo.png" alt="TRACE" style={{ height: 40, objectFit: "contain" }} />
+        <img
+          src="/trace-logo.png"
+          alt="TRACE"
+          style={{ height: 40, objectFit: "contain", filter: "brightness(0) invert(1)" }}
+        />
         <div>
           <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: 0.5 }}>Financial Dashboard</div>
           <div style={{ fontSize: 11, opacity: 0.7 }}>MRCT Center at Harvard</div>
@@ -121,6 +131,37 @@ function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange,
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        {/* Currency toggle — hidden for admin cross-country view */}
+        {!isUSD || !isAdmin ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 0, border: `1px solid rgba(255,255,255,0.25)`, borderRadius: 7, overflow: "hidden", fontSize: 12 }}>
+            <button
+              onClick={() => setShowLocal(true)}
+              style={{
+                padding: "6px 11px",
+                minHeight: 36,
+                background: showLocal ? C.teal : "transparent",
+                color: "#fff",
+                fontWeight: showLocal ? 700 : 400,
+              }}
+            >
+              {currency.symbol} {currency.code}
+            </button>
+            <button
+              onClick={() => setShowLocal(false)}
+              style={{
+                padding: "6px 11px",
+                minHeight: 36,
+                background: !showLocal ? C.teal : "transparent",
+                color: "#fff",
+                fontWeight: !showLocal ? 700 : 400,
+                borderLeft: "1px solid rgba(255,255,255,0.2)",
+              }}
+            >
+              $ USD
+            </button>
+          </div>
+        ) : null}
+
         {isAdmin ? (
           <select
             value={selectedCountry}
