@@ -141,7 +141,7 @@ export default function App() {
         />
         <NavBar views={views} current={view} onSelect={setView} />
         <main style={{ flex: 1, padding: "20px 16px", maxWidth: 1200, margin: "0 auto", width: "100%" }}>
-          {view === "intro"      && <IntroPage />}
+          {view === "intro"      && <IntroPage onNavigate={setView} isAdmin={isAdmin} />}
           {view === "wizard"     && (
             <GuidedWizard
               country={selectedCountry}
@@ -193,7 +193,7 @@ function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange,
         <div>
           <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: 0.5 }}>Financial Dashboard</div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ fontSize: 11, opacity: 0.7 }}>MRCT Center at Harvard</div>
+            <div style={{ fontSize: 11, opacity: 0.7 }}>MRCT Center</div>
             {dbStatus === "loading" && <span style={{ fontSize: 10, opacity: 0.6 }}>⟳ connecting…</span>}
             {dbStatus === "ready"   && <span style={{ fontSize: 10, color: "#7ecf5a" }}>● live</span>}
             {dbStatus === "error"   && <span style={{ fontSize: 10, color: C.yellow }}>● offline</span>}

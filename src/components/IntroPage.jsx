@@ -11,12 +11,12 @@ const WORKBOOK_TABS = [
 ];
 
 const HOW_TO_START = [
-  { icon: "📝", heading: "New to this tool?", body: "Start with the Guided Wizard tab. It will walk you through entering your country's data step by step." },
-  { icon: "📊", heading: "Reviewing existing data?", body: "Go to Overview for a high-level summary, then use Expenses, Revenue, or Gap Analysis to explore specific areas." },
-  { icon: "🌍", heading: "MRCT Admin?", body: "Use the country selector in the top menu to switch between countries. The Admin tab shows cross-country comparisons and data completeness." },
+  { icon: "📝", heading: "New to this tool?", body: "Start with the Guided Wizard — it will walk you through entering your country's data step by step.", view: "wizard" },
+  { icon: "📊", heading: "Reviewing existing data?", body: "Go to Overview for a high-level summary, then use Expenses, Revenue, or Gap Analysis to explore specific areas.", view: "overview" },
+  { icon: "🌍", heading: "MRCT Admin?", body: "Use the country selector in the top menu to switch between countries. The Admin tab shows cross-country comparisons and data completeness.", view: "admin", adminOnly: true },
 ];
 
-export default function IntroPage() {
+export default function IntroPage({ onNavigate, isAdmin }) {
   return (
     <div style={{ maxWidth: 960, margin: "0 auto", width: "100%" }}>
       <div style={{ background: C.navy, borderRadius: 10, padding: "28px 32px", color: "#fff", marginBottom: 24 }}>
@@ -85,12 +85,28 @@ export default function IntroPage() {
 
         <Section title="How to get started">
           <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
-            {HOW_TO_START.map((item, i) => (
-              <div key={i} style={{ flex: "1 1 220px", background: "#fff", border: `1px solid #dde`, borderRadius: 9, padding: "16px 18px" }}>
+            {HOW_TO_START.filter((item) => !item.adminOnly || isAdmin).map((item, i) => (
+              <button
+                key={i}
+                onClick={() => onNavigate?.(item.view)}
+                style={{
+                  flex: "1 1 220px",
+                  background: "#fff",
+                  border: `1px solid ${C.teal}`,
+                  borderRadius: 9,
+                  padding: "16px 18px",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  transition: "box-shadow 0.15s, border-color 0.15s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 0 0 2px ${C.teal}`; }}
+                onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "none"; }}
+              >
                 <div style={{ fontSize: 22, marginBottom: 8 }}>{item.icon}</div>
                 <div style={{ fontWeight: 600, color: C.navy, fontSize: 14, marginBottom: 6 }}>{item.heading}</div>
                 <div style={{ fontSize: 13, color: "#444", lineHeight: 1.6 }}>{item.body}</div>
-              </div>
+                <div style={{ marginTop: 10, fontSize: 12, color: C.teal, fontWeight: 600 }}>Go →</div>
+              </button>
             ))}
           </div>
         </Section>
