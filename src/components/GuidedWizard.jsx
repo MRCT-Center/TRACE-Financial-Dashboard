@@ -53,19 +53,27 @@ const STEPS = [
   { id: "review",     label: "8. Review",        title: "Review & Submit" },
 ];
 
-export default function GuidedWizard({ country, data }) {
+export default function GuidedWizard({ country, data, onSave }) {
   const [step, setStep] = useState(0);
   const [currency, setCurrency] = useState(CURRENCIES[0]);
   const [hasRisks, setHasRisks] = useState("");
   const [hasOpps, setHasOpps] = useState("");
   const [riskText, setRiskText] = useState("");
   const [oppText, setOppText] = useState("");
-  const [activityRows, setActivityRows] = useState(
-    ACTIVITY_LIST.map((name) => ({ name, nearTerm: "", longTerm: "", note: "", sources: "", dataSource: "" }))
-  );
+  const [activityRows, setActivityRows] = useState(() => {
+    // Pre-populate from existing country data if available
+    const saved = data?.activities || [];
+    return ACTIVITY_LIST.map((name) => {
+      const existing = saved.find((a) => a.name === name);
+      return existing
+        ? { name, nearTerm: existing.nearTerm || "", longTerm: existing.longTerm || "", note: existing.note || "" }
+        : { name, nearTerm: "", longTerm: "", note: "" };
+    });
+  });
   const [stepSources, setStepSources] = useState(Array(STEPS.length).fill(""));
   const [stepNotes, setStepNotes] = useState(Array(STEPS.length).fill(""));
   const [submitted, setSubmitted] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const currentStep = STEPS[step];
   const canAdvance = stepSources[step].trim().length > 0 && stepNotes[step].trim().length > 0;
@@ -208,10 +216,24 @@ export default function GuidedWizard({ country, data }) {
           </button>
         ) : (
           <button
-            onClick={() => setSubmitted(true)}
-            style={{ ...navBtnStyle, background: C.green, color: "#fff" }}
+            onClick={async () => {
+              setSaving(true);
+              const updates = {
+                activities: activityRows,
+                hasRisks,
+                riskText,
+                hasOpps,
+                oppText,
+                currencyCode: currency.code,
+              };
+              if (onSave) await onSave(updates);
+              setSaving(false);
+              setSubmitted(true);
+            }}
+            disabled={saving}
+            style={{ ...navBtnStyle, background: saving ? C.blueGrey : C.green, color: "#fff" }}
           >
-            Submit ✓
+            {saving ? "Saving…" : "Submit ✓"}
           </button>
         )}
       </div>

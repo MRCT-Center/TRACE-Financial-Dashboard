@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { COUNTRY_FLAGS, COLORS as C } from "./utils/metrics";
 import { COUNTRIES } from "./data/countries";
 import { CurrencyProvider, COUNTRY_CURRENCIES, CURRENCIES, useCurrency } from "./utils/CurrencyContext";
+import { supabase } from "./supabaseClient";
 import LoginPage from "./components/LoginPage";
 import IntroPage from "./components/IntroPage";
 import Overview from "./components/Overview";
@@ -25,30 +26,83 @@ const MOCK_USERS = {
 const COUNTRY_NAMES = Object.keys(COUNTRIES);
 
 const ADMIN_VIEWS = [
-  { id: "intro",    label: "Intro"         },
-  { id: "wizard",   label: "Guided Wizard" },
-  { id: "overview", label: "Overview"      },
-  { id: "expenses", label: "Expenses"      },
-  { id: "revenue",  label: "Revenue"       },
-  { id: "gap",      label: "Gap Analysis"  },
-  { id: "activities",label: "Activities"  },
-  { id: "admin",    label: "Admin 🔐" },
+  { id: "intro",     label: "Intro"         },
+  { id: "wizard",    label: "Guided Wizard" },
+  { id: "overview",  label: "Overview"      },
+  { id: "expenses",  label: "Expenses"      },
+  { id: "revenue",   label: "Revenue"       },
+  { id: "gap",       label: "Gap Analysis"  },
+  { id: "activities",label: "Activities"   },
+  { id: "admin",     label: "Admin 🔐"      },
 ];
 
 const COUNTRY_VIEWS = [
-  { id: "intro",    label: "Intro"         },
-  { id: "wizard",   label: "Guided Wizard" },
-  { id: "overview", label: "Overview"      },
-  { id: "expenses", label: "Expenses"      },
-  { id: "revenue",  label: "Revenue"       },
-  { id: "gap",      label: "Gap Analysis"  },
-  { id: "activities",label: "Activities"  },
+  { id: "intro",     label: "Intro"         },
+  { id: "wizard",    label: "Guided Wizard" },
+  { id: "overview",  label: "Overview"      },
+  { id: "expenses",  label: "Expenses"      },
+  { id: "revenue",   label: "Revenue"       },
+  { id: "gap",       label: "Gap Analysis"  },
+  { id: "activities",label: "Activities"   },
 ];
 
 export default function App() {
-  const [session, setSession] = useState(null); // { email, role, country }
+  const [session, setSession] = useState(null);
   const [view, setView] = useState("intro");
   const [selectedCountry, setSelectedCountry] = useState("Kenya");
+  // countryCache holds live data: either loaded from Supabase or hardcoded fallback
+  const [countryCache, setCountryCache] = useState({ ...COUNTRIES });
+  const [dbStatus, setDbStatus] = useState("idle"); // idle | loading | ready | error
+
+  // Load all country data from Supabase on mount
+  useEffect(() => {
+    async function loadFromSupabase() {
+      setDbStatus("loading");
+      try {
+        const { data, error } = await supabase.from("country_data").select("country, data, updated_at");
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+          // First run: seed Supabase with hardcoded data
+          await seedSupabase();
+        } else {
+          // Merge Supabase data into cache (Supabase wins over hardcoded)
+          const updated = { ...COUNTRIES };
+          data.forEach(({ country, data: d }) => {
+            if (updated[country]) updated[country] = { ...updated[country], ...d };
+          });
+          setCountryCache(updated);
+        }
+        setDbStatus("ready");
+      } catch (err) {
+        console.warn("Supabase unavailable, using hardcoded data:", err.message);
+        setDbStatus("error");
+      }
+    }
+    loadFromSupabase();
+  }, []);
+
+  async function seedSupabase() {
+    const rows = Object.entries(COUNTRIES).map(([country, data]) => ({
+      country,
+      data,
+      updated_by: "seed",
+    }));
+    const { error } = await supabase.from("country_data").insert(rows);
+    if (error) console.warn("Seed failed:", error.message);
+  }
+
+  async function saveCountryData(country, updates) {
+    const merged = { ...countryCache[country], ...updates };
+    setCountryCache((prev) => ({ ...prev, [country]: merged }));
+    const { error } = await supabase.from("country_data").upsert({
+      country,
+      data: merged,
+      updated_at: new Date().toISOString(),
+      updated_by: session?.email || "unknown",
+    });
+    if (error) console.warn("Save failed:", error.message);
+  }
 
   function handleLogin(email, password) {
     const user = MOCK_USERS[email.toLowerCase()];
@@ -69,7 +123,7 @@ export default function App() {
 
   const isAdmin = session.role === "admin";
   const views = isAdmin ? ADMIN_VIEWS : COUNTRY_VIEWS;
-  const countryData = COUNTRIES[selectedCountry];
+  const countryData = countryCache[selectedCountry] || COUNTRIES[selectedCountry];
   const flag = COUNTRY_FLAGS[selectedCountry] || "";
 
   return (
@@ -83,17 +137,30 @@ export default function App() {
           onCountryChange={(c) => setSelectedCountry(c)}
           onLogout={handleLogout}
           email={session.email}
+          dbStatus={dbStatus}
         />
         <NavBar views={views} current={view} onSelect={setView} />
         <main style={{ flex: 1, padding: "20px 16px", maxWidth: 1200, margin: "0 auto", width: "100%" }}>
           {view === "intro"      && <IntroPage />}
-          {view === "wizard"     && <GuidedWizard country={selectedCountry} data={countryData} />}
+          {view === "wizard"     && (
+            <GuidedWizard
+              country={selectedCountry}
+              data={countryData}
+              onSave={(updates) => saveCountryData(selectedCountry, updates)}
+            />
+          )}
           {view === "overview"   && <Overview country={selectedCountry} data={countryData} flag={flag} />}
           {view === "expenses"   && <Expenses country={selectedCountry} data={countryData} flag={flag} />}
           {view === "revenue"    && <Revenue country={selectedCountry} data={countryData} flag={flag} />}
           {view === "gap"        && <GapView country={selectedCountry} data={countryData} flag={flag} />}
           {view === "activities" && <Activities country={selectedCountry} data={countryData} flag={flag} />}
-          {view === "admin"      && isAdmin && <AdminDashboard countries={COUNTRIES} flags={COUNTRY_FLAGS} onNavigate={(c, v) => { setSelectedCountry(c); setView(v); }} />}
+          {view === "admin"      && isAdmin && (
+            <AdminDashboard
+              countries={countryCache}
+              flags={COUNTRY_FLAGS}
+              onNavigate={(c, v) => { setSelectedCountry(c); setView(v); }}
+            />
+          )}
         </main>
         <footer style={{ background: C.navy, color: "#fff", padding: "12px 20px", fontSize: 12, textAlign: "center", opacity: 0.85 }}>
           TRACE Financial Dashboard · MRCT Center at Harvard · Prototype {new Date().getFullYear()}
@@ -103,9 +170,8 @@ export default function App() {
   );
 }
 
-function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange, onLogout, email }) {
+function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange, onLogout, email, dbStatus }) {
   const { showLocal, setShowLocal, displayCode, currency } = useCurrency();
-  const isUSD = displayCode === "USD";
 
   return (
     <header style={{
@@ -126,55 +192,39 @@ function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange,
         />
         <div>
           <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: 0.5 }}>Financial Dashboard</div>
-          <div style={{ fontSize: 11, opacity: 0.7 }}>MRCT Center at Harvard</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ fontSize: 11, opacity: 0.7 }}>MRCT Center at Harvard</div>
+            {dbStatus === "loading" && <span style={{ fontSize: 10, opacity: 0.6 }}>⟳ connecting…</span>}
+            {dbStatus === "ready"   && <span style={{ fontSize: 10, color: "#7ecf5a" }}>● live</span>}
+            {dbStatus === "error"   && <span style={{ fontSize: 10, color: C.yellow }}>● offline</span>}
+          </div>
         </div>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        {/* Currency toggle — hidden for admin cross-country view */}
-        {!isUSD || !isAdmin ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 0, border: `1px solid rgba(255,255,255,0.25)`, borderRadius: 7, overflow: "hidden", fontSize: 12 }}>
+        {/* Currency toggle — only shown when local currency differs from USD */}
+        {displayCode !== "USD" && (
+          <div style={{ display: "flex", alignItems: "center", gap: 0, border: "1px solid rgba(255,255,255,0.25)", borderRadius: 7, overflow: "hidden", fontSize: 12 }}>
             <button
               onClick={() => setShowLocal(true)}
-              style={{
-                padding: "6px 11px",
-                minHeight: 36,
-                background: showLocal ? C.teal : "transparent",
-                color: "#fff",
-                fontWeight: showLocal ? 700 : 400,
-              }}
+              style={{ padding: "6px 11px", minHeight: 36, background: showLocal ? C.teal : "transparent", color: "#fff", fontWeight: showLocal ? 700 : 400 }}
             >
               {currency.symbol} {currency.code}
             </button>
             <button
               onClick={() => setShowLocal(false)}
-              style={{
-                padding: "6px 11px",
-                minHeight: 36,
-                background: !showLocal ? C.teal : "transparent",
-                color: "#fff",
-                fontWeight: !showLocal ? 700 : 400,
-                borderLeft: "1px solid rgba(255,255,255,0.2)",
-              }}
+              style={{ padding: "6px 11px", minHeight: 36, background: !showLocal ? C.teal : "transparent", color: "#fff", fontWeight: !showLocal ? 700 : 400, borderLeft: "1px solid rgba(255,255,255,0.2)" }}
             >
               $ USD
             </button>
           </div>
-        ) : null}
+        )}
 
         {isAdmin ? (
           <select
             value={selectedCountry}
             onChange={(e) => onCountryChange(e.target.value)}
-            style={{
-              background: C.darkNavy,
-              color: "#fff",
-              border: `1px solid ${C.teal}`,
-              borderRadius: 6,
-              padding: "6px 10px",
-              fontSize: 14,
-              minHeight: 44,
-            }}
+            style={{ background: C.darkNavy, color: "#fff", border: `1px solid ${C.teal}`, borderRadius: 6, padding: "6px 10px", fontSize: 14, minHeight: 44 }}
           >
             {countryNames.map((c) => (
               <option key={c} value={c}>{COUNTRY_FLAGS[c]} {c}</option>
@@ -183,19 +233,12 @@ function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange,
         ) : (
           <div style={{ fontSize: 15, fontWeight: 600 }}>{flag} {selectedCountry}</div>
         )}
+
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, opacity: 0.7 }}>{email}</span>
           <button
             onClick={onLogout}
-            style={{
-              background: "rgba(255,255,255,0.12)",
-              color: "#fff",
-              borderRadius: 6,
-              padding: "6px 12px",
-              fontSize: 13,
-              minHeight: 44,
-              border: "1px solid rgba(255,255,255,0.2)",
-            }}
+            style={{ background: "rgba(255,255,255,0.12)", color: "#fff", borderRadius: 6, padding: "6px 12px", fontSize: 13, minHeight: 44, border: "1px solid rgba(255,255,255,0.2)" }}
           >
             Sign out
           </button>
@@ -208,12 +251,7 @@ function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange,
 
 function NavBar({ views, current, onSelect }) {
   return (
-    <nav style={{
-      background: C.darkNavy,
-      display: "flex",
-      overflowX: "auto",
-      borderBottom: `3px solid ${C.teal}`,
-    }}>
+    <nav style={{ background: C.darkNavy, display: "flex", overflowX: "auto", borderBottom: `3px solid ${C.teal}` }}>
       {views.map((v) => (
         <button
           key={v.id}
