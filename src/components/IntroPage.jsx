@@ -2,12 +2,12 @@ import { COLORS as C } from "../utils/metrics";
 
 const WORKBOOK_TABS = [
   { name: "Key Considerations", desc: "Country and unit selection, financial risks and opportunities, and near/long-term activity planning." },
-  { name: "Regular Expenses", desc: "Secretariat and Ethics Committee operating costs that recur each year." },
-  { name: "Irregular Expenses", desc: "Project-based costs funded by grants or one-time sources." },
-  { name: "Regular Revenue", desc: "Review fees and other recurring income that support operations." },
-  { name: "Irregular Revenue", desc: "Grants and other time-limited funding streams." },
-  { name: "Summary / Gap Analysis", desc: "Combined view of whether revenue covers expenses, and where gaps exist." },
-  { name: "In-Kind Contributions", desc: "Non-cash support from federal agencies, institutions, and other sources." },
+  { name: "Regular Expenses", desc: "Secretariat and Ethics Committee operating costs that recur each year — salaries, benefits, rent, supplies." },
+  { name: "Irregular Expenses", desc: "Infrequent large purchases and one-time activities, typically funded by grants." },
+  { name: "Regular Revenue", desc: "Review fees and other recurring income that support ongoing operations." },
+  { name: "Irregular Revenue", desc: "Grants and other time-limited funding streams that do not recur annually." },
+  { name: "Summary / Gap Analysis", desc: "Combined view of whether revenue covers expenses, and where funding gaps exist." },
+  { name: "In-Kind Contributions", desc: "Off-budget donated items — unpaid labor, equipment, or office space from federal agencies, institutions, and others." },
 ];
 
 const HOW_TO_START = [
@@ -16,12 +16,43 @@ const HOW_TO_START = [
   { icon: "🌍", heading: "MRCT Center Admin?", body: "Use the country selector in the top menu to switch between countries. The Admin tab shows cross-country comparisons and data completeness.", view: "admin", adminOnly: true },
 ];
 
+const WORKSTREAMS = [
+  { letter: "A", label: "Capacity building & accreditation" },
+  { letter: "B", label: "Harmonization" },
+  { letter: "C", label: "Digitalization" },
+  { letter: "D", label: "Funding models (Financial Sustainability)" },
+  { letter: "E", label: "Communication" },
+];
+
+const WORKBOOK_REASONS = [
+  "Enable countries to track ethics system expenses and revenues.",
+  "Support financial planning for current and forecasted budgets.",
+  "Help countries understand how fees align with budgets and assess funding gaps.",
+  "Document opportunity costs of unpaid labor and donated items (in-kind contributions).",
+  "Support advocacy for additional and sustainable funding.",
+];
+
+const KEY_OBJECTIVES = [
+  "Streamline and harmonize clinical trial ethics review processes in participating countries.",
+  "Build capacity for National Ethics Committees (NECs) and Institutional Review Boards (IRBs), in collaboration with National Regulatory Authorities (NRAs).",
+  "Strengthen and optimize digital systems for ethics and clinical trial oversight to improve efficiency, transparency, and coordination.",
+  "Engage policymakers, regulators, and institutional stakeholders to strengthen ethics governance and coordination.",
+  "Ensure all NECs implement a financial sustainability plan to support long-term operational effectiveness.",
+];
+
+const DESIGN_DECISIONS = [
+  { heading: "Regular vs. irregular split", body: "This is not standard accounting — it is intentional. Separating recurring costs from one-time project costs makes it much easier to plan and compare across years." },
+  { heading: "In-kind contributions are \"off-budget\"", body: "Donated items (staff time, equipment, office space) are tracked separately because they are real resources that do not appear in the formal budget. They matter for sustainability analysis." },
+  { heading: "Forecasting built in", body: "Near-term forecasting (~1 year) focuses on the regular budget. Long-term forecasting (3–5 years) focuses on the irregular budget, where grant timelines matter most." },
+  { heading: "Standardized fee terminology", body: "The workbook uses the same fee categories across all countries: initial review, minimal risk, more than minimal risk, accelerated, continuing review, major amendment, and minor amendment." },
+];
+
 export default function IntroPage({ onNavigate, isAdmin }) {
   return (
     <div style={{ maxWidth: 960, margin: "0 auto", width: "100%" }}>
       <div style={{ background: C.navy, borderRadius: 10, padding: "28px 32px", color: "#fff", marginBottom: 24 }}>
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: C.yellow, marginBottom: 8 }}>
-          TRACE — Trial REsearch and Accountability for Clinical Ethics
+          TRACE — Trial Regulation and Clinical Ethics Optimization
         </div>
         <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12, lineHeight: 1.3 }}>
           TRACE Financial Workbook
@@ -30,34 +61,83 @@ export default function IntroPage({ onNavigate, isAdmin }) {
           This tool helps research ethics committees across five African countries track expenses,
           revenue, and funding gaps — and plan for sustainable ethics review operations over time.
         </p>
-
-        <div style={{ marginTop: 20, padding: "14px 18px", background: "rgba(255,255,255,0.08)", borderRadius: 8, borderLeft: `4px solid ${C.yellow}`, fontSize: 13, lineHeight: 1.6, opacity: 0.9 }}>
-          <strong>Note:</strong> This introduction will be updated with final content from the TRACE team.
-          The text below is placeholder copy — Willyanne will provide the authoritative version.
-        </div>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <Section title="What this tool does">
+
+        <Section title="About the TRACE project">
           <p style={bodyText}>
-            The TRACE Financial Workbook captures the real costs of running a research ethics
-            committee (REC) — from staff salaries and committee payments to training and site monitoring.
-            It also tracks the revenue that RECs generate through review fees and grants, and calculates
-            where gaps exist between what it costs to operate and what funding is available.
+            TRACE (Trial Regulation and Clinical Ethics Optimization) is a multi-country initiative
+            launched in 2025 to strengthen and harmonize clinical trial ethics and regulatory oversight
+            across selected African countries. Coordinated by Garnett Partners and funded by the
+            Gates Foundation, TRACE works to build a coordinated, transparent, predictable, and
+            efficient environment for ethics and regulatory review — aligned with AVAREF and the
+            African Medicines Agency (AMA).
           </p>
           <p style={{ ...bodyText, marginTop: 10 }}>
-            By collecting this data across all five TRACE countries — Kenya, Nigeria, Rwanda, Tanzania,
-            and Zimbabwe — the MRCT Center can help RECs make the case for sustainable, locally-led
-            funding of clinical research ethics.
+            TRACE works with ethics committees and regulators in Rwanda, Tanzania, Nigeria, Zimbabwe,
+            and Kenya. By improving capacity, governance, and digital systems, TRACE makes ethics and
+            regulatory processes more transparent, predictable, and efficient while ensuring strong
+            participant protection.
           </p>
+
+          <div style={{ marginTop: 18, display: "flex", flexWrap: "wrap", gap: 16 }}>
+            <div style={{ flex: "1 1 340px" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 10 }}>Five workstreams</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {WORKSTREAMS.map(({ letter, label }) => (
+                  <div key={letter} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 12px", background: "#f4f6f8", borderRadius: 6 }}>
+                    <span style={{ background: C.navy, color: "#fff", fontWeight: 700, fontSize: 11, width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {letter}
+                    </span>
+                    <span style={{ fontSize: 13, color: "#333" }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ flex: "1 1 340px" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 10 }}>Key objectives</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {KEY_OBJECTIVES.map((obj, i) => (
+                  <div key={i} style={{ display: "flex", gap: 10, padding: "8px 12px", background: "#f4f6f8", borderRadius: 6, borderLeft: `3px solid ${C.teal}` }}>
+                    <span style={{ color: C.teal, fontWeight: 700, minWidth: 18, fontSize: 12 }}>{i + 1}.</span>
+                    <span style={{ fontSize: 12, color: "#333", lineHeight: 1.5 }}>{obj}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 16, padding: "12px 16px", background: "#f0f7f9", borderRadius: 7, borderLeft: `3px solid ${C.teal}`, fontSize: 13, color: "#444", lineHeight: 1.6 }}>
+            <strong style={{ color: C.navy }}>MRCT Center</strong> — The Multi-Regional Clinical Trials Center
+            of Brigham and Women's Hospital and Harvard serves as the training partner within TRACE.
+            The Financial Workbook was developed by the MRCT Center, funded by the Gates Foundation.
+          </div>
+        </Section>
+
+        <Section title="Why this workbook?">
+          <p style={{ ...bodyText, marginBottom: 14 }}>
+            The TRACE Financial Workbook was developed to help ethics committees across TRACE countries
+            build a clear picture of their financial situation. Specifically, it enables teams to:
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+            {WORKBOOK_REASONS.map((reason, i) => (
+              <div key={i} style={{ display: "flex", gap: 10, padding: "9px 12px", background: "#f4f6f8", borderRadius: 6 }}>
+                <span style={{ color: C.teal, fontSize: 16, flexShrink: 0, marginTop: -1 }}>✓</span>
+                <span style={{ fontSize: 13, color: "#333", lineHeight: 1.55 }}>{reason}</span>
+              </div>
+            ))}
+          </div>
         </Section>
 
         <Section title="Workbook structure">
-          <p style={{ ...bodyText, marginBottom: 14 }}>
-            The dashboard is organized around seven data areas, each corresponding to a tab in the
-            original Excel workbook:
+          <p style={{ ...bodyText, marginBottom: 6 }}>
+            The budget is organized into three categories: <strong>Regular</strong> (recurring annual costs and income),{" "}
+            <strong>Irregular</strong> (infrequent purchases and one-time grants), and{" "}
+            <strong>In-Kind</strong> (off-budget donated items). The dashboard is organized around five data areas:
           </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
             {WORKBOOK_TABS.map((tab, i) => (
               <div key={i} style={{ display: "flex", gap: 12, padding: "10px 14px", background: "#f4f6f8", borderRadius: 7, borderLeft: `3px solid ${C.teal}` }}>
                 <div style={{ minWidth: 26, fontWeight: 700, color: C.teal, fontSize: 13 }}>{i + 1}.</div>
@@ -70,34 +150,17 @@ export default function IntroPage({ onNavigate, isAdmin }) {
           </div>
         </Section>
 
-        <Section title="About the TRACE project">
-          <p style={bodyText}>
-            TRACE is a multi-country initiative working with ethics committees and regulators in Rwanda,
-            Tanzania, Nigeria, Zimbabwe, and Kenya to strengthen and harmonize clinical trial oversight.
-            By improving capacity, governance, and digital systems, TRACE makes ethics and regulatory
-            processes more transparent, predictable, and efficient while ensuring strong participant protection.
+        <Section title="Design decisions">
+          <p style={{ ...bodyText, marginBottom: 14 }}>
+            A few intentional design choices shape how the workbook is structured:
           </p>
-          <p style={{ ...bodyText, marginTop: 10 }}>
-            TRACE is led by the MRCT Center at Harvard's Brigham and Women's Hospital, with support from the Gates Foundation.
-            This dashboard supports the TRACE mission by giving country teams and MRCT Center staff a shared,
-            data-driven view of the financial health of each ethics committee.
-          </p>
-          <div style={{ marginTop: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 10 }}>Key objectives</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-              {[
-                "Streamline and harmonize clinical trial ethics review processes in participating countries.",
-                "Build capacity for National Ethics Committees (NECs) and Institutional Review Boards (IRBs), in collaboration with National Regulatory Authorities (NRAs).",
-                "Strengthen and optimize digital systems for ethics and clinical trial oversight to improve efficiency, transparency, and coordination within each TRACE country.",
-                "Engage policymakers, regulators, and institutional stakeholders to strengthen ethics governance and coordination.",
-                "Ensure all NECs implement a financial sustainability plan to support long-term operational effectiveness.",
-              ].map((obj, i) => (
-                <div key={i} style={{ display: "flex", gap: 10, padding: "9px 12px", background: "#f4f6f8", borderRadius: 6, borderLeft: `3px solid ${C.teal}` }}>
-                  <span style={{ color: C.teal, fontWeight: 700, minWidth: 20, fontSize: 13 }}>{i + 1}.</span>
-                  <span style={{ fontSize: 13, color: "#333", lineHeight: 1.55 }}>{obj}</span>
-                </div>
-              ))}
-            </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+            {DESIGN_DECISIONS.map(({ heading, body }) => (
+              <div key={heading} style={{ flex: "1 1 340px", background: "#f4f6f8", borderRadius: 8, padding: "14px 16px", borderTop: `3px solid ${C.navy}` }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 6 }}>{heading}</div>
+                <div style={{ fontSize: 13, color: "#444", lineHeight: 1.6 }}>{body}</div>
+              </div>
+            ))}
           </div>
         </Section>
 
