@@ -1,13 +1,12 @@
 import { COLORS as C } from "../utils/metrics";
 
-const WORKBOOK_TABS = [
+const DASHBOARD_SECTIONS = [
   { name: "Key Considerations", desc: "Country and unit selection, financial risks and opportunities, and near/long-term activity planning." },
-  { name: "Regular Expenses", desc: "Secretariat and Ethics Committee operating costs that recur each year — salaries, benefits, rent, supplies." },
-  { name: "Irregular Expenses", desc: "Infrequent large purchases and one-time activities, typically funded by grants." },
-  { name: "Regular Revenue", desc: "Review fees and other recurring income that support ongoing operations." },
-  { name: "Irregular Revenue", desc: "Grants and other time-limited funding streams that do not recur annually." },
-  { name: "Summary / Gap Analysis", desc: "Combined view of whether revenue covers expenses, and where funding gaps exist." },
-  { name: "In-Kind Contributions", desc: "Off-budget donated items — unpaid labor, equipment, or office space from federal agencies, institutions, and others." },
+  { name: "Expenses", desc: "Secretariat and Ethics Committee operating costs — both recurring annual expenses and one-time project costs." },
+  { name: "Revenue", desc: "Review fees and other recurring income, plus grants and time-limited funding sources." },
+  { name: "Gap Analysis", desc: "Combined view of whether revenue covers expenses, and where funding gaps exist." },
+  { name: "Activities", desc: "Near-term and long-term activity planning tied to financial sustainability." },
+  { name: "In-Kind Contributions", desc: "Non-cash support — donated staff time, equipment, or office space from federal agencies, institutions, and others." },
 ];
 
 const HOW_TO_START = [
@@ -41,10 +40,22 @@ const KEY_OBJECTIVES = [
 ];
 
 const DESIGN_DECISIONS = [
-  { heading: "Regular vs. irregular split", body: "This is not standard accounting — it is intentional. Separating recurring costs from one-time project costs makes it much easier to plan and compare across years." },
-  { heading: "In-kind contributions are \"off-budget\"", body: "Donated items (staff time, equipment, office space) are tracked separately because they are real resources that do not appear in the formal budget. They matter for sustainability analysis." },
-  { heading: "Forecasting built in", body: "Near-term forecasting (~1 year) focuses on the regular budget. Long-term forecasting (3–5 years) focuses on the irregular budget, where grant timelines matter most." },
-  { heading: "Standardized fee terminology", body: "The workbook uses the same fee categories across all countries: initial review, minimal risk, more than minimal risk, accelerated, continuing review, major amendment, and minor amendment." },
+  {
+    heading: "Regular vs. irregular split",
+    body: "This is not standard accounting — it is intentional. Separating recurring costs from one-time project costs makes it much easier to plan and compare across years.",
+  },
+  {
+    heading: "In-kind contributions are \"off-budget\"",
+    body: "Donated items (staff time, equipment, office space) are tracked separately because they are real resources that do not appear in the formal budget. They matter for sustainability analysis.",
+  },
+  {
+    heading: "Forecasting built in",
+    body: "Near-term planning (~1 year) focuses on the regular budget. Long-term planning (3–5 years) focuses on the irregular budget, where grant timelines matter most.",
+  },
+  {
+    heading: "Standardized fee categories",
+    body: "The same review types are used across all five countries: initial review, minimal risk, more than minimal risk, accelerated, continuing review, major amendment, and minor amendment.",
+  },
 ];
 
 export default function IntroPage({ onNavigate, isAdmin }) {
@@ -55,10 +66,10 @@ export default function IntroPage({ onNavigate, isAdmin }) {
           TRACE — Trial Regulation and Clinical Ethics Optimization
         </div>
         <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12, lineHeight: 1.3 }}>
-          TRACE Financial Workbook
+          TRACE Financial Dashboard
         </h1>
         <p style={{ fontSize: 15, opacity: 0.88, lineHeight: 1.65 }}>
-          This tool helps research ethics committees across five African countries track expenses,
+          This interactive dashboard helps research ethics committees across five African countries track expenses,
           revenue, and funding gaps — and plan for sustainable ethics review operations over time.
         </p>
       </div>
@@ -111,15 +122,15 @@ export default function IntroPage({ onNavigate, isAdmin }) {
 
           <div style={{ marginTop: 16, padding: "12px 16px", background: "#f0f7f9", borderRadius: 7, borderLeft: `3px solid ${C.teal}`, fontSize: 13, color: "#444", lineHeight: 1.6 }}>
             <strong style={{ color: C.navy }}>MRCT Center</strong> — The Multi-Regional Clinical Trials Center
-            of Brigham and Women's Hospital and Harvard serves as the training partner within TRACE.
-            The Financial Workbook was developed by the MRCT Center, funded by the Gates Foundation.
+            of Brigham and Women's Hospital and Harvard is the training partner within TRACE and
+            developed this financial dashboard, funded by the Gates Foundation.
           </div>
         </Section>
 
-        <Section title="Why this workbook?">
+        <Section title="Why this dashboard?">
           <p style={{ ...bodyText, marginBottom: 14 }}>
-            The TRACE Financial Workbook was developed to help ethics committees across TRACE countries
-            build a clear picture of their financial situation. Specifically, it enables teams to:
+            This dashboard was developed to help ethics committees across TRACE countries build a clear,
+            shared picture of their financial situation. Specifically, it enables teams to:
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
             {WORKBOOK_REASONS.map((reason, i) => (
@@ -131,28 +142,28 @@ export default function IntroPage({ onNavigate, isAdmin }) {
           </div>
         </Section>
 
-        <Section title="Workbook structure">
+        <Section title="Dashboard structure">
           <p style={{ ...bodyText, marginBottom: 6 }}>
-            The budget is organized into three categories: <strong>Regular</strong> (recurring annual costs and income),{" "}
-            <strong>Irregular</strong> (infrequent purchases and one-time grants), and{" "}
-            <strong>In-Kind</strong> (off-budget donated items). The dashboard is organized around five data areas:
+            Financial data is organized into three categories: <strong>Regular</strong> (recurring annual costs and income),{" "}
+            <strong>Irregular</strong> (one-time or project-based items), and{" "}
+            <strong>In-Kind</strong> (non-cash contributions tracked separately). The dashboard has six main sections:
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
-            {WORKBOOK_TABS.map((tab, i) => (
+            {DASHBOARD_SECTIONS.map((section, i) => (
               <div key={i} style={{ display: "flex", gap: 12, padding: "10px 14px", background: "#f4f6f8", borderRadius: 7, borderLeft: `3px solid ${C.teal}` }}>
                 <div style={{ minWidth: 26, fontWeight: 700, color: C.teal, fontSize: 13 }}>{i + 1}.</div>
                 <div>
-                  <div style={{ fontWeight: 600, color: C.navy, fontSize: 13 }}>{tab.name}</div>
-                  <div style={{ fontSize: 12, color: C.blueGrey, marginTop: 2 }}>{tab.desc}</div>
+                  <div style={{ fontWeight: 600, color: C.navy, fontSize: 13 }}>{section.name}</div>
+                  <div style={{ fontSize: 12, color: C.blueGrey, marginTop: 2 }}>{section.desc}</div>
                 </div>
               </div>
             ))}
           </div>
         </Section>
 
-        <Section title="Design decisions">
+        <Section title="How data is organized">
           <p style={{ ...bodyText, marginBottom: 14 }}>
-            A few intentional design choices shape how the workbook is structured:
+            A few design choices shape how data is structured — understanding these makes the dashboard easier to use:
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
             {DESIGN_DECISIONS.map(({ heading, body }) => (
