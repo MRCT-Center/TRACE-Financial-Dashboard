@@ -1,4 +1,4 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { gm, fmt, fmtPct, COLORS as C } from "../utils/metrics";
 
 export default function GapView({ country, data: d, flag }) {
@@ -51,7 +51,7 @@ export default function GapView({ country, data: d, flag }) {
               <Tooltip formatter={(v) => fmt(v)} />
               <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                 {chartData.map((entry, i) => (
-                  <rect key={i} fill={entry.fill} />
+                  <Cell key={i} fill={entry.fill} />
                 ))}
               </Bar>
             </BarChart>
@@ -88,7 +88,7 @@ export default function GapView({ country, data: d, flag }) {
           <thead>
             <tr style={{ background: C.lightBG }}>
               {["", "Expenses", "Revenue", "Gap"].map((h) => (
-                <th key={h} style={{ padding: "8px 12px", textAlign: "right", color: C.navy, fontWeight: 700, fontSize: 12, textAlign: h === "" ? "left" : "right" }}>{h}</th>
+                <th key={h} style={{ padding: "8px 12px", textAlign: h === "" ? "left" : "right", color: C.navy, fontWeight: 700, fontSize: 12 }}>{h}</th>
               ))}
             </tr>
           </thead>
