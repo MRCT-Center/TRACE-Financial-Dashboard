@@ -83,7 +83,7 @@ function KPIColumns({ m, d }) {
       rows: [
         { label: "Regular In-Kind", val: fmt(d.ikReg?.total || 0), sub: "Fed + Institutional" },
         { label: "Irregular In-Kind", val: fmt(d.ikIrr?.total || 0), sub: "Project-based" },
-        { label: "Total In-Kind", val: fmt(ikTotal), sub: null, badge: "Phase 2" },
+        { label: "Total In-Kind", val: fmt(ikTotal), sub: "Off-budget" },
       ],
     },
   ];
@@ -251,7 +251,7 @@ function InKindCard({ d, onEdit }) {
     <Card title={<>In-Kind Contributions<InfoTip title="What are in-kind contributions?">Non-cash support that is usually considered "off-budget" or "off-book" — for example, government office space, university staff volunteering on the ethics committee, staff personal vehicle use for site visits, or staff unpaid overtime. In-kind contributions are not listed as either expenses or revenue because they are both; they can be regular/recurring or irregular/one-time.<br /><br /><strong style={{ color: "#a90533" }}>Advocacy note:</strong> Entities that give in-kind contributions — especially government entities — may view the estimates you generate as reason not to provide monetary funding, seeing them as indicative of having "given enough." You may wish to complete the in-kind tabs but share results only with specific audiences.</InfoTip></>} style={{ flex: "1 1 280px" }}>
       <p style={narrativeStyle}>
         In-kind contributions are non-cash support — staff time, office space, or equipment donated by
-        federal agencies, universities, or other institutions. Click any value to edit. These are not yet included in gap calculations.
+        federal agencies, universities, or other institutions. Click any value to edit. Because in-kind is simultaneously both an expense and a revenue, it does not affect the cash gap; it is captured here as additional economic context.
       </p>
       <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
         {[
@@ -271,9 +271,6 @@ function InKindCard({ d, onEdit }) {
           <strong style={{ fontSize: 13, color: C.yellow }}>
             <EditableCell value={ik.total || 0} display={fmt(ik.total || 0)} path="ikReg.total" onEdit={onEdit} />
           </strong>
-        </div>
-        <div style={{ fontSize: 11, color: C.blueGrey, fontStyle: "italic", marginTop: 4 }}>
-          In-kind contributions will factor into gap calculations in Phase 2.
         </div>
       </div>
     </Card>

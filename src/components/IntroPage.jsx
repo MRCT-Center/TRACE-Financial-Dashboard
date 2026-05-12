@@ -76,7 +76,7 @@ export default function IntroPage({ onNavigate, isAdmin }) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
-        <Section title="About the TRACE Project" logo={<img src="/trace-logo.svg" alt="TRACE" style={{ height: 40, objectFit: "contain" }} />}>
+        <Section title="About the TRACE Project" logo={<img src="/trace-logo-color.svg" alt="TRACE" style={{ height: 40, objectFit: "contain" }} />}>
           <p style={bodyText}>
             TRACE (Trial Regulation and Clinical Ethics Optimization) is a multi-country initiative
             launched in 2025 to strengthen and harmonize clinical trial ethics and regulatory oversight

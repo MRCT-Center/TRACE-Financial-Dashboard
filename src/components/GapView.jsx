@@ -28,6 +28,13 @@ export default function GapView({ country, data: d, flag }) {
         <GapKPI label="Regular Budget Gap" val={m.rg} />
         <GapKPI label="Irregular Budget Gap" val={m.ig} />
         <GapKPI label="Combined Gap" val={m.cg} large />
+        {m.ik > 0 && (
+          <div style={{ flex: "1 1 180px", background: "#fff", border: `1px solid #dde`, borderTop: `3px solid ${C.steelblue}`, borderRadius: 9, padding: "14px 16px" }}>
+            <div style={{ fontSize: 11, color: C.blueGrey, textTransform: "uppercase", letterSpacing: 0.5 }}>Total Economic Activity</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: C.steelblue, marginTop: 4 }}>{fmt(m.te + m.ti + m.ik)}</div>
+            <div style={{ fontSize: 12, color: C.blueGrey, marginTop: 2 }}>cash expenses + in-kind</div>
+          </div>
+        )}
       </div>
 
       <Card title={<>Advocacy Summary<InfoTip title="Using this for advocacy">This summary is designed to help TRACE countries advocate for additional funding — by documenting the activities they carry out and the necessary increase in level of effort for those activities, gaps in revenue to support those activities, and how recurrent funding should draw from a mix of revenue streams rather than fees alone. Ethics maturity indicators — including number of initial reviews for professional (non-student) studies, presence of financial risks and opportunities, and number of ethics activities with expected increase in effort — support requests for increased and sustainable funding.</InfoTip></>}>
@@ -38,6 +45,7 @@ export default function GapView({ country, data: d, flag }) {
           generating <strong>{fmt(d.revFees)}</strong> in review fees.
           {" "}The regular budget has a gap of <strong style={{ color: m.rg >= 0 ? C.green : C.red }}>{fmt(m.rg)}</strong>,
           meaning review fees {m.rg >= 0 ? "fully cover" : "do not fully cover"} operating costs.
+          {m.ik > 0 && <>{" "}The committee also benefits from an estimated <strong>{fmt(m.ik)}</strong> in non-cash (in-kind) contributions — representing real economic activity not captured in the formal budget — which strengthens the case for sustainable institutional support.</>}
         </p>
       </Card>
 

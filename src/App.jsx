@@ -204,13 +204,14 @@ function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange,
       gap: 12,
       flexWrap: "wrap",
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
         <img
           src="/trace-logo.svg"
           alt="TRACE"
-          style={{ height: 40, objectFit: "contain", filter: "brightness(0) invert(1)" }}
+          style={{ height: 40, objectFit: "contain" }}
         />
-        <div>
+        <div style={{ width: 3, height: 28, background: "#f8df57", flexShrink: 0, marginTop: 17, borderRadius: 2 }} />
+        <div style={{ paddingTop: 17 }}>
           <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: 0.5 }}>Financial Dashboard</div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ fontSize: 11, opacity: 0.7 }}>MRCT Center</div>
@@ -263,7 +264,7 @@ function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange,
             Sign out
           </button>
         </div>
-        <img src="/mrct-shield.png" alt="MRCT Center" style={{ height: 36, objectFit: "contain", opacity: 0.9 }} />
+        <img src="/mrct-shield-white.svg" alt="MRCT Center" style={{ height: 40, objectFit: "contain" }} />
       </div>
     </header>
   );

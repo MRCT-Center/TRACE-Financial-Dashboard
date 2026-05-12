@@ -34,7 +34,7 @@ export default function LoginPage({ onLogin }) {
         boxShadow: "0 8px 40px rgba(0,0,0,0.25)",
       }}>
         <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <img src="/trace-logo.svg" alt="TRACE" style={{ height: 60, objectFit: "contain", marginBottom: 12 }} />
+          <img src="/trace-logo-color.svg" alt="TRACE" style={{ height: 60, objectFit: "contain", marginBottom: 12 }} />
           <div style={{ fontSize: 13, color: C.blueGrey, marginTop: 4 }}>
             Financial Dashboard · MRCT Center at Harvard
           </div>
