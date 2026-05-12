@@ -1,13 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { COLORS as C } from "../utils/metrics";
 
 const CURRENCIES = [
-  { code: "USD", symbol: "$", name: "US Dollar" },
-  { code: "KES", symbol: "KSh", name: "Kenyan Shilling" },
-  { code: "NGN", symbol: "₦", name: "Nigerian Naira" },
-  { code: "RWF", symbol: "RF", name: "Rwandan Franc" },
+  { code: "USD", symbol: "$",   name: "US Dollar"        },
+  { code: "KES", symbol: "KSh", name: "Kenyan Shilling"  },
+  { code: "NGN", symbol: "₦",   name: "Nigerian Naira"   },
+  { code: "RWF", symbol: "RF",  name: "Rwandan Franc"    },
   { code: "TZS", symbol: "TSh", name: "Tanzanian Shilling" },
-  { code: "ZWG", symbol: "ZiG", name: "Zimbabwe Gold" },
+  { code: "ZWG", symbol: "ZiG", name: "Zimbabwe Gold"    },
 ];
 
 const ACTIVITY_LIST = [
@@ -43,25 +43,30 @@ const ACTIVITY_DESCRIPTIONS = {
 const TREND_OPTIONS = ["Remain the same", "Increase", "Decrease"];
 
 const STEPS = [
-  { id: "setup",      label: "1. Setup",        title: "Country & Unit Setup" },
+  { id: "setup",      label: "1. Setup",        title: "Country & Unit Setup"       },
   { id: "risks",      label: "2. Risks & Opps", title: "Financial Risks & Opportunities" },
-  { id: "expenses",   label: "3. Expenses",      title: "Regular Expenses" },
-  { id: "revenue",    label: "4. Revenue",       title: "Regular Revenue" },
-  { id: "irregular",  label: "5. Irregular",     title: "Irregular Budget" },
-  { id: "inKind",     label: "6. In-Kind",       title: "In-Kind Contributions" },
-  { id: "activities", label: "7. Activities",    title: "Activity Planning" },
-  { id: "review",     label: "8. Review",        title: "Review & Submit" },
+  { id: "expenses",   label: "3. Expenses",      title: "Regular Expenses"           },
+  { id: "revenue",    label: "4. Revenue",       title: "Regular Revenue"            },
+  { id: "irregular",  label: "5. Irregular",     title: "Irregular Budget"           },
+  { id: "inKind",     label: "6. In-Kind",       title: "In-Kind Contributions"      },
+  { id: "activities", label: "7. Activities",    title: "Activity Planning"          },
+  { id: "review",     label: "8. Review",        title: "Review & Submit"            },
 ];
 
 export default function GuidedWizard({ country, data, onSave }) {
-  const [step, setStep] = useState(0);
-  const [currency, setCurrency] = useState(CURRENCIES[0]);
+  const [step, setStep]           = useState(0);
+  const [currency, setCurrency]   = useState(CURRENCIES[0]);
+  const [inputMode, setInputMode] = useState("usd"); // "usd" | "local"
+  const [exchangeRate, setExchangeRate] = useState(1);
+  const [rateLoading, setRateLoading]   = useState(false);
+  const [rateError, setRateError]       = useState(null);
+
   const [hasRisks, setHasRisks] = useState("");
-  const [hasOpps, setHasOpps] = useState("");
+  const [hasOpps,  setHasOpps]  = useState("");
   const [riskText, setRiskText] = useState("");
-  const [oppText, setOppText] = useState("");
+  const [oppText,  setOppText]  = useState("");
+
   const [activityRows, setActivityRows] = useState(() => {
-    // Pre-populate from existing country data if available
     const saved = data?.activities || [];
     return ACTIVITY_LIST.map((name) => {
       const existing = saved.find((a) => a.name === name);
@@ -70,13 +75,49 @@ export default function GuidedWizard({ country, data, onSave }) {
         : { name, nearTerm: "", longTerm: "", note: "" };
     });
   });
+
   const [stepSources, setStepSources] = useState(Array(STEPS.length).fill(""));
-  const [stepNotes, setStepNotes] = useState(Array(STEPS.length).fill(""));
+  const [stepNotes,   setStepNotes]   = useState(Array(STEPS.length).fill(""));
   const [submitted, setSubmitted] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [saving,    setSaving]    = useState(false);
+
+  // Editable budget data — all stored in USD
+  const [erEdits,      setErEdits]      = useState({ ...(data?.er      || {}) });
+  const [feesEdits,    setFeesEdits]    = useState(() => JSON.parse(JSON.stringify(data?.fees    || [])));
+  const [irrProjEdits, setIrrProjEdits] = useState(() => JSON.parse(JSON.stringify(data?.irrProj || [])));
+  const [ikRegEdits,   setIkRegEdits]   = useState({ ...(data?.ikReg   || {}) });
+  const [ikIrrEdits,   setIkIrrEdits]   = useState({ ...(data?.ikIrr   || {}) });
+
+  // Fetch live exchange rate whenever currency changes
+  useEffect(() => {
+    if (currency.code === "USD") { setExchangeRate(1); setRateError(null); return; }
+    setRateLoading(true);
+    setRateError(null);
+    fetch("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.min.json")
+      .then((r) => r.json())
+      .then((json) => {
+        const rate = json.usd?.[currency.code.toLowerCase()];
+        if (rate) setExchangeRate(rate);
+        else setRateError(`Rate not available for ${currency.code}`);
+      })
+      .catch(() => setRateError("Could not fetch exchange rate"))
+      .finally(() => setRateLoading(false));
+  }, [currency.code]);
+
+  // Conversion helpers — canConvert is false while rate is loading/errored
+  const canConvert = inputMode === "local" && currency.code !== "USD" && !rateError && !rateLoading;
+  const toDisplay  = (usd) => canConvert ? Math.round((usd || 0) * exchangeRate) : (usd || 0);
+  const fromDisplay = (val) => canConvert ? val / exchangeRate : val;
+  const displaySym  = canConvert ? currency.symbol : "$";
+  const showAlt     = currency.code !== "USD";
+  const altSym      = canConvert ? "$" : currency.symbol;
+  const toAlt       = (usd) => canConvert ? (usd || 0) : Math.round((usd || 0) * exchangeRate);
+
+  const displayCode = canConvert ? currency.code : "USD";
+  const conv = { toDisplay, fromDisplay, displaySym, altSym, toAlt, showAlt, displayCode };
 
   const currentStep = STEPS[step];
-  const canAdvance = stepSources[step].trim().length > 0 && stepNotes[step].trim().length > 0;
+  const canAdvance  = stepSources[step].trim().length > 0 && stepNotes[step].trim().length > 0;
 
   function updateActivity(i, field, val) {
     setActivityRows((rows) => rows.map((r, idx) => idx === i ? { ...r, [field]: val } : r));
@@ -88,8 +129,7 @@ export default function GuidedWizard({ country, data, onSave }) {
         <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
         <h2 style={{ fontSize: 20, color: C.navy, marginBottom: 10 }}>Data submitted!</h2>
         <p style={{ fontSize: 14, color: "#555", lineHeight: 1.7 }}>
-          Your responses have been recorded. In the live version, this will save to the TRACE database.
-          For now, use the Overview and other tabs to review your country's data.
+          Your responses have been recorded. Use the Overview and other tabs to review your country's data.
         </p>
         <button
           onClick={() => { setStep(0); setSubmitted(false); }}
@@ -115,16 +155,11 @@ export default function GuidedWizard({ country, data, onSave }) {
             key={s.id}
             onClick={() => i < step && setStep(i)}
             style={{
-              flex: "1 1 auto",
-              padding: "6px 4px",
-              fontSize: 11,
-              borderRadius: 5,
+              flex: "1 1 auto", padding: "6px 4px", fontSize: 11, borderRadius: 5,
               background: i === step ? C.teal : i < step ? C.darkNavy : "#dde",
               color: i <= step ? "#fff" : C.blueGrey,
               fontWeight: i === step ? 700 : 400,
-              whiteSpace: "nowrap",
-              cursor: i < step ? "pointer" : "default",
-              minHeight: 36,
+              whiteSpace: "nowrap", cursor: i < step ? "pointer" : "default", minHeight: 36,
             }}
           >
             {s.label}
@@ -139,27 +174,26 @@ export default function GuidedWizard({ country, data, onSave }) {
         <div style={{ padding: "20px 22px" }}>
 
           {step === 0 && (
-            <StepSetup currency={currency} onCurrencyChange={setCurrency} />
+            <StepSetup
+              currency={currency} onCurrencyChange={(c) => { setCurrency(c); setInputMode("usd"); }}
+              inputMode={inputMode} onInputModeChange={setInputMode}
+              exchangeRate={exchangeRate} rateLoading={rateLoading} rateError={rateError}
+            />
           )}
           {step === 1 && (
             <StepRisks
               hasRisks={hasRisks} onHasRisks={setHasRisks}
-              hasOpps={hasOpps} onHasOpps={setHasOpps}
+              hasOpps={hasOpps}   onHasOpps={setHasOpps}
               riskText={riskText} onRiskText={setRiskText}
-              oppText={oppText} onOppText={setOppText}
+              oppText={oppText}   onOppText={setOppText}
             />
           )}
-          {step === 2 && <StepExpenses currency={currency} data={data} />}
-          {step === 3 && <StepRevenue currency={currency} data={data} />}
-          {step === 4 && <StepIrregular currency={currency} data={data} />}
-          {step === 5 && <StepInKind currency={currency} data={data} />}
-          {step === 6 && (
-            <StepActivities
-              rows={activityRows}
-              onUpdate={updateActivity}
-            />
-          )}
-          {step === 7 && <StepReview country={country} activityRows={activityRows} currency={currency} />}
+          {step === 2 && <StepExpenses conv={conv} erEdits={erEdits} setErEdits={setErEdits} />}
+          {step === 3 && <StepRevenue  conv={conv} feesEdits={feesEdits} setFeesEdits={setFeesEdits} />}
+          {step === 4 && <StepIrregular conv={conv} irrProjEdits={irrProjEdits} setIrrProjEdits={setIrrProjEdits} data={data} />}
+          {step === 5 && <StepInKind   conv={conv} ikRegEdits={ikRegEdits} setIkRegEdits={setIkRegEdits} ikIrrEdits={ikIrrEdits} setIkIrrEdits={setIkIrrEdits} />}
+          {step === 6 && <StepActivities rows={activityRows} onUpdate={updateActivity} />}
+          {step === 7 && <StepReview country={country} activityRows={activityRows} currency={currency} erEdits={erEdits} feesEdits={feesEdits} />}
 
           {/* Sources & Notes — required on every step except review */}
           {step < 7 && (
@@ -172,8 +206,7 @@ export default function GuidedWizard({ country, data, onSave }) {
                     value={stepSources[step]}
                     onChange={(e) => setStepSources((s) => s.map((v, i) => i === step ? e.target.value : v))}
                     placeholder="List your data source (document name, date, URL, or page reference)..."
-                    style={textareaStyle}
-                    rows={2}
+                    style={textareaStyle} rows={2}
                   />
                 </div>
                 <div>
@@ -182,8 +215,7 @@ export default function GuidedWizard({ country, data, onSave }) {
                     value={stepNotes[step]}
                     onChange={(e) => setStepNotes((s) => s.map((v, i) => i === step ? e.target.value : v))}
                     placeholder="Add any notes, assumptions, or calculations relevant to this step..."
-                    style={textareaStyle}
-                    rows={2}
+                    style={textareaStyle} rows={2}
                   />
                 </div>
                 {!canAdvance && (
@@ -218,13 +250,21 @@ export default function GuidedWizard({ country, data, onSave }) {
           <button
             onClick={async () => {
               setSaving(true);
+              const ikRegFinal = {
+                ...ikRegEdits,
+                total: (ikRegEdits.federal || 0) + (ikRegEdits.institutional || 0) + (ikRegEdits.other || 0),
+              };
               const updates = {
-                activities: activityRows,
-                hasRisks,
-                riskText,
-                hasOpps,
-                oppText,
+                activities:  activityRows,
+                hasRisks, riskText, hasOpps, oppText,
                 currencyCode: currency.code,
+                er:      erEdits,
+                fees:    feesEdits,
+                revFees: feesEdits.reduce((s, f) => s + (f.ctPro || 0) * f.ind + (f.ctStu || 0) * f.ngo, 0),
+                irrProj: irrProjEdits,
+                ei:      { proj: irrProjEdits.reduce((s, p) => s + (p.amount || 0), 0) },
+                ikReg:   ikRegFinal,
+                ikIrr:   ikIrrEdits,
               };
               if (onSave) await onSave(updates);
               setSaving(false);
@@ -241,10 +281,13 @@ export default function GuidedWizard({ country, data, onSave }) {
   );
 }
 
-function StepSetup({ currency, onCurrencyChange }) {
+// ─── Step components ──────────────────────────────────────────────────────────
+
+function StepSetup({ currency, onCurrencyChange, inputMode, onInputModeChange, exchangeRate, rateLoading, rateError }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      <p style={descStyle}>Select the currency your committee uses for budgeting. All amount fields throughout this wizard will use this currency symbol.</p>
+      <p style={descStyle}>Select the currency your committee uses for budgeting, then choose how you want to enter amounts.</p>
+
       <div>
         <label style={labelStyle}>Reporting currency</label>
         <select
@@ -257,9 +300,59 @@ function StepSetup({ currency, onCurrencyChange }) {
           ))}
         </select>
       </div>
-      <div style={{ background: "#f4f6f8", borderRadius: 7, padding: "12px 16px", fontSize: 13, color: "#555" }}>
-        <strong>Note:</strong> The dashboard currently displays all amounts in USD. Local currency selection is recorded here for reference.
-        Conversion functionality will be added in a future version.
+
+      <div>
+        <label style={labelStyle}>Enter amounts in</label>
+        <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+          {[
+            { val: "usd",   label: "US Dollars ($)" },
+            { val: "local", label: `${currency.code} (${currency.symbol})` },
+          ].map((opt) => {
+            const disabled = opt.val === "local" && (currency.code === "USD" || rateLoading || !!rateError);
+            return (
+              <button
+                key={opt.val}
+                onClick={() => !disabled && onInputModeChange(opt.val)}
+                disabled={disabled}
+                style={{
+                  ...toggleBtnStyle,
+                  background: inputMode === opt.val ? C.teal : "#f4f6f8",
+                  color: inputMode === opt.val ? "#fff" : C.navy,
+                  border: `1px solid ${inputMode === opt.val ? C.teal : "#dde"}`,
+                  opacity: disabled ? 0.45 : 1,
+                  cursor: disabled ? "not-allowed" : "pointer",
+                }}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {rateLoading && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, fontSize: 12, color: C.blueGrey }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.yellow, display: "inline-block", animation: "pulse 1s infinite" }} />
+            Fetching live exchange rate…
+          </div>
+        )}
+        {rateError && (
+          <div style={{ fontSize: 12, color: C.red, marginTop: 8 }}>⚠ {rateError}. Amounts will display in USD.</div>
+        )}
+        {!rateLoading && !rateError && currency.code !== "USD" && (
+          <div style={{ marginTop: 10, background: "#eef8f4", border: `1px solid ${C.teal}`, borderRadius: 7, padding: "10px 14px", display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <div style={{ marginTop: 2 }}>
+              <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: C.teal, marginRight: 6 }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>
+                Live rate: 1 USD = {exchangeRate.toLocaleString(undefined, { maximumFractionDigits: 2 })} {currency.code}
+              </div>
+              <div style={{ fontSize: 11, color: "#555", marginTop: 3, lineHeight: 1.5 }}>
+                Rate fetched live each session — not a fixed rate. Amounts shown in {currency.code} are converted at today's market rate and will vary if you return tomorrow.
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -273,179 +366,245 @@ function StepRisks({ hasRisks, onHasRisks, hasOpps, onHasOpps, riskText, onRiskT
         <label style={labelStyle}>Do you expect major financial risks in the next year?</label>
         <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
           {["Yes", "No"].map((opt) => (
-            <button
-              key={opt}
-              onClick={() => onHasRisks(opt.toLowerCase())}
-              style={{ ...toggleBtnStyle, background: hasRisks === opt.toLowerCase() ? C.red : "#f4f6f8", color: hasRisks === opt.toLowerCase() ? "#fff" : C.navy, border: `1px solid ${hasRisks === opt.toLowerCase() ? C.red : "#dde"}` }}
-            >
+            <button key={opt} onClick={() => onHasRisks(opt.toLowerCase())}
+              style={{ ...toggleBtnStyle, background: hasRisks === opt.toLowerCase() ? C.red : "#f4f6f8", color: hasRisks === opt.toLowerCase() ? "#fff" : C.navy, border: `1px solid ${hasRisks === opt.toLowerCase() ? C.red : "#dde"}` }}>
               {opt}
             </button>
           ))}
         </div>
         {hasRisks === "yes" && (
-          <textarea
-            value={riskText}
-            onChange={(e) => onRiskText(e.target.value)}
+          <textarea value={riskText} onChange={(e) => onRiskText(e.target.value)}
             placeholder="Describe the risks and how significantly you think they will impact ethics review..."
-            style={{ ...textareaStyle, marginTop: 10 }}
-            rows={3}
-          />
+            style={{ ...textareaStyle, marginTop: 10 }} rows={3} />
         )}
       </div>
       <div>
         <label style={labelStyle}>Do you expect major financial opportunities in the next year?</label>
         <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
           {["Yes", "No"].map((opt) => (
-            <button
-              key={opt}
-              onClick={() => onHasOpps(opt.toLowerCase())}
-              style={{ ...toggleBtnStyle, background: hasOpps === opt.toLowerCase() ? C.teal : "#f4f6f8", color: hasOpps === opt.toLowerCase() ? "#fff" : C.navy, border: `1px solid ${hasOpps === opt.toLowerCase() ? C.teal : "#dde"}` }}
-            >
+            <button key={opt} onClick={() => onHasOpps(opt.toLowerCase())}
+              style={{ ...toggleBtnStyle, background: hasOpps === opt.toLowerCase() ? C.teal : "#f4f6f8", color: hasOpps === opt.toLowerCase() ? "#fff" : C.navy, border: `1px solid ${hasOpps === opt.toLowerCase() ? C.teal : "#dde"}` }}>
               {opt}
             </button>
           ))}
         </div>
         {hasOpps === "yes" && (
-          <textarea
-            value={oppText}
-            onChange={(e) => onOppText(e.target.value)}
+          <textarea value={oppText} onChange={(e) => onOppText(e.target.value)}
             placeholder="Describe the opportunities and how significantly you think they will impact ethics review..."
-            style={{ ...textareaStyle, marginTop: 10 }}
-            rows={3}
-          />
+            style={{ ...textareaStyle, marginTop: 10 }} rows={3} />
         )}
       </div>
     </div>
   );
 }
 
-function StepExpenses({ currency, data: d }) {
-  const sym = currency.symbol;
-  const rows = [
-    ["Secretariat — Salaries", d.er.secSal],
-    ["Secretariat — Benefits", d.er.secBen],
-    ["Secretariat — Recurring", d.er.secRec],
-    ["NEC — Payments", d.er.nSal],
-    ["NEC — Benefits", d.er.nBen],
-    ["NEC — Recurring", d.er.nRec],
-    ["Recurring — Grants", d.er.recG],
-    ["Recurring — Gov't", d.er.recGov],
-  ].filter(([, v]) => v > 0);
-  const total = rows.reduce((s, [, v]) => s + v, 0);
+const ER_ROWS = [
+  ["secSal",  "Secretariat — Salaries"  ],
+  ["secBen",  "Secretariat — Benefits"  ],
+  ["secRec",  "Secretariat — Recurring" ],
+  ["nSal",    "NEC — Payments"          ],
+  ["nBen",    "NEC — Benefits"          ],
+  ["nRec",    "NEC — Recurring"         ],
+  ["recG",    "Recurring — Grants"      ],
+  ["recGov",  "Recurring — Gov't"       ],
+];
 
+function StepExpenses({ conv, erEdits, setErEdits }) {
+  const total = ER_ROWS.reduce((s, [k]) => s + (erEdits[k] || 0), 0);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <p style={descStyle}>Review the regular expenses for your committee. These are recurring annual costs. (Editing will be enabled in a future version.)</p>
+      <p style={descStyle}>Enter or update the regular annual expenses for your committee. All amounts are in {conv.displayCode} — toggle the currency in Step 1 to switch.</p>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
         <thead>
           <tr style={{ background: C.lightBG }}>
             <th style={thStyle}>Category</th>
-            <th style={{ ...thStyle, textAlign: "right" }}>Amount ({sym})</th>
+            <th style={{ ...thStyle, textAlign: "right", width: 160 }}>Amount ({conv.displayCode})</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map(([label, val]) => (
-            <tr key={label} style={{ borderBottom: "1px solid #f0f0f0" }}>
+          {ER_ROWS.map(([key, label]) => (
+            <tr key={key} style={{ borderBottom: "1px solid #f0f0f0" }}>
               <td style={{ padding: "9px 12px" }}>{label}</td>
-              <td style={{ padding: "9px 12px", textAlign: "right", fontFamily: "monospace" }}>{sym}{val?.toLocaleString()}</td>
+              <td style={{ padding: "6px 12px" }}>
+                <AmountInput usdVal={erEdits[key] || 0} conv={conv}
+                  onChangeUSD={(v) => setErEdits((e) => ({ ...e, [key]: v }))} />
+              </td>
             </tr>
           ))}
           <tr style={{ fontWeight: 700, background: "#f8f8f8" }}>
             <td style={{ padding: "9px 12px" }}>Total</td>
-            <td style={{ padding: "9px 12px", textAlign: "right", fontFamily: "monospace" }}>{sym}{total.toLocaleString()}</td>
+            <td style={{ padding: "9px 12px", textAlign: "right", fontFamily: "monospace" }}>
+              {conv.displaySym}{conv.toDisplay(total).toLocaleString()}
+              {conv.showAlt && <div style={{ fontSize: 11, color: C.blueGrey, fontWeight: 400 }}>≈ {conv.altSym} {Math.round(conv.toAlt(total)).toLocaleString()}</div>}
+            </td>
           </tr>
         </tbody>
       </table>
-      <div style={{ fontSize: 12, color: C.blueGrey, fontStyle: "italic" }}>Data shown from current country record. Enter your source and notes below.</div>
     </div>
   );
 }
 
-function StepRevenue({ currency, data: d }) {
-  const sym = currency.symbol;
-  const feeRows = d.fees || [];
+function StepRevenue({ conv, feesEdits, setFeesEdits }) {
+  function updateFee(i, field, raw) {
+    const val = parseFloat(raw) || 0;
+    setFeesEdits((rows) => rows.map((f, idx) => idx === i ? { ...f, [field]: field === "ctPro" || field === "ctStu" ? val : conv.fromDisplay(val) } : f));
+  }
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <p style={descStyle}>Review your regular revenue — fees collected for ethics review by type. (Editing will be enabled in a future version.)</p>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-        <thead>
-          <tr style={{ background: C.lightBG }}>
-            <th style={thStyle}>Review type</th>
-            <th style={{ ...thStyle, textAlign: "right" }}>Pro fee</th>
-            <th style={{ ...thStyle, textAlign: "right" }}>Pro count</th>
-            <th style={{ ...thStyle, textAlign: "right" }}>Stu fee</th>
-            <th style={{ ...thStyle, textAlign: "right" }}>Stu count</th>
-            <th style={{ ...thStyle, textAlign: "right" }}>Revenue</th>
-          </tr>
-        </thead>
-        <tbody>
-          {feeRows.map((f, i) => {
-            const total = (f.ctPro || 0) * f.ind + (f.ctStu || 0) * f.ngo;
-            return (
-              <tr key={i} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                <td style={{ padding: "8px 10px" }}>{f.type}</td>
-                <td style={{ padding: "8px 10px", textAlign: "right", fontFamily: "monospace" }}>{sym}{f.ind?.toLocaleString()}</td>
-                <td style={{ padding: "8px 10px", textAlign: "right" }}>{f.ctPro || 0}</td>
-                <td style={{ padding: "8px 10px", textAlign: "right", fontFamily: "monospace" }}>{sym}{f.ngo?.toLocaleString()}</td>
-                <td style={{ padding: "8px 10px", textAlign: "right" }}>{f.ctStu || 0}</td>
-                <td style={{ padding: "8px 10px", textAlign: "right", fontFamily: "monospace", fontWeight: 600 }}>{sym}{total.toLocaleString()}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <p style={descStyle}>Enter fee amounts and review counts for each fee type. Revenue is computed automatically.</p>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 600 }}>
+          <thead>
+            <tr style={{ background: C.lightBG }}>
+              <th style={thStyle}>Review type</th>
+              <th style={{ ...thStyle, textAlign: "right" }}>Pro fee ({conv.displaySym})</th>
+              <th style={{ ...thStyle, textAlign: "right" }}>Pro count</th>
+              <th style={{ ...thStyle, textAlign: "right" }}>Stu fee ({conv.displaySym})</th>
+              <th style={{ ...thStyle, textAlign: "right" }}>Stu count</th>
+              <th style={{ ...thStyle, textAlign: "right" }}>Revenue (USD)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {feesEdits.map((f, i) => {
+              const rev = (f.ctPro || 0) * f.ind + (f.ctStu || 0) * f.ngo;
+              return (
+                <tr key={i} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                  <td style={{ padding: "8px 10px" }}>{f.type}</td>
+                  <td style={{ padding: "4px 10px" }}>
+                    <NumInput val={Math.round(conv.toDisplay(f.ind))} onChange={(v) => updateFee(i, "ind", v)} />
+                  </td>
+                  <td style={{ padding: "4px 10px" }}>
+                    <NumInput val={f.ctPro || 0} onChange={(v) => updateFee(i, "ctPro", v)} isCount />
+                  </td>
+                  <td style={{ padding: "4px 10px" }}>
+                    <NumInput val={Math.round(conv.toDisplay(f.ngo))} onChange={(v) => updateFee(i, "ngo", v)} />
+                  </td>
+                  <td style={{ padding: "4px 10px" }}>
+                    <NumInput val={f.ctStu || 0} onChange={(v) => updateFee(i, "ctStu", v)} isCount />
+                  </td>
+                  <td style={{ padding: "8px 10px", textAlign: "right", fontFamily: "monospace", fontWeight: 600 }}>
+                    ${rev.toLocaleString()}
+                  </td>
+                </tr>
+              );
+            })}
+            <tr style={{ fontWeight: 700, background: "#f8f8f8" }}>
+              <td colSpan={5} style={{ padding: "9px 12px" }}>Total Revenue</td>
+              <td style={{ padding: "9px 12px", textAlign: "right", fontFamily: "monospace" }}>
+                ${feesEdits.reduce((s, f) => s + (f.ctPro || 0) * f.ind + (f.ctStu || 0) * f.ngo, 0).toLocaleString()}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div style={{ fontSize: 12, color: C.blueGrey, fontStyle: "italic" }}>Revenue is always shown in USD. Fee amounts convert based on your currency selection above.</div>
     </div>
   );
 }
 
-function StepIrregular({ currency, data: d }) {
-  const sym = currency.symbol;
-  const irrProj = d.irrProj || [];
-  const riEntries = Object.entries(d.ri || {}).filter(([, v]) => v > 0);
+function StepIrregular({ conv, irrProjEdits, setIrrProjEdits, data }) {
+  const riEntries = Object.entries(data?.ri || {}).filter(([, v]) => v > 0);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <p style={descStyle}>Irregular expenses are project-based costs funded by grants. Irregular revenue includes grants and other time-limited funding.</p>
       <div style={{ fontWeight: 700, fontSize: 14, color: C.navy }}>Irregular Expenses</div>
-      {irrProj.length === 0 ? <p style={{ fontSize: 13, color: C.blueGrey }}>No irregular expenses recorded.</p> : (
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-          <thead><tr style={{ background: C.lightBG }}><th style={thStyle}>Project</th><th style={thStyle}>Funder</th><th style={{ ...thStyle, textAlign: "right" }}>Amount</th></tr></thead>
-          <tbody>{irrProj.map((p, i) => <tr key={i} style={{ borderBottom: "1px solid #f0f0f0" }}><td style={{ padding: "8px 10px" }}>{p.name}</td><td style={{ padding: "8px 10px" }}>{p.funder}</td><td style={{ padding: "8px 10px", textAlign: "right" }}>{sym}{p.amount?.toLocaleString()}</td></tr>)}</tbody>
-        </table>
-      )}
+      {irrProjEdits.length === 0
+        ? <p style={{ fontSize: 13, color: C.blueGrey }}>No irregular expenses recorded.</p>
+        : (
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: C.lightBG }}>
+                <th style={thStyle}>Project</th>
+                <th style={thStyle}>Funder</th>
+                <th style={{ ...thStyle, textAlign: "right", width: 160 }}>Amount ({conv.displayCode})</th>
+              </tr>
+            </thead>
+            <tbody>
+              {irrProjEdits.map((p, i) => (
+                <tr key={i} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                  <td style={{ padding: "8px 10px" }}>{p.name}</td>
+                  <td style={{ padding: "8px 10px" }}>{p.funder}</td>
+                  <td style={{ padding: "4px 10px" }}>
+                    <AmountInput
+                      usdVal={p.amount || 0} conv={conv}
+                      onChangeUSD={(v) => setIrrProjEdits((rows) => rows.map((r, idx) => idx === i ? { ...r, amount: v } : r))}
+                    />
+                  </td>
+                </tr>
+              ))}
+              <tr style={{ fontWeight: 700, background: "#f8f8f8" }}>
+                <td colSpan={2} style={{ padding: "9px 12px" }}>Total</td>
+                <td style={{ padding: "9px 12px", textAlign: "right", fontFamily: "monospace" }}>
+                  {conv.displaySym}{conv.toDisplay(irrProjEdits.reduce((s, p) => s + (p.amount || 0), 0)).toLocaleString()}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        )
+      }
       <div style={{ fontWeight: 700, fontSize: 14, color: C.navy, marginTop: 8 }}>Irregular Revenue</div>
-      {riEntries.length === 0 ? <p style={{ fontSize: 13, color: C.blueGrey }}>No irregular revenue recorded.</p> : (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-          {riEntries.map(([k, v]) => <div key={k} style={{ background: "#f4f6f8", borderRadius: 7, padding: "10px 14px", flex: "1 1 120px" }}><div style={{ fontSize: 12, color: C.blueGrey, textTransform: "capitalize" }}>{k}</div><div style={{ fontSize: 17, fontWeight: 700, color: C.purple }}>{sym}{v?.toLocaleString()}</div></div>)}
-        </div>
-      )}
+      {riEntries.length === 0
+        ? <p style={{ fontSize: 13, color: C.blueGrey }}>No irregular revenue recorded.</p>
+        : (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+            {riEntries.map(([k, v]) => (
+              <div key={k} style={{ background: "#f4f6f8", borderRadius: 7, padding: "10px 14px", flex: "1 1 120px" }}>
+                <div style={{ fontSize: 12, color: C.blueGrey, textTransform: "capitalize" }}>{k}</div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: C.purple }}>${v?.toLocaleString()}</div>
+              </div>
+            ))}
+          </div>
+        )
+      }
     </div>
   );
 }
 
-function StepInKind({ currency, data: d }) {
-  const sym = currency.symbol;
-  const ik = d.ikReg || {};
-  const ikIrr = d.ikIrr || {};
+function StepInKind({ conv, ikRegEdits, setIkRegEdits, ikIrrEdits, setIkIrrEdits }) {
+  const ikRegTotal = (ikRegEdits.federal || 0) + (ikRegEdits.institutional || 0) + (ikRegEdits.other || 0);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <p style={descStyle}>In-kind contributions are non-cash support — staff time, equipment, office space — donated by external organizations. They are tracked separately and not yet included in gap calculations.</p>
+      <p style={descStyle}>In-kind contributions are non-cash support — staff time, equipment, office space — donated by external organizations. They are tracked separately and do not affect the cash gap.</p>
       <div style={{ fontWeight: 700, fontSize: 14, color: C.navy }}>Regular In-Kind</div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-        {[["Federal", ik.federal], ["Institutional", ik.institutional], ["Other", ik.other], ["Total", ik.total]].map(([label, val]) => (
-          <div key={label} style={{ background: label === "Total" ? C.navy : "#f4f6f8", borderRadius: 7, padding: "10px 14px", flex: "1 1 120px" }}>
-            <div style={{ fontSize: 12, color: label === "Total" ? "rgba(255,255,255,0.7)" : C.blueGrey }}>{label}</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: label === "Total" ? C.yellow : C.steelblue }}>{sym}{(val || 0).toLocaleString()}</div>
-          </div>
-        ))}
-      </div>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+        <thead>
+          <tr style={{ background: C.lightBG }}>
+            <th style={thStyle}>Category</th>
+            <th style={{ ...thStyle, textAlign: "right", width: 160 }}>Amount ({conv.displayCode})</th>
+          </tr>
+        </thead>
+        <tbody>
+          {[["federal", "Federal"], ["institutional", "Institutional"], ["other", "Other"]].map(([key, label]) => (
+            <tr key={key} style={{ borderBottom: "1px solid #f0f0f0" }}>
+              <td style={{ padding: "9px 12px" }}>{label}</td>
+              <td style={{ padding: "6px 12px" }}>
+                <AmountInput usdVal={ikRegEdits[key] || 0} conv={conv}
+                  onChangeUSD={(v) => setIkRegEdits((e) => ({ ...e, [key]: v }))} />
+              </td>
+            </tr>
+          ))}
+          <tr style={{ fontWeight: 700, background: "#f8f8f8" }}>
+            <td style={{ padding: "9px 12px" }}>Total (auto)</td>
+            <td style={{ padding: "9px 12px", textAlign: "right", fontFamily: "monospace" }}>
+              {conv.displaySym}{conv.toDisplay(ikRegTotal).toLocaleString()}
+              {conv.showAlt && <div style={{ fontSize: 11, color: C.blueGrey, fontWeight: 400 }}>≈ {conv.altSym} {Math.round(conv.toAlt(ikRegTotal)).toLocaleString()}</div>}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
       <div style={{ fontWeight: 700, fontSize: 14, color: C.navy, marginTop: 4 }}>Irregular In-Kind</div>
-      <div style={{ background: "#f4f6f8", borderRadius: 7, padding: "10px 14px" }}>
-        <div style={{ fontSize: 12, color: C.blueGrey }}>Total</div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: C.steelblue }}>{sym}{(ikIrr.total || 0).toLocaleString()}</div>
-      </div>
-      <div style={{ fontSize: 12, color: C.blueGrey, fontStyle: "italic", background: "#eef4ff", padding: "10px 14px", borderRadius: 6, borderLeft: `3px solid ${C.steelblue}` }}>
-        In-kind will factor into gap calculations in Phase 2 after the logic is confirmed with the TRACE team.
-      </div>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+        <tbody>
+          <tr style={{ borderBottom: "1px solid #f0f0f0" }}>
+            <td style={{ padding: "9px 12px" }}>Total</td>
+            <td style={{ padding: "6px 12px" }}>
+              <AmountInput usdVal={ikIrrEdits.total || 0} conv={conv}
+                onChangeUSD={(v) => setIkIrrEdits((e) => ({ ...e, total: v }))} />
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -471,28 +630,29 @@ function StepActivities({ rows, onUpdate }) {
 function TrendSelect({ val, onChange }) {
   const color = val === "Increase" ? C.teal : val === "Decrease" ? C.orange : C.blueGrey;
   return (
-    <select
-      value={val}
-      onChange={(e) => onChange(e.target.value)}
-      style={{ ...selectStyle, fontSize: 12, color, fontWeight: val ? 600 : 400, borderColor: val ? color : "#dde" }}
-    >
+    <select value={val} onChange={(e) => onChange(e.target.value)}
+      style={{ ...selectStyle, fontSize: 12, color, fontWeight: val ? 600 : 400, borderColor: val ? color : "#dde" }}>
       <option value="">Select…</option>
       {TREND_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
     </select>
   );
 }
 
-function StepReview({ country, activityRows, currency }) {
+function StepReview({ country, activityRows, currency, erEdits, feesEdits }) {
   const filledActivities = activityRows.filter((r) => r.nearTerm && r.longTerm);
+  const totalExpenses = ER_ROWS.reduce((s, [k]) => s + (erEdits[k] || 0), 0);
+  const totalRevenue  = feesEdits.reduce((s, f) => s + (f.ctPro || 0) * f.ind + (f.ctStu || 0) * f.ngo, 0);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <p style={descStyle}>Review your responses before submitting. In the live version, this will save to the TRACE database.</p>
+      <p style={descStyle}>Review your responses before submitting. Submitting will save all changes to the TRACE database.</p>
       <div style={{ background: C.lightBG, borderRadius: 8, padding: "14px 18px" }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 8 }}>Summary</div>
         <div style={{ fontSize: 13, color: "#444", lineHeight: 1.9 }}>
           <div>Country: <strong>{country}</strong></div>
           <div>Currency: <strong>{currency.code} ({currency.symbol})</strong></div>
-          <div>Activities with near/long-term expectations filled in: <strong>{filledActivities.length} / {activityRows.length}</strong></div>
+          <div>Total regular expenses: <strong>${totalExpenses.toLocaleString()}</strong></div>
+          <div>Total fee revenue: <strong>${totalRevenue.toLocaleString()}</strong></div>
+          <div>Activities filled in: <strong>{filledActivities.length} / {activityRows.length}</strong></div>
         </div>
       </div>
       {filledActivities.length < activityRows.length && (
@@ -500,17 +660,52 @@ function StepReview({ country, activityRows, currency }) {
           {activityRows.length - filledActivities.length} activities don't have both near-term and long-term selections. You can go back to complete them or submit now.
         </div>
       )}
-      <div style={{ fontSize: 13, color: C.blueGrey, fontStyle: "italic" }}>
-        Click "Submit ✓" to complete this wizard entry.
-      </div>
+      <div style={{ fontSize: 13, color: C.blueGrey, fontStyle: "italic" }}>Click "Submit ✓" to save this wizard entry.</div>
     </div>
   );
 }
 
-const labelStyle = { display: "block", fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 5 };
-const textareaStyle = { width: "100%", border: "1px solid #ccc", borderRadius: 6, padding: "8px 10px", fontSize: 13, resize: "vertical", minHeight: 60 };
-const selectStyle = { width: "100%", border: "1px solid #ccc", borderRadius: 6, padding: "8px 10px", fontSize: 13, minHeight: 40, background: "#fff" };
-const navBtnStyle = { borderRadius: 8, padding: "10px 24px", fontSize: 14, fontWeight: 600, minHeight: 44 };
+// ─── Shared input components ──────────────────────────────────────────────────
+
+function AmountInput({ usdVal, onChangeUSD, conv }) {
+  const displayVal = Math.round(conv.toDisplay(usdVal));
+  return (
+    <div style={{ textAlign: "right" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
+        <span style={{ fontSize: 12, color: C.blueGrey, fontFamily: "monospace" }}>{conv.displaySym}</span>
+        <input
+          type="number" min="0"
+          value={displayVal}
+          onChange={(e) => onChangeUSD(conv.fromDisplay(parseFloat(e.target.value) || 0))}
+          style={{ width: 110, border: "1px solid #ccc", borderRadius: 4, padding: "4px 6px", fontSize: 13, textAlign: "right", fontFamily: "monospace" }}
+        />
+      </div>
+      {conv.showAlt && (
+        <div style={{ fontSize: 11, color: C.blueGrey, marginTop: 2, fontFamily: "monospace" }}>
+          ≈ {conv.altSym} {Math.round(conv.toAlt(usdVal)).toLocaleString()}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NumInput({ val, onChange, isCount }) {
+  return (
+    <input
+      type="number" min="0"
+      value={val}
+      onChange={(e) => onChange(e.target.value)}
+      style={{ width: isCount ? 70 : 90, border: "1px solid #ccc", borderRadius: 4, padding: "4px 6px", fontSize: 12, textAlign: "right", fontFamily: "monospace", display: "block", marginLeft: "auto" }}
+    />
+  );
+}
+
+// ─── Shared styles ────────────────────────────────────────────────────────────
+
+const labelStyle     = { display: "block", fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 5 };
+const textareaStyle  = { width: "100%", border: "1px solid #ccc", borderRadius: 6, padding: "8px 10px", fontSize: 13, resize: "vertical", minHeight: 60 };
+const selectStyle    = { width: "100%", border: "1px solid #ccc", borderRadius: 6, padding: "8px 10px", fontSize: 13, minHeight: 40, background: "#fff" };
+const navBtnStyle    = { borderRadius: 8, padding: "10px 24px", fontSize: 14, fontWeight: 600, minHeight: 44 };
 const toggleBtnStyle = { borderRadius: 7, padding: "8px 20px", fontSize: 14, fontWeight: 600, minHeight: 40 };
-const thStyle = { padding: "8px 10px", textAlign: "left", color: C.navy, fontWeight: 700, fontSize: 12 };
-const descStyle = { fontSize: 13, color: "#555", lineHeight: 1.65, fontStyle: "italic" };
+const thStyle        = { padding: "8px 10px", textAlign: "left", color: C.navy, fontWeight: 700, fontSize: 12 };
+const descStyle      = { fontSize: 13, color: "#555", lineHeight: 1.65, fontStyle: "italic" };

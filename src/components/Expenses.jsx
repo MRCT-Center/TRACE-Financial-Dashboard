@@ -16,7 +16,7 @@ const REG_LABELS = {
 };
 
 export default function Expenses({ country, data: d, flag, onEdit }) {
-  const { fmt } = useCurrency();
+  const { fmt, displayCode } = useCurrency();
   const m = gm(d);
   const regRows = Object.entries(d.er).map(([k, v]) => ({ key: k, category: REG_LABELS[k] || k, amount: v }));
   const necTotal = (d.er.nSal || 0) + (d.er.nBen || 0) + (d.er.nRec || 0);
@@ -53,7 +53,7 @@ export default function Expenses({ country, data: d, flag, onEdit }) {
           <thead>
             <tr style={{ background: C.lightBG }}>
               <th style={{ textAlign: "left", padding: "7px 10px", color: C.navy, fontWeight: 700, fontSize: 12 }}>Category</th>
-              <th style={{ textAlign: "right", padding: "7px 10px", color: C.navy, fontWeight: 700, fontSize: 12 }}>Amount (USD)</th>
+              <th style={{ textAlign: "right", padding: "7px 10px", color: C.navy, fontWeight: 700, fontSize: 12 }}>Amount ({displayCode})</th>
             </tr>
           </thead>
           <tbody>
