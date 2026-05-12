@@ -30,7 +30,7 @@ export default function GapView({ country, data: d, flag }) {
         <GapKPI label="Combined Gap" val={m.cg} large />
       </div>
 
-      <Card title={<>Advocacy Summary<InfoTip title="Using this for advocacy">This summary is designed to help make the case to policymakers, ministries, and funders — showing what the ethics committee does and what it costs. Review volume, fee structures, and funding gaps are all ethics maturity indicators that support requests for increased and sustainable funding.</InfoTip></>}>
+      <Card title={<>Advocacy Summary<InfoTip title="Using this for advocacy">This summary is designed to help TRACE countries advocate for additional funding — by documenting the activities they carry out and the necessary increase in level of effort for those activities, gaps in revenue to support those activities, and how recurrent funding should draw from a mix of revenue streams rather than fees alone. Ethics maturity indicators — including number of initial reviews for professional (non-student) studies, presence of financial risks and opportunities, and number of ethics activities with expected increase in effort — support requests for increased and sustainable funding.</InfoTip></>}>
         <p style={{ fontSize: 14, color: C.navy, lineHeight: 1.75, background: C.lightBG, borderRadius: 8, padding: "14px 18px" }}>
           {country} conducts <strong>{initialReviews}</strong> initial review{initialReviews !== 1 ? "s" : ""},
           {otherReviews > 0 ? ` ${otherReviews} other type${otherReviews !== 1 ? "s" : ""} of review,` : ""}
@@ -86,7 +86,7 @@ export default function GapView({ country, data: d, flag }) {
         </Card>
       )}
 
-      <Card title={<>Summary Table<InfoTip title="Reading the combined gap">The combined gap adds regular and irregular budgets together. Important caveat: irregular revenue is typically restricted to specific projects and cannot be used to cover general operating costs. Even if the combined gap looks positive, a regular budget deficit may represent real operational risk — the two budgets should be read separately as well as together.</InfoTip></>}>
+      <Card title={<>Summary Table<InfoTip title="Reading the combined gap">The combined gap analysis combines the budget gaps from the regular and irregular budgets together. A deficit in either budget can be covered by a surplus in the other, given allowable use of revenue. Countries should check if the sources of revenue in the workbook allow intermingling of funds — for instance, some grant awards may restrict what the funds can be used for, and those funds may not be able to support excess expenses in another category. The regular and irregular budgets should be read separately as well as together.</InfoTip></>}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ background: C.lightBG }}>

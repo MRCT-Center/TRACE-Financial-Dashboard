@@ -206,7 +206,7 @@ function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange,
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
         <img
-          src="/trace-logo.png"
+          src="/trace-logo.svg"
           alt="TRACE"
           style={{ height: 40, objectFit: "contain", filter: "brightness(0) invert(1)" }}
         />

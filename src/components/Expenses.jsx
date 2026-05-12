@@ -33,7 +33,7 @@ export default function Expenses({ country, data: d, flag, onEdit }) {
         <KPI label="Total Irregular Expenses" val={fmt(m.ti)} color={C.steelblue} />
       </div>
 
-      <Card title={<>Regular Expenses — Breakdown<InfoTip title="Regular vs. irregular budget"><Def term="Regular expenses">Recurring costs that happen every year — staff salaries and benefits, rent, utilities, internet, office supplies, vehicle maintenance.</Def><Def term="Irregular expenses">Infrequent large purchases and one-time activities — vehicle purchases, building renovation, IT system upgrades, consultant-led SOP redesign, one-time conferences. Covered by grants rather than fee revenue.</Def>This separation is intentional: it makes annual planning and cross-year comparison much easier.</InfoTip></>}>
+      <Card title={<>Regular Expenses — Breakdown<InfoTip title="Regular vs. irregular budget"><Def term="Regular expenses">Regularly recurring expenses — e.g., regular staff salaries and benefits, rent, electricity, office supplies.</Def><Def term="Irregular expenses">Infrequent large purchases (e.g., vehicles, buildings) and one-time activities (e.g., hiring a consultant to redo SOPs, IT system upgrade, development of training materials, one-time conferences/meetings).</Def>This is slightly different than standard accounting practices, but is intended to make the workbook more straightforward and allow for easier visibility of how one-time activities are funded.</InfoTip></>}>
         <p style={narrativeStyle}>
           Regular expenses are the recurring annual costs of running your secretariat and ethics committee.
           Salaries and benefits make up the bulk of these costs for most committees. Click any amount to edit.
@@ -74,7 +74,7 @@ export default function Expenses({ country, data: d, flag, onEdit }) {
       </Card>
 
       {d.necDetail && (
-        <Card title={<>Ethics Committee — Detailed Breakdown<InfoTip title="Ethics Committee (NEC) budget">The ethics committee budget covers payments and support for the committee members (reviewers). It is part of the overall secretariat budget but is tracked separately because it is helpful to understand how much of the budget goes directly to reviewer compensation vs. administrative operations. Note: payments to committee members are typically disbursed by the secretariat.</InfoTip></>}>
+        <Card title={<>Ethics Committee — Detailed Breakdown<InfoTip title="Ethics Committee (NEC) budget">The funding for the ethics committee — including payments to members of the ethics committee, food for ethics meetings, etc. — is usually disbursed by the management structure/secretariat, so the ethics committee budget is part of the overall budget controlled by the management structure/secretariat. It is helpful to disaggregate those components within the overall budget.</InfoTip></>}>
           <p style={narrativeStyle}>
             The ethics committee budget covers reviewer payments, training time, travel supplements, and meeting hosting.
           </p>
@@ -102,7 +102,7 @@ export default function Expenses({ country, data: d, flag, onEdit }) {
         </Card>
       )}
 
-      <Card title={<>Irregular Expenses<InfoTip title="Irregular expenses">One-time or project-based costs funded by external grants — not recurring annual costs. Examples: vehicle purchases, building renovation, IT system upgrades, consultant-led SOP redesign, one-time conferences. Because they are grant-funded, their continuation depends on external funders renewing or extending support.</InfoTip></>}>
+      <Card title={<>Irregular Expenses<InfoTip title="Irregular expenses">Infrequent large purchases (e.g., vehicle purchase, building renovation, legal settlements and other unanticipated large payouts, reserves) and one-time activities (e.g., one-time conference/meeting, IT system upgrade, development of training materials, harmonization of guidance and policies such as SOPs).{/* SUGGESTED — source does not specify funding mechanism: These are typically funded by grants or other one-time sources rather than regular operating revenue such as review fees. */}</InfoTip></>}>
         {(!d.irrProj || d.irrProj.length === 0) ? (
           <p style={narrativeStyle}>No irregular expenses recorded for this country.</p>
         ) : (
