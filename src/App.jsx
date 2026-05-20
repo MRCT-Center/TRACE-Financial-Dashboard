@@ -158,6 +158,7 @@ export default function App() {
           onLogout={handleLogout}
           email={session.email}
           dbStatus={dbStatus}
+          view={view}
         />
         <NavBar views={views} current={view} onSelect={setView} />
         <main style={{ flex: 1, padding: "20px 16px", maxWidth: 1200, margin: "0 auto", width: "100%" }}>
@@ -190,7 +191,7 @@ export default function App() {
   );
 }
 
-function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange, onLogout, email, dbStatus }) {
+function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange, onLogout, email, dbStatus, view }) {
   const { showLocal, setShowLocal, displayCode, defaultCode, currency } = useCurrency();
 
   return (
@@ -223,8 +224,8 @@ function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange,
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        {/* Currency toggle — shown whenever a local currency exists for the selected country */}
-        {defaultCode !== "USD" && (
+        {/* Currency toggle — hidden on the Wizard view, which has its own Step 1 currency control */}
+        {defaultCode !== "USD" && view !== "wizard" && (
           <div style={{ display: "flex", alignItems: "center", gap: 0, border: "1px solid rgba(255,255,255,0.25)", borderRadius: 7, overflow: "hidden", fontSize: 12 }}>
             <button
               onClick={() => setShowLocal(true)}

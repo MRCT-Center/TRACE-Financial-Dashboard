@@ -26,31 +26,31 @@ const WORKSTREAMS = [
 const WORKBOOK_REASONS = [
   "Enable countries to track ethics system expenses and revenues.",
   "Support financial planning for current and forecasted budgets.",
-  "Help countries understand how fees align with budgets and assess funding gaps.",
+  "Help countries understand the extent to which review fees support ethics system budgets (which pay for both the managerial functions of the ethics system and the operating costs of the review committees) and assess funding gaps.",
   "Document opportunity costs of unpaid labor and donated items (in-kind contributions).",
   "Support advocacy for additional and sustainable funding.",
 ];
 
 const KEY_OBJECTIVES = [
-  "Streamline and harmonize clinical trial ethics review processes in participating countries.",
   "Build capacity for National Ethics Committees (NECs) and Institutional Review Boards (IRBs), in collaboration with National Regulatory Authorities (NRAs).",
+  "Streamline and harmonize clinical trial ethics review processes in participating countries.",
   "Strengthen and optimize digital systems for ethics and clinical trial oversight to improve efficiency, transparency, and coordination.",
-  "Engage policymakers, regulators, and institutional stakeholders to strengthen ethics governance and coordination.",
   "Ensure all NECs implement a financial sustainability plan to support long-term operational effectiveness.",
+  "Engage policymakers, regulators, and institutional stakeholders to strengthen ethics governance and coordination.",
 ];
 
 const DESIGN_DECISIONS = [
   {
-    heading: "Regular vs. irregular split",
-    body: "This is not standard accounting — it is intentional. Separating recurring costs from one-time project costs makes it much easier to plan and compare across years.",
+    heading: "Regular vs. irregular split for both expenses and revenues",
+    body: "This differs a bit from standard accounting — it is intentional. Separating regular expenses (or revenues) that are recurring on a generally annual basis from irregular expenses (or revenues) that occur on a \"once in a while\" or one-time basis makes it easier to identify large irregular expenses (or revenues) in the budget and avoids the need for complex accounting to \"smooth/spread\" irregular expenses across budget years.",
   },
   {
     heading: "In-kind contributions are \"off-budget\"",
-    body: "Donated items (staff time, equipment, office space) are tracked separately because they are real resources that do not appear in the formal budget. They matter for sustainability analysis.",
+    body: "Donated items (e.g., staff time, equipment, office or conference space, use of personal vehicles for business purposes) are tracked separately because they often do not appear in formal budgets. However, they matter greatly for sustainability analysis.",
   },
   {
     heading: "Forecasting built in",
-    body: "Near-term planning (~1 year) focuses on the regular budget. Long-term planning (3–5 years) focuses on the irregular budget, where grant timelines matter most.",
+    body: "Near-term planning focuses on the next year. Long-term planning focuses on the next 3–5 years.",
   },
   {
     heading: "Standardized fee categories",
@@ -132,7 +132,7 @@ export default function IntroPage({ onNavigate, isAdmin }) {
             The Multi-Regional Clinical Trials Center of Brigham and Women's Hospital and Harvard (MRCT Center)
             is the training partner within TRACE, funded by the Gates Foundation. The MRCT Center supports the
             distinct needs of each country, focused on capacity building and financial sustainability, with particular
-            attention to registration, accreditation pathways, in-country reliance, and sustainable financing models.
+            attention to registration, accreditation pathways, in-country reliance, and sustainable financing processes.
           </p>
           <p style={{ ...bodyText, marginTop: 10 }}>
             In parallel, the MRCT Center team has developed harmonized foundational training and is now working on
@@ -140,7 +140,7 @@ export default function IntroPage({ onNavigate, isAdmin }) {
             across partner countries while remaining responsive to local contexts and priorities.
           </p>
           <p style={{ ...bodyText, marginTop: 10 }}>
-            This financial dashboard was developed by the MRCT Center as part of that capacity-building work —
+            This financial dashboard was developed by the MRCT Center as part of work on sustainable financing —
             to give country teams a shared, structured way to understand their ethics review system's finances
             and plan for long-term sustainability.
           </p>
@@ -148,8 +148,8 @@ export default function IntroPage({ onNavigate, isAdmin }) {
 
         <Section title="Why this dashboard?">
           <p style={{ ...bodyText, marginBottom: 14 }}>
-            This dashboard was developed to help ethics committees across TRACE countries build a clear,
-            shared picture of their financial situation. Specifically, it enables teams to:
+            This dashboard was developed to help ethics systems across TRACE countries build a clear,
+            shared picture of their financial situation. Specifically, it enables management teams at National Ethics Secretariats and local IRBs to:
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
             {WORKBOOK_REASONS.map((reason, i) => (
