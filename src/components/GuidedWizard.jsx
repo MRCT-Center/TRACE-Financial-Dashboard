@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { COLORS as C } from "../utils/metrics";
+import StepInstructions from "./StepInstructions";
+import { WIZARD_STEP_INSTRUCTIONS } from "../data/instructions";
 
 const CURRENCIES = [
   { code: "USD", symbol: "$",   name: "US Dollar"        },
@@ -172,6 +174,8 @@ export default function GuidedWizard({ country, data, onSave }) {
           {currentStep.title}
         </div>
         <div style={{ padding: "20px 22px" }}>
+
+          <StepInstructions stepInstructions={WIZARD_STEP_INSTRUCTIONS[currentStep.id]} />
 
           {step === 0 && (
             <StepSetup
