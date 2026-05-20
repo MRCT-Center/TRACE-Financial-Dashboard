@@ -44,6 +44,27 @@ const ACTIVITY_DESCRIPTIONS = {
 
 const TREND_OPTIONS = ["Remain the same", "Increase", "Decrease"];
 
+// ─── Wizard draft persistence ────────────────────────────────────────────────
+// PROTOTYPE ONLY: localStorage-based draft persistence (per browser, per device).
+// Before production deployment with real country teams, this MUST be replaced
+// with server-side persistence (Supabase) so drafts survive logout and follow
+// the user across devices. See plan velvety-seeking-marble.md.
+const DRAFT_VERSION = 1;
+const draftKey = (country) => `trace-wizard-draft:${country}:v${DRAFT_VERSION}`;
+
+function loadDraft(country) {
+  try {
+    const raw = localStorage.getItem(draftKey(country));
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function saveDraft(country, payload) {
+  try { localStorage.setItem(draftKey(country), JSON.stringify({ ...payload, savedAt: new Date().toISOString() })); } catch {}
+}
+function clearDraft(country) {
+  try { localStorage.removeItem(draftKey(country)); } catch {}
+}
+
 const STEPS = [
   { id: "setup",      label: "1. Setup",        title: "Country & Unit Setup"       },
   { id: "risks",      label: "2. Risks & Opps", title: "Financial Risks & Opportunities" },
@@ -56,19 +77,23 @@ const STEPS = [
 ];
 
 export default function GuidedWizard({ country, data, onSave }) {
-  const [step, setStep]           = useState(0);
-  const [currency, setCurrency]   = useState(CURRENCIES[0]);
-  const [inputMode, setInputMode] = useState("usd"); // "usd" | "local"
+  // Hydrate from localStorage draft on mount (component is keyed by country in App.jsx)
+  const draft = loadDraft(country);
+
+  const [step, setStep]           = useState(() => draft?.step ?? 0);
+  const [currency, setCurrency]   = useState(() => CURRENCIES.find((c) => c.code === draft?.currencyCode) || CURRENCIES[0]);
+  const [inputMode, setInputMode] = useState(() => draft?.inputMode || "usd"); // "usd" | "local"
   const [exchangeRate, setExchangeRate] = useState(1);
   const [rateLoading, setRateLoading]   = useState(false);
   const [rateError, setRateError]       = useState(null);
 
-  const [hasRisks, setHasRisks] = useState("");
-  const [hasOpps,  setHasOpps]  = useState("");
-  const [riskText, setRiskText] = useState("");
-  const [oppText,  setOppText]  = useState("");
+  const [hasRisks, setHasRisks] = useState(() => draft?.hasRisks || "");
+  const [hasOpps,  setHasOpps]  = useState(() => draft?.hasOpps || "");
+  const [riskText, setRiskText] = useState(() => draft?.riskText || "");
+  const [oppText,  setOppText]  = useState(() => draft?.oppText || "");
 
   const [activityRows, setActivityRows] = useState(() => {
+    if (draft?.activityRows) return draft.activityRows;
     const saved = data?.activities || [];
     return ACTIVITY_LIST.map((name) => {
       const existing = saved.find((a) => a.name === name);
@@ -78,17 +103,30 @@ export default function GuidedWizard({ country, data, onSave }) {
     });
   });
 
-  const [stepSources, setStepSources] = useState(Array(STEPS.length).fill(""));
-  const [stepNotes,   setStepNotes]   = useState(Array(STEPS.length).fill(""));
+  const [stepSources, setStepSources] = useState(() => draft?.stepSources || Array(STEPS.length).fill(""));
+  const [stepNotes,   setStepNotes]   = useState(() => draft?.stepNotes   || Array(STEPS.length).fill(""));
   const [submitted, setSubmitted] = useState(false);
   const [saving,    setSaving]    = useState(false);
+  const [draftSavedAt, setDraftSavedAt] = useState(draft?.savedAt || null);
 
   // Editable budget data — all stored in USD
-  const [erEdits,      setErEdits]      = useState({ ...(data?.er      || {}) });
-  const [feesEdits,    setFeesEdits]    = useState(() => JSON.parse(JSON.stringify(data?.fees    || [])));
-  const [irrProjEdits, setIrrProjEdits] = useState(() => JSON.parse(JSON.stringify(data?.irrProj || [])));
-  const [ikRegEdits,   setIkRegEdits]   = useState({ ...(data?.ikReg   || {}) });
-  const [ikIrrEdits,   setIkIrrEdits]   = useState({ ...(data?.ikIrr   || {}) });
+  const [erEdits,      setErEdits]      = useState(() => draft?.erEdits      || { ...(data?.er    || {}) });
+  const [feesEdits,    setFeesEdits]    = useState(() => draft?.feesEdits    || JSON.parse(JSON.stringify(data?.fees    || [])));
+  const [irrProjEdits, setIrrProjEdits] = useState(() => draft?.irrProjEdits || JSON.parse(JSON.stringify(data?.irrProj || [])));
+  const [ikRegEdits,   setIkRegEdits]   = useState(() => draft?.ikRegEdits   || { ...(data?.ikReg || {}) });
+  const [ikIrrEdits,   setIkIrrEdits]   = useState(() => draft?.ikIrrEdits   || { ...(data?.ikIrr || {}) });
+
+  // Autosave every state change. Synchronous localStorage write is fast for this payload size.
+  useEffect(() => {
+    if (submitted) return;
+    saveDraft(country, {
+      step, currencyCode: currency.code, inputMode,
+      hasRisks, hasOpps, riskText, oppText,
+      activityRows, stepSources, stepNotes,
+      erEdits, feesEdits, irrProjEdits, ikRegEdits, ikIrrEdits,
+    });
+    setDraftSavedAt(new Date().toISOString());
+  }, [country, submitted, step, currency.code, inputMode, hasRisks, hasOpps, riskText, oppText, activityRows, stepSources, stepNotes, erEdits, feesEdits, irrProjEdits, ikRegEdits, ikIrrEdits]);
 
   // Fetch live exchange rate whenever currency changes
   useEffect(() => {
@@ -145,10 +183,32 @@ export default function GuidedWizard({ country, data, onSave }) {
 
   return (
     <div style={{ maxWidth: 960, margin: "0 auto", width: "100%" }}>
-      <div style={{ background: C.navy, borderRadius: 10, padding: "16px 22px", color: "#fff", marginBottom: 20 }}>
+      <div style={{ background: C.navy, borderRadius: 10, padding: "16px 22px", color: "#fff", marginBottom: 12 }}>
         <div style={{ fontSize: 18, fontWeight: 700 }}>Guided Wizard — {country}</div>
         <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>Enter data step by step. Each step requires a data source and notes before advancing.</div>
       </div>
+
+      {/* Autosave indicator — PROTOTYPE: local browser only; replace with server-side drafts before production */}
+      {draftSavedAt && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11, color: C.blueGrey, marginBottom: 14, padding: "0 4px" }}>
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: C.green, flexShrink: 0 }} />
+          <span>
+            Draft autosaved at {new Date(draftSavedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+            <span style={{ marginLeft: 8, fontStyle: "italic", color: "#999" }}>(prototype: saved to this browser only)</span>
+          </span>
+          <button
+            onClick={() => {
+              if (window.confirm("Clear your saved draft and start over? This cannot be undone.")) {
+                clearDraft(country);
+                window.location.reload();
+              }
+            }}
+            style={{ marginLeft: "auto", background: "transparent", border: "none", color: C.red, fontSize: 11, cursor: "pointer", padding: 0, textDecoration: "underline" }}
+          >
+            Clear draft
+          </button>
+        </div>
+      )}
 
       {/* Step progress bar */}
       <div style={{ display: "flex", gap: 4, marginBottom: 20, overflowX: "auto" }}>
@@ -271,6 +331,7 @@ export default function GuidedWizard({ country, data, onSave }) {
                 ikIrr:   ikIrrEdits,
               };
               if (onSave) await onSave(updates);
+              clearDraft(country);
               setSaving(false);
               setSubmitted(true);
             }}

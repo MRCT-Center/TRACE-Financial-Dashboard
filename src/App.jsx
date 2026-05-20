@@ -165,6 +165,7 @@ export default function App() {
           {view === "intro"      && <IntroPage onNavigate={setView} isAdmin={isAdmin} />}
           {view === "wizard"     && (
             <GuidedWizard
+              key={selectedCountry}
               country={selectedCountry}
               data={countryData}
               onSave={(updates) => saveCountryData(selectedCountry, updates)}
