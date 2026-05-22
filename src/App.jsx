@@ -5,11 +5,7 @@ import { CurrencyProvider, COUNTRY_CURRENCIES, CURRENCIES, useCurrency } from ".
 import { supabase } from "./supabaseClient";
 import LoginPage from "./components/LoginPage";
 import IntroPage from "./components/IntroPage";
-import Overview from "./components/Overview";
-import Expenses from "./components/Expenses";
-import Revenue from "./components/Revenue";
-import GapView from "./components/GapView";
-import Activities from "./components/Activities";
+import Results from "./components/Results";
 import GuidedWizard from "./components/GuidedWizard";
 import AdminDashboard from "./components/AdminDashboard";
 
@@ -40,24 +36,16 @@ function deepSet(obj, path, value) {
 }
 
 const ADMIN_VIEWS = [
-  { id: "intro",     label: "Intro"         },
-  { id: "wizard",    label: "Guided Wizard" },
-  { id: "overview",  label: "Overview"      },
-  { id: "expenses",  label: "Expenses"      },
-  { id: "revenue",   label: "Revenue"       },
-  { id: "gap",       label: "Gap Analysis"  },
-  { id: "activities",label: "Activities"   },
-  { id: "admin",     label: "Admin 🔐"      },
+  { id: "intro",   label: "Introduction" },
+  { id: "wizard",  label: "Inputs"       },
+  { id: "results", label: "Results"      },
+  { id: "admin",   label: "Admin 🔐"     },
 ];
 
 const COUNTRY_VIEWS = [
-  { id: "intro",     label: "Intro"         },
-  { id: "wizard",    label: "Guided Wizard" },
-  { id: "overview",  label: "Overview"      },
-  { id: "expenses",  label: "Expenses"      },
-  { id: "revenue",   label: "Revenue"       },
-  { id: "gap",       label: "Gap Analysis"  },
-  { id: "activities",label: "Activities"   },
+  { id: "intro",   label: "Introduction" },
+  { id: "wizard",  label: "Inputs"       },
+  { id: "results", label: "Results"      },
 ];
 
 export default function App() {
@@ -162,8 +150,8 @@ export default function App() {
         />
         <NavBar views={views} current={view} onSelect={setView} />
         <main style={{ flex: 1, padding: "20px 16px", maxWidth: 1200, margin: "0 auto", width: "100%" }}>
-          {view === "intro"      && <IntroPage onNavigate={setView} isAdmin={isAdmin} />}
-          {view === "wizard"     && (
+          {view === "intro"   && <IntroPage onNavigate={setView} isAdmin={isAdmin} />}
+          {view === "wizard"  && (
             <GuidedWizard
               key={selectedCountry}
               country={selectedCountry}
@@ -171,12 +159,8 @@ export default function App() {
               onSave={(updates) => saveCountryData(selectedCountry, updates)}
             />
           )}
-          {view === "overview"   && <Overview country={selectedCountry} data={countryData} flag={flag} onEdit={handleEdit} />}
-          {view === "expenses"   && <Expenses country={selectedCountry} data={countryData} flag={flag} onEdit={handleEdit} />}
-          {view === "revenue"    && <Revenue country={selectedCountry} data={countryData} flag={flag} onEdit={handleEdit} />}
-          {view === "gap"        && <GapView country={selectedCountry} data={countryData} flag={flag} onEdit={handleEdit} />}
-          {view === "activities" && <Activities country={selectedCountry} data={countryData} flag={flag} />}
-          {view === "admin"      && isAdmin && (
+          {view === "results" && <Results country={selectedCountry} data={countryData} flag={flag} onEdit={handleEdit} />}
+          {view === "admin"   && isAdmin && (
             <AdminDashboard
               countries={countryCache}
               flags={COUNTRY_FLAGS}

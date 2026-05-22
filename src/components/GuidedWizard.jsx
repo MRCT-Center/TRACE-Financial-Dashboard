@@ -49,7 +49,7 @@ const TREND_OPTIONS = ["Remain the same", "Increase", "Decrease"];
 // Before production deployment with real country teams, this MUST be replaced
 // with server-side persistence (Supabase) so drafts survive logout and follow
 // the user across devices. See plan velvety-seeking-marble.md.
-const DRAFT_VERSION = 1;
+const DRAFT_VERSION = 2;
 const draftKey = (country) => `trace-wizard-draft:${country}:v${DRAFT_VERSION}`;
 
 function loadDraft(country) {
@@ -66,14 +66,12 @@ function clearDraft(country) {
 }
 
 const STEPS = [
-  { id: "setup",      label: "1. Setup",        title: "Country & Unit Setup"       },
-  { id: "risks",      label: "2. Risks & Opps", title: "Financial Risks & Opportunities" },
-  { id: "expenses",   label: "3. Expenses",      title: "Regular Expenses"           },
-  { id: "revenue",    label: "4. Revenue",       title: "Regular Revenue"            },
-  { id: "irregular",  label: "5. Irregular",     title: "Irregular Budget"           },
-  { id: "inKind",     label: "6. In-Kind",       title: "In-Kind Contributions"      },
-  { id: "activities", label: "7. Activities",    title: "Activity Planning"          },
-  { id: "review",     label: "8. Review",        title: "Review & Submit"            },
+  { id: "setup",     label: "1. Setup",              title: "Setup"                      },
+  { id: "keyconsid", label: "2. Key Considerations", title: "Key Considerations"         },
+  { id: "expenses",  label: "3. Expenses",           title: "Expenses"                   },
+  { id: "revenue",   label: "4. Revenue",            title: "Regular Revenue"            },
+  { id: "inKind",    label: "5. In-Kind",            title: "In-Kind Contributions"      },
+  { id: "review",    label: "6. Review",             title: "Review & Submit"            },
 ];
 
 export default function GuidedWizard({ country, data, onSave }) {
@@ -245,22 +243,28 @@ export default function GuidedWizard({ country, data, onSave }) {
             />
           )}
           {step === 1 && (
-            <StepRisks
-              hasRisks={hasRisks} onHasRisks={setHasRisks}
-              hasOpps={hasOpps}   onHasOpps={setHasOpps}
-              riskText={riskText} onRiskText={setRiskText}
-              oppText={oppText}   onOppText={setOppText}
+            <KeyConsiderationsStep
+              hasRisks={hasRisks} setHasRisks={setHasRisks}
+              hasOpps={hasOpps}   setHasOpps={setHasOpps}
+              riskText={riskText} setRiskText={setRiskText}
+              oppText={oppText}   setOppText={setOppText}
+              activityRows={activityRows} onUpdateActivity={updateActivity}
             />
           )}
-          {step === 2 && <StepExpenses conv={conv} erEdits={erEdits} setErEdits={setErEdits} />}
-          {step === 3 && <StepRevenue  conv={conv} feesEdits={feesEdits} setFeesEdits={setFeesEdits} />}
-          {step === 4 && <StepIrregular conv={conv} irrProjEdits={irrProjEdits} setIrrProjEdits={setIrrProjEdits} data={data} />}
-          {step === 5 && <StepInKind   conv={conv} ikRegEdits={ikRegEdits} setIkRegEdits={setIkRegEdits} ikIrrEdits={ikIrrEdits} setIkIrrEdits={setIkIrrEdits} />}
-          {step === 6 && <StepActivities rows={activityRows} onUpdate={updateActivity} />}
-          {step === 7 && <StepReview country={country} activityRows={activityRows} currency={currency} erEdits={erEdits} feesEdits={feesEdits} />}
+          {step === 2 && (
+            <ExpensesStep
+              conv={conv}
+              erEdits={erEdits} setErEdits={setErEdits}
+              irrProjEdits={irrProjEdits} setIrrProjEdits={setIrrProjEdits}
+              data={data}
+            />
+          )}
+          {step === 3 && <StepRevenue conv={conv} feesEdits={feesEdits} setFeesEdits={setFeesEdits} />}
+          {step === 4 && <StepInKind  conv={conv} ikRegEdits={ikRegEdits} setIkRegEdits={setIkRegEdits} ikIrrEdits={ikIrrEdits} setIkIrrEdits={setIkIrrEdits} />}
+          {step === 5 && <StepReview  country={country} activityRows={activityRows} currency={currency} erEdits={erEdits} feesEdits={feesEdits} />}
 
           {/* Sources & Notes — required on every step except review */}
-          {step < 7 && (
+          {step < STEPS.length - 1 && (
             <div style={{ marginTop: 24, borderTop: "1px solid #eee", paddingTop: 18 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 10 }}>Required before advancing</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -700,6 +704,86 @@ function TrendSelect({ val, onChange }) {
       <option value="">Select…</option>
       {TREND_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
     </select>
+  );
+}
+
+// ─── Sub-tab container ────────────────────────────────────────────────────────
+
+function SubTabs({ tabs, active, onChange }) {
+  return (
+    <div style={{ display: "flex", gap: 4, marginBottom: 16, borderBottom: `1px solid #e0e6ea` }}>
+      {tabs.map((t) => {
+        const isActive = active === t.id;
+        return (
+          <button
+            key={t.id}
+            onClick={() => onChange(t.id)}
+            style={{
+              padding: "9px 18px", fontSize: 13,
+              fontWeight: isActive ? 700 : 500,
+              color: isActive ? C.teal : C.blueGrey,
+              background: "transparent", border: "none",
+              borderBottom: `3px solid ${isActive ? C.teal : "transparent"}`,
+              marginBottom: -1, cursor: "pointer",
+              whiteSpace: "nowrap", minHeight: 40,
+            }}
+          >
+            {t.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Step 2: Key Considerations (sub-tabs: Risks & Opps | Activities) ─────────
+
+function KeyConsiderationsStep({ hasRisks, setHasRisks, hasOpps, setHasOpps, riskText, setRiskText, oppText, setOppText, activityRows, onUpdateActivity }) {
+  const [sub, setSub] = useState("risks");
+  return (
+    <div>
+      <SubTabs
+        tabs={[
+          { id: "risks",      label: "Risks & Opportunities" },
+          { id: "activities", label: "Activities" },
+        ]}
+        active={sub} onChange={setSub}
+      />
+      {sub === "risks" && (
+        <StepRisks
+          hasRisks={hasRisks} onHasRisks={setHasRisks}
+          hasOpps={hasOpps}   onHasOpps={setHasOpps}
+          riskText={riskText} onRiskText={setRiskText}
+          oppText={oppText}   onOppText={setOppText}
+        />
+      )}
+      {sub === "activities" && (
+        <StepActivities rows={activityRows} onUpdate={onUpdateActivity} />
+      )}
+    </div>
+  );
+}
+
+// ─── Step 3: Expenses (sub-tabs: Regular | Irregular) ─────────────────────────
+
+function ExpensesStep({ conv, erEdits, setErEdits, irrProjEdits, setIrrProjEdits, data }) {
+  const [sub, setSub] = useState("regular");
+  return (
+    <div>
+      <SubTabs
+        tabs={[
+          { id: "regular",   label: "Regular" },
+          { id: "irregular", label: "Irregular" },
+        ]}
+        active={sub} onChange={setSub}
+      />
+      {sub === "regular" && (
+        <StepExpenses conv={conv} erEdits={erEdits} setErEdits={setErEdits} />
+      )}
+      {sub === "irregular" && (
+        <StepIrregular conv={conv} irrProjEdits={irrProjEdits} setIrrProjEdits={setIrrProjEdits} data={data} />
+      )}
+    </div>
   );
 }
 

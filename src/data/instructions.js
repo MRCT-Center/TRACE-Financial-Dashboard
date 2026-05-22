@@ -164,19 +164,21 @@ export const SUMMARY_IRREGULAR = [
 // step doesn't map cleanly to the workbook structure.
 export const WIZARD_STEP_INSTRUCTIONS = {
   setup: {
-    note: "In the workbook, country and unit are selected per row. In the dashboard, country is set at login; unit selection will be added in a future update.",
+    note: "In the workbook, country and unit are selected per row. In the dashboard, country is set at login; select your unit below.",
     sheets: [
       { name: "From Key considerations sheet (Steps 1–2)", lines: KEY_CONSIDERATIONS.slice(0, 2) },
     ],
   },
-  risks: {
+  keyconsid: {
     sheets: [
-      { name: "From Key considerations sheet (Steps 3–5)", lines: KEY_CONSIDERATIONS.slice(2, 5) },
+      { name: "From Key considerations sheet — Risks & Opportunities (Steps 3–5)", lines: KEY_CONSIDERATIONS.slice(2, 5) },
+      { name: "From Key considerations sheet — Activities (Steps 6–11)", lines: KEY_CONSIDERATIONS.slice(5) },
     ],
   },
   expenses: {
     sheets: [
       { name: "From Expenses_regular sheet", lines: EXPENSES_REGULAR },
+      { name: "From Expenses_irregular sheet", lines: EXPENSES_IRREGULAR },
     ],
   },
   revenue: {
@@ -186,22 +188,10 @@ export const WIZARD_STEP_INSTRUCTIONS = {
       { name: "From Revenue_regular (other) sheet — coming soon", lines: REVENUE_REGULAR_OTHER },
     ],
   },
-  irregular: {
-    note: "The workbook keeps irregular expenses and irregular revenue on separate sheets. In a future update we'll split this step into two.",
-    sheets: [
-      { name: "From Expenses_irregular sheet", lines: EXPENSES_IRREGULAR },
-      { name: "From Revenue_irregular sheet", lines: REVENUE_IRREGULAR },
-    ],
-  },
   inKind: {
     sheets: [
       { name: "From In-kind contributions_regular sheet", lines: IN_KIND_REGULAR },
       { name: "From In-kind contributions_irregular sheet", lines: IN_KIND_IRREGULAR },
-    ],
-  },
-  activities: {
-    sheets: [
-      { name: "From Key considerations sheet (Steps 6–11)", lines: KEY_CONSIDERATIONS.slice(5) },
     ],
   },
   review: {

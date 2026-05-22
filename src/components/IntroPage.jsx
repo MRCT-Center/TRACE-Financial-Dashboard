@@ -11,7 +11,7 @@ const DASHBOARD_SECTIONS = [
 
 const HOW_TO_START = [
   { icon: "📝", heading: "New to this tool?", body: "Start with the Guided Wizard — it will walk you through entering your country's data step by step.", view: "wizard" },
-  { icon: "📊", heading: "Reviewing existing data?", body: "Go to Overview for a high-level summary, then use Expenses, Revenue, or Gap Analysis to explore specific areas.", view: "overview" },
+  { icon: "📊", heading: "Reviewing existing data?", body: "Go to Results for a high-level overview and to explore Expenses, Revenue, Gap Analysis, and Activities.", view: "results" },
   { icon: "🌍", heading: "MRCT Center Admin?", body: "Use the country selector in the top menu to switch between countries. The Admin tab shows cross-country comparisons and data completeness.", view: "admin", adminOnly: true },
 ];
 
