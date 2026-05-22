@@ -1,25 +1,19 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { gm, COLORS as C } from "../utils/metrics";
 import { useCurrency } from "../utils/CurrencyContext";
+import { EXPENSES_REGULAR_ITEM_LOOKUP, NEC_KEYS } from "../data/expensesRegular";
 import EditableCell from "./EditableCell";
 import InfoTip, { Def } from "./InfoTip";
-
-const REG_LABELS = {
-  secSal: "Secretariat — Salaries",
-  secBen: "Secretariat — Benefits",
-  secRec: "Secretariat — Recurring",
-  nSal:   "NEC — Payments",
-  nBen:   "NEC — Benefits",
-  nRec:   "NEC — Recurring",
-  recG:   "Recurring — Grants",
-  recGov: "Recurring — Gov't",
-};
 
 export default function Expenses({ country, data: d, flag, onEdit }) {
   const { fmt, displayCode } = useCurrency();
   const m = gm(d);
-  const regRows = Object.entries(d.er).map(([k, v]) => ({ key: k, category: REG_LABELS[k] || k, amount: v }));
-  const necTotal = (d.er.nSal || 0) + (d.er.nBen || 0) + (d.er.nRec || 0);
+  const regRows = Object.entries(d.er || {}).map(([k, v]) => ({
+    key: k,
+    category: EXPENSES_REGULAR_ITEM_LOOKUP[k]?.label || k,
+    amount: v,
+  }));
+  const necTotal = NEC_KEYS.reduce((s, k) => s + (d.er?.[k] || 0), 0);
   const secTotal = m.te - necTotal;
 
   return (

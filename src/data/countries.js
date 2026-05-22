@@ -1,11 +1,21 @@
 export const COUNTRIES = {
   Kenya: {
-    // Regular expenses (er keys map to Expenses component REG_LABELS)
+    // Regular expenses — keys map to items in src/data/expensesRegular.js (workbook order).
+    // Phase 1 v1: only `salaries` and the NEC items (mapped from prior necDetail values) carry
+    // real data. All other workbook items are blank pending country team input.
     er: {
-      secSal: 150000, secBen: 50000, secRec: 2000,
-      recG: 42000, recGov: 57500,
-      nSal: 35000, nBen: 10000, nRec: 5000,
+      salaries: 150000,
+      // NEC items — populated from prior necDetail breakdown (same values, finer-grained keys).
+      necReviewerSalaryReview:   30000,
+      necReviewerSalaryTraining: 5000,
+      necTravelTimeStipend:      5000,
+      necTravelCostStipend:      5000,
+      necReviewMeetingHosting:   5000,
     },
+    // TODO Revenue session: re-home recG / recGov to revOther or ri.grants
+    // (they were mis-classified as expenses; preserved here pending the
+    // Revenue tab deep-dive with Willyanne).
+    _legacyEr: { recG: 42000, recGov: 57500 },
     // Irregular expenses (summed by gm() for ti total)
     ei: { proj: 350000 },
     revFees: 331375, revOther: 0,
@@ -50,10 +60,14 @@ export const COUNTRIES = {
 
   Nigeria: {
     er: {
-      secSal: 180000, secBen: 60000, secRec: 5000,
-      recG: 72000, recGov: 45000,
-      nSal: 40000, nBen: 12000, nRec: 8000,
+      salaries: 180000,
+      necReviewerSalaryReview:   28000,
+      necReviewerSalaryTraining: 5000,
+      necTravelTimeStipend:      4000,
+      necTravelCostStipend:      4000,
+      necReviewMeetingHosting:   7000,
     },
+    _legacyEr: { recG: 72000, recGov: 45000 },
     ei: { proj: 248000 },
     revFees: 380000, revOther: 20000,
     ri: { grants: 250000, contracts: 0, other: 0, reserves: 10000 },
@@ -94,10 +108,14 @@ export const COUNTRIES = {
 
   Rwanda: {
     er: {
-      secSal: 95000, secBen: 30000, secRec: 3000,
-      recG: 35000, recGov: 25000,
-      nSal: 20000, nBen: 6000, nRec: 4000,
+      salaries: 95000,
+      necReviewerSalaryReview:   14000,
+      necReviewerSalaryTraining: 2000,
+      necTravelTimeStipend:      2000,
+      necTravelCostStipend:      2000,
+      necReviewMeetingHosting:   4000,
     },
+    _legacyEr: { recG: 35000, recGov: 25000 },
     ei: { proj: 150000 },
     revFees: 195000, revOther: 15000,
     ri: { grants: 180000, contracts: 0, other: 0, reserves: 5000 },
@@ -137,10 +155,14 @@ export const COUNTRIES = {
 
   Tanzania: {
     er: {
-      secSal: 120000, secBen: 40000, secRec: 4000,
-      recG: 48000, recGov: 35000,
-      nSal: 28000, nBen: 8000, nRec: 6000,
+      salaries: 120000,
+      necReviewerSalaryReview:   19600,
+      necReviewerSalaryTraining: 2800,
+      necTravelTimeStipend:      2800,
+      necTravelCostStipend:      2800,
+      necReviewMeetingHosting:   6000,
     },
+    _legacyEr: { recG: 48000, recGov: 35000 },
     ei: { proj: 200000 },
     revFees: 270000, revOther: 10000,
     ri: { grants: 220000, contracts: 0, other: 0, reserves: 8000 },
@@ -181,10 +203,14 @@ export const COUNTRIES = {
 
   Zimbabwe: {
     er: {
-      secSal: 85000, secBen: 28000, secRec: 2500,
-      recG: 32000, recGov: 22000,
-      nSal: 18000, nBen: 5500, nRec: 3500,
+      salaries: 85000,
+      necReviewerSalaryReview:   12600,
+      necReviewerSalaryTraining: 1800,
+      necTravelTimeStipend:      1800,
+      necTravelCostStipend:      1800,
+      necReviewMeetingHosting:   3500,
     },
+    _legacyEr: { recG: 32000, recGov: 22000 },
     ei: { proj: 135000 },
     revFees: 165000, revOther: 5000,
     ri: { grants: 140000, contracts: 0, other: 0, reserves: 3000 },

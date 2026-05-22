@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { COLORS as C } from "../utils/metrics";
 import StepInstructions from "./StepInstructions";
 import { WIZARD_STEP_INSTRUCTIONS } from "../data/instructions";
+import { CURRENCIES as CURRENCY_MAP, COUNTRY_CURRENCIES } from "../utils/CurrencyContext";
+import { EXPENSES_REGULAR } from "../data/expensesRegular";
+import InfoTip from "./InfoTip";
 
 const CURRENCIES = [
   { code: "USD", symbol: "$",   name: "US Dollar"        },
@@ -10,6 +13,14 @@ const CURRENCIES = [
   { code: "RWF", symbol: "RF",  name: "Rwandan Franc"    },
   { code: "TZS", symbol: "TSh", name: "Tanzanian Shilling" },
   { code: "ZWG", symbol: "ZiG", name: "Zimbabwe Gold"    },
+];
+
+// Setup tab — Unit options (from workbook dropdown sheet, locked 2026-05-21).
+const UNIT_OPTIONS = [
+  "National Secretariat/mgmt.",
+  "National Ethics Committee",
+  "Local IRB Secretariat/mgmt.",
+  "Local IRB Ethics Committee",
 ];
 
 const ACTIVITY_LIST = [
@@ -79,11 +90,19 @@ export default function GuidedWizard({ country, data, onSave }) {
   const draft = loadDraft(country);
 
   const [step, setStep]           = useState(() => draft?.step ?? 0);
-  const [currency, setCurrency]   = useState(() => CURRENCIES.find((c) => c.code === draft?.currencyCode) || CURRENCIES[0]);
-  const [inputMode, setInputMode] = useState(() => draft?.inputMode || "usd"); // "usd" | "local"
-  const [exchangeRate, setExchangeRate] = useState(1);
-  const [rateLoading, setRateLoading]   = useState(false);
-  const [rateError, setRateError]       = useState(null);
+  // Country's local currency from login — used to default the reporting currency
+  // and to drive the static exchange-rate lookup.
+  const localCurrencyCode = COUNTRY_CURRENCIES[country] || "USD";
+  const localCurrency = CURRENCIES.find((c) => c.code === localCurrencyCode) || CURRENCIES[0];
+  const [currency, setCurrency]   = useState(() =>
+    CURRENCIES.find((c) => c.code === draft?.currencyCode) || localCurrency
+  );
+  const [inputMode, setInputMode] = useState(() => draft?.inputMode || "local"); // "usd" | "local"
+  const [unit, setUnit]           = useState(() => draft?.unit || "");
+  // Static rate sourced from CurrencyContext (replaces the prior live fetch).
+  // Rate is locked at submission time (`ratesAsOf` payload field). Country
+  // teams see "as of [today]" in Setup.
+  const [exchangeRate, setExchangeRate] = useState(() => CURRENCY_MAP[currency.code]?.rate ?? 1);
 
   const [hasRisks, setHasRisks] = useState(() => draft?.hasRisks || "");
   const [hasOpps,  setHasOpps]  = useState(() => draft?.hasOpps || "");
@@ -118,32 +137,21 @@ export default function GuidedWizard({ country, data, onSave }) {
   useEffect(() => {
     if (submitted) return;
     saveDraft(country, {
-      step, currencyCode: currency.code, inputMode,
+      step, currencyCode: currency.code, inputMode, unit,
       hasRisks, hasOpps, riskText, oppText,
       activityRows, stepSources, stepNotes,
       erEdits, feesEdits, irrProjEdits, ikRegEdits, ikIrrEdits,
     });
     setDraftSavedAt(new Date().toISOString());
-  }, [country, submitted, step, currency.code, inputMode, hasRisks, hasOpps, riskText, oppText, activityRows, stepSources, stepNotes, erEdits, feesEdits, irrProjEdits, ikRegEdits, ikIrrEdits]);
+  }, [country, submitted, step, currency.code, inputMode, unit, hasRisks, hasOpps, riskText, oppText, activityRows, stepSources, stepNotes, erEdits, feesEdits, irrProjEdits, ikRegEdits, ikIrrEdits]);
 
-  // Fetch live exchange rate whenever currency changes
+  // Static exchange rate — recomputed when currency changes. Rates source: CurrencyContext map.
   useEffect(() => {
-    if (currency.code === "USD") { setExchangeRate(1); setRateError(null); return; }
-    setRateLoading(true);
-    setRateError(null);
-    fetch("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.min.json")
-      .then((r) => r.json())
-      .then((json) => {
-        const rate = json.usd?.[currency.code.toLowerCase()];
-        if (rate) setExchangeRate(rate);
-        else setRateError(`Rate not available for ${currency.code}`);
-      })
-      .catch(() => setRateError("Could not fetch exchange rate"))
-      .finally(() => setRateLoading(false));
+    setExchangeRate(CURRENCY_MAP[currency.code]?.rate ?? 1);
   }, [currency.code]);
 
-  // Conversion helpers — canConvert is false while rate is loading/errored
-  const canConvert = inputMode === "local" && currency.code !== "USD" && !rateError && !rateLoading;
+  // Conversion helpers
+  const canConvert = inputMode === "local" && currency.code !== "USD";
   const toDisplay  = (usd) => canConvert ? Math.round((usd || 0) * exchangeRate) : (usd || 0);
   const fromDisplay = (val) => canConvert ? val / exchangeRate : val;
   const displaySym  = canConvert ? currency.symbol : "$";
@@ -237,9 +245,12 @@ export default function GuidedWizard({ country, data, onSave }) {
 
           {step === 0 && (
             <StepSetup
-              currency={currency} onCurrencyChange={(c) => { setCurrency(c); setInputMode("usd"); }}
+              country={country}
+              localCurrency={localCurrency}
+              currency={currency}
               inputMode={inputMode} onInputModeChange={setInputMode}
-              exchangeRate={exchangeRate} rateLoading={rateLoading} rateError={rateError}
+              exchangeRate={exchangeRate}
+              unit={unit} onUnitChange={setUnit}
             />
           )}
           {step === 1 && (
@@ -255,8 +266,6 @@ export default function GuidedWizard({ country, data, onSave }) {
             <ExpensesStep
               conv={conv}
               erEdits={erEdits} setErEdits={setErEdits}
-              irrProjEdits={irrProjEdits} setIrrProjEdits={setIrrProjEdits}
-              data={data}
             />
           )}
           {step === 3 && <StepRevenue conv={conv} feesEdits={feesEdits} setFeesEdits={setFeesEdits} />}
@@ -325,7 +334,9 @@ export default function GuidedWizard({ country, data, onSave }) {
               const updates = {
                 activities:  activityRows,
                 hasRisks, riskText, hasOpps, oppText,
+                unit,
                 currencyCode: currency.code,
+                ratesAsOf:    new Date().toISOString(),
                 er:      erEdits,
                 fees:    feesEdits,
                 revFees: feesEdits.reduce((s, f) => s + (f.ctPro || 0) * f.ind + (f.ctStu || 0) * f.ngo, 0),
@@ -352,32 +363,63 @@ export default function GuidedWizard({ country, data, onSave }) {
 
 // ─── Step components ──────────────────────────────────────────────────────────
 
-function StepSetup({ currency, onCurrencyChange, inputMode, onInputModeChange, exchangeRate, rateLoading, rateError }) {
+function StepSetup({ country, localCurrency, currency, inputMode, onInputModeChange, exchangeRate, unit, onUnitChange }) {
+  const asOfDate = new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      <p style={descStyle}>Select the currency your committee uses for budgeting, then choose how you want to enter amounts.</p>
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <p style={descStyle}>Confirm your unit and currency settings below. Country is set by your login.</p>
 
+      {/* Unit selector — 4-button segmented control (workbook dropdown values) */}
       <div>
-        <label style={labelStyle}>Reporting currency</label>
-        <select
-          value={currency.code}
-          onChange={(e) => onCurrencyChange(CURRENCIES.find((c) => c.code === e.target.value))}
-          style={selectStyle}
-        >
-          {CURRENCIES.map((c) => (
-            <option key={c.code} value={c.code}>{c.code} — {c.name} ({c.symbol})</option>
-          ))}
-        </select>
+        <label style={labelStyle}>Unit <span style={{ color: C.red }}>*</span></label>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 0, border: `1px solid #dde`, borderRadius: 8, overflow: "hidden", marginTop: 6 }}>
+          {UNIT_OPTIONS.map((opt, i) => {
+            const isActive = unit === opt;
+            return (
+              <button
+                key={opt}
+                onClick={() => onUnitChange(opt)}
+                style={{
+                  flex: "1 1 0",
+                  padding: "10px 14px",
+                  fontSize: 13,
+                  fontWeight: isActive ? 700 : 500,
+                  color: isActive ? "#fff" : C.navy,
+                  background: isActive ? C.teal : "#f4f6f8",
+                  border: "none",
+                  borderLeft: i > 0 ? `1px solid #dde` : "none",
+                  cursor: "pointer",
+                  minHeight: 44,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {opt}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
+      {/* Local currency — fixed by country login */}
+      <div>
+        <label style={labelStyle}>Local currency</label>
+        <div style={{ marginTop: 6, padding: "10px 14px", background: "#f4f6f8", border: `1px solid #dde`, borderRadius: 8, fontSize: 14, color: C.navy }}>
+          <strong>{localCurrency.code}</strong> · {localCurrency.name} ({localCurrency.symbol})
+          <div style={{ fontSize: 11, color: C.blueGrey, marginTop: 4 }}>
+            Set by your country login ({country}). Contact MRCT Center to change.
+          </div>
+        </div>
+      </div>
+
+      {/* Enter amounts in — USD / Local toggle */}
       <div>
         <label style={labelStyle}>Enter amounts in</label>
         <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
           {[
             { val: "usd",   label: "US Dollars ($)" },
-            { val: "local", label: `${currency.code} (${currency.symbol})` },
+            { val: "local", label: `${localCurrency.code} (${localCurrency.symbol})` },
           ].map((opt) => {
-            const disabled = opt.val === "local" && (currency.code === "USD" || rateLoading || !!rateError);
+            const disabled = opt.val === "local" && currency.code === "USD";
             return (
               <button
                 key={opt.val}
@@ -398,27 +440,13 @@ function StepSetup({ currency, onCurrencyChange, inputMode, onInputModeChange, e
           })}
         </div>
 
-        {rateLoading && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, fontSize: 12, color: C.blueGrey }}>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.yellow, display: "inline-block", animation: "pulse 1s infinite" }} />
-            Fetching live exchange rate…
-          </div>
-        )}
-        {rateError && (
-          <div style={{ fontSize: 12, color: C.red, marginTop: 8 }}>⚠ {rateError}. Amounts will display in USD.</div>
-        )}
-        {!rateLoading && !rateError && currency.code !== "USD" && (
-          <div style={{ marginTop: 10, background: "#eef8f4", border: `1px solid ${C.teal}`, borderRadius: 7, padding: "10px 14px", display: "flex", alignItems: "flex-start", gap: 10 }}>
-            <div style={{ marginTop: 2 }}>
-              <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: C.teal, marginRight: 6 }} />
+        {currency.code !== "USD" && (
+          <div style={{ marginTop: 12, background: "#eef8f4", border: `1px solid ${C.teal}`, borderRadius: 7, padding: "10px 14px" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>
+              Exchange rate: 1 USD = {exchangeRate.toLocaleString(undefined, { maximumFractionDigits: 2 })} {currency.code}
             </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>
-                Live rate: 1 USD = {exchangeRate.toLocaleString(undefined, { maximumFractionDigits: 2 })} {currency.code}
-              </div>
-              <div style={{ fontSize: 11, color: "#555", marginTop: 3, lineHeight: 1.5 }}>
-                Rate fetched live each session — not a fixed rate. Amounts shown in {currency.code} are converted at today's market rate and will vary if you return tomorrow.
-              </div>
+            <div style={{ fontSize: 11, color: "#555", marginTop: 3, lineHeight: 1.5 }}>
+              Fixed rate — as of {asOfDate}. This rate is locked into your submission so amounts stay consistent over time.
             </div>
           </div>
         )}
@@ -467,48 +495,168 @@ function StepRisks({ hasRisks, onHasRisks, hasOpps, onHasOpps, riskText, onRiskT
   );
 }
 
-const ER_ROWS = [
-  ["secSal",  "Secretariat — Salaries"  ],
-  ["secBen",  "Secretariat — Benefits"  ],
-  ["secRec",  "Secretariat — Recurring" ],
-  ["nSal",    "NEC — Payments"          ],
-  ["nBen",    "NEC — Benefits"          ],
-  ["nRec",    "NEC — Recurring"         ],
-  ["recG",    "Recurring — Grants"      ],
-  ["recGov",  "Recurring — Gov't"       ],
-];
+// ─── Step 3 sub-tab: Regular Expenses (workbook-driven, locked items) ──────────
 
-function StepExpenses({ conv, erEdits, setErEdits }) {
-  const total = ER_ROWS.reduce((s, [k]) => s + (erEdits[k] || 0), 0);
+// Sum item values for a list of keys, skipping null/undefined (blank ≠ 0).
+function sumKeys(erEdits, keys) {
+  let total = 0;
+  for (const k of keys) {
+    const v = erEdits[k];
+    if (v === null || v === undefined || v === "") continue;
+    total += Number(v) || 0;
+  }
+  return total;
+}
+
+// Locked-display formatter — renders blank when value is null/undefined.
+function formatLocked(val, conv) {
+  if (val === null || val === undefined || val === "") return <span style={{ color: "#bbb" }}>—</span>;
+  return <>{conv.altSym} {Math.round(conv.toAlt(val)).toLocaleString()}</>;
+}
+
+// Numeric input that preserves the blank-vs-0 distinction.
+// - Blank input → onChangeUSD(undefined)
+// - "0" → onChangeUSD(0)
+// - "123" → onChangeUSD(123 / convertedFromDisplay)
+function BlankableAmountInput({ usdVal, conv, onChangeUSD }) {
+  const isBlank = usdVal === null || usdVal === undefined || usdVal === "";
+  const displayVal = isBlank ? "" : Math.round(conv.toDisplay(usdVal));
+  return (
+    <input
+      type="number" min="0"
+      value={displayVal}
+      placeholder=""
+      onChange={(e) => {
+        const raw = e.target.value;
+        if (raw === "") { onChangeUSD(undefined); return; }
+        const parsed = parseFloat(raw);
+        if (Number.isNaN(parsed)) { onChangeUSD(undefined); return; }
+        onChangeUSD(conv.fromDisplay(parsed));
+      }}
+      style={{ width: "100%", border: "1px solid #ccc", borderRadius: 4, padding: "5px 7px", fontSize: 13, textAlign: "right", fontFamily: "monospace" }}
+    />
+  );
+}
+
+function StepExpensesRegular({ conv, erEdits, setErEdits }) {
+  const grandTotal = EXPENSES_REGULAR_KEYS_ALL.reduce(
+    (s, k) => {
+      const v = erEdits[k];
+      if (v === null || v === undefined || v === "") return s;
+      return s + (Number(v) || 0);
+    },
+    0,
+  );
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <p style={descStyle}>Enter or update the regular annual expenses for your committee. All amounts are in {conv.displayCode} — toggle the currency in Step 1 to switch.</p>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-        <thead>
-          <tr style={{ background: C.lightBG }}>
-            <th style={thStyle}>Category</th>
-            <th style={{ ...thStyle, textAlign: "right", width: 160 }}>Amount ({conv.displayCode})</th>
-          </tr>
-        </thead>
-        <tbody>
-          {ER_ROWS.map(([key, label]) => (
-            <tr key={key} style={{ borderBottom: "1px solid #f0f0f0" }}>
-              <td style={{ padding: "9px 12px" }}>{label}</td>
-              <td style={{ padding: "6px 12px" }}>
-                <AmountInput usdVal={erEdits[key] || 0} conv={conv}
-                  onChangeUSD={(v) => setErEdits((e) => ({ ...e, [key]: v }))} />
-              </td>
+      <p style={descStyle}>
+        Enter your committee's regular annual expenses below. The categories and items are pre-populated from the TRACE Financial Workbook — they are locked so country teams report on a consistent set.
+        Click the <strong>i</strong> next to any item for its description. Leave an amount <em>blank</em> if it doesn't apply; enter <em>0</em> only if the actual amount is zero.
+      </p>
+
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 620 }}>
+          <thead>
+            <tr style={{ background: C.lightBG }}>
+              <th style={thStyle}>Item</th>
+              <th style={{ ...thStyle, textAlign: "right", width: 160 }}>Amount ({conv.displayCode})</th>
+              {conv.showAlt && (
+                <th style={{ ...thStyle, textAlign: "right", width: 140 }}>≈ ({conv.altSym})</th>
+              )}
             </tr>
-          ))}
-          <tr style={{ fontWeight: 700, background: "#f8f8f8" }}>
-            <td style={{ padding: "9px 12px" }}>Total</td>
-            <td style={{ padding: "9px 12px", textAlign: "right", fontFamily: "monospace" }}>
-              {conv.displaySym}{conv.toDisplay(total).toLocaleString()}
-              {conv.showAlt && <div style={{ fontSize: 11, color: C.blueGrey, fontWeight: 400 }}>≈ {conv.altSym} {Math.round(conv.toAlt(total)).toLocaleString()}</div>}
+          </thead>
+          <tbody>
+            {EXPENSES_REGULAR.map((cat) => {
+              const catKeys = cat.items.map((i) => i.key);
+              const catTotal = sumKeys(erEdits, catKeys);
+              return (
+                <ExpenseCategoryRows
+                  key={cat.categoryKey}
+                  cat={cat}
+                  catTotal={catTotal}
+                  catKeys={catKeys}
+                  erEdits={erEdits}
+                  setErEdits={setErEdits}
+                  conv={conv}
+                />
+              );
+            })}
+            <tr style={{ fontWeight: 700, background: C.lightBG, borderTop: `2px solid ${C.navy}` }}>
+              <td style={{ padding: "11px 12px", fontSize: 14, color: C.navy }}>TOTAL</td>
+              <td style={{ padding: "11px 12px", textAlign: "right", fontFamily: "monospace", fontSize: 14, color: C.navy }}>
+                {conv.displaySym}{conv.toDisplay(grandTotal).toLocaleString()}
+              </td>
+              {conv.showAlt && (
+                <td style={{ padding: "11px 12px", textAlign: "right", fontFamily: "monospace", fontSize: 13, color: C.blueGrey }}>
+                  {conv.altSym} {Math.round(conv.toAlt(grandTotal)).toLocaleString()}
+                </td>
+              )}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function ExpenseCategoryRows({ cat, catTotal, erEdits, setErEdits, conv }) {
+  return (
+    <>
+      <tr>
+        <td colSpan={conv.showAlt ? 3 : 2} style={{ background: "#e8eef2", padding: "8px 12px", fontSize: 12, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: 0.4 }}>
+          {cat.categoryLabel}
+        </td>
+      </tr>
+      {cat.items.map((item) => {
+        const v = erEdits[item.key];
+        return (
+          <tr key={item.key} style={{ borderBottom: "1px solid #f0f0f0" }}>
+            <td style={{ padding: "8px 12px", display: "flex", alignItems: "center", gap: 4 }}>
+              <span>{item.label}</span>
+              <InfoTip title={item.label}>{item.description}</InfoTip>
             </td>
+            <td style={{ padding: "5px 10px" }}>
+              <BlankableAmountInput
+                usdVal={v}
+                conv={conv}
+                onChangeUSD={(nv) => setErEdits((prev) => ({ ...prev, [item.key]: nv }))}
+              />
+            </td>
+            {conv.showAlt && (
+              <td style={{ padding: "8px 10px", textAlign: "right", fontFamily: "monospace", fontSize: 12, color: C.blueGrey }}>
+                {formatLocked(v, conv)}
+              </td>
+            )}
           </tr>
-        </tbody>
-      </table>
+        );
+      })}
+      <tr style={{ background: "#f9fafb", fontWeight: 600 }}>
+        <td style={{ padding: "7px 12px", fontSize: 12, color: C.blueGrey, fontStyle: "italic" }}>Subtotal — {cat.categoryLabel}</td>
+        <td style={{ padding: "7px 12px", textAlign: "right", fontFamily: "monospace", fontSize: 13, color: C.navy }}>
+          {conv.displaySym}{conv.toDisplay(catTotal).toLocaleString()}
+        </td>
+        {conv.showAlt && (
+          <td style={{ padding: "7px 12px", textAlign: "right", fontFamily: "monospace", fontSize: 12, color: C.blueGrey }}>
+            {conv.altSym} {Math.round(conv.toAlt(catTotal)).toLocaleString()}
+          </td>
+        )}
+      </tr>
+    </>
+  );
+}
+
+// Flat list of all 27 workbook item keys — used for grand-total sums.
+const EXPENSES_REGULAR_KEYS_ALL = EXPENSES_REGULAR.flatMap((c) => c.items.map((i) => i.key));
+
+// Placeholder for Step 3 / Irregular sub-tab — content built in next session.
+function IrregularExpensesPlaceholder() {
+  return (
+    <div style={{ background: "#fff8e8", border: `1px dashed ${C.yellow}`, borderRadius: 8, padding: "20px 22px", textAlign: "center" }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 6 }}>Irregular Expenses</div>
+      <p style={{ fontSize: 13, color: "#555", lineHeight: 1.6, margin: 0 }}>
+        We'll build this together on our next call. Irregular expenses cover one-time and infrequent large purchases — vehicles, building renovations, IT upgrades, one-time conferences, SOP harmonization projects, etc.
+      </p>
     </div>
   );
 }
@@ -758,15 +906,56 @@ function KeyConsiderationsStep({ hasRisks, setHasRisks, hasOpps, setHasOpps, ris
         />
       )}
       {sub === "activities" && (
-        <StepActivities rows={activityRows} onUpdate={onUpdateActivity} />
+        <StepActivitiesSubTab rows={activityRows} onUpdate={onUpdateActivity} />
       )}
+    </div>
+  );
+}
+
+// Activities sub-tab — read-only workbook context on top + per-activity entry below.
+// Per Willyanne 2026-05-21: "they need to understand what we are paying for, what we are
+// doing, the scope of the work."
+function StepActivitiesSubTab({ rows, onUpdate }) {
+  const [showContext, setShowContext] = useState(true);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ background: "#eef8f4", border: `1px solid ${C.teal}`, borderRadius: 8, overflow: "hidden" }}>
+        <button
+          onClick={() => setShowContext((v) => !v)}
+          style={{ width: "100%", padding: "10px 16px", background: "transparent", border: "none", textAlign: "left", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+        >
+          <span style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>
+            What activities does ethics review cover? (read-only context)
+          </span>
+          <span style={{ fontSize: 12, color: C.teal }}>{showContext ? "▼ Hide" : "▶ Show"}</span>
+        </button>
+        {showContext && (
+          <div style={{ padding: "4px 16px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+            <p style={{ fontSize: 12, color: "#555", lineHeight: 1.55, margin: "0 0 6px 0", fontStyle: "italic" }}>
+              The 12 activities below are the canonical scope of ethics review per the TRACE workbook.
+              Skim these first, then use the table below to share how you expect effort on each to change in the near and long term.
+            </p>
+            {ACTIVITY_LIST.map((name) => (
+              <div key={name} style={{ background: "#fff", borderRadius: 6, padding: "8px 12px" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.navy }}>{name}</div>
+                <div style={{ fontSize: 12, color: "#555", marginTop: 3, lineHeight: 1.55 }}>{ACTIVITY_DESCRIPTIONS[name]}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginTop: 4 }}>
+        Your activity expectations
+      </div>
+      <StepActivities rows={rows} onUpdate={onUpdate} />
     </div>
   );
 }
 
 // ─── Step 3: Expenses (sub-tabs: Regular | Irregular) ─────────────────────────
 
-function ExpensesStep({ conv, erEdits, setErEdits, irrProjEdits, setIrrProjEdits, data }) {
+function ExpensesStep({ conv, erEdits, setErEdits }) {
   const [sub, setSub] = useState("regular");
   return (
     <div>
@@ -778,18 +967,16 @@ function ExpensesStep({ conv, erEdits, setErEdits, irrProjEdits, setIrrProjEdits
         active={sub} onChange={setSub}
       />
       {sub === "regular" && (
-        <StepExpenses conv={conv} erEdits={erEdits} setErEdits={setErEdits} />
+        <StepExpensesRegular conv={conv} erEdits={erEdits} setErEdits={setErEdits} />
       )}
-      {sub === "irregular" && (
-        <StepIrregular conv={conv} irrProjEdits={irrProjEdits} setIrrProjEdits={setIrrProjEdits} data={data} />
-      )}
+      {sub === "irregular" && <IrregularExpensesPlaceholder />}
     </div>
   );
 }
 
 function StepReview({ country, activityRows, currency, erEdits, feesEdits }) {
   const filledActivities = activityRows.filter((r) => r.nearTerm && r.longTerm);
-  const totalExpenses = ER_ROWS.reduce((s, [k]) => s + (erEdits[k] || 0), 0);
+  const totalExpenses = Object.values(erEdits).reduce((s, v) => s + (Number(v) || 0), 0);
   const totalRevenue  = feesEdits.reduce((s, f) => s + (f.ctPro || 0) * f.ind + (f.ctStu || 0) * f.ngo, 0);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
