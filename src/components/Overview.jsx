@@ -178,7 +178,8 @@ function IrrExpenseCard({ d }) {
   }
   const byFunder = {};
   d.irrProj.forEach((p) => {
-    byFunder[p.funder] = (byFunder[p.funder] || 0) + p.amount;
+    const key = p.funder || "(unspecified)";
+    byFunder[key] = (byFunder[key] || 0) + (Number(p.amount) || 0);
   });
   const data = Object.entries(byFunder).map(([funder, amount]) => ({ funder, amount }));
 

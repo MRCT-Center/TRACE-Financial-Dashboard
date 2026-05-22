@@ -4,6 +4,7 @@ import StepInstructions from "./StepInstructions";
 import { WIZARD_STEP_INSTRUCTIONS } from "../data/instructions";
 import { CURRENCIES as CURRENCY_MAP, COUNTRY_CURRENCIES } from "../utils/CurrencyContext";
 import { EXPENSES_REGULAR } from "../data/expensesRegular";
+import { EXPENSES_IRREGULAR_DEFAULTS, IRREGULAR_CATEGORIES } from "../data/expensesIrregular";
 import { ACTIVITY_LIST, ACTIVITY_DESCRIPTIONS } from "../data/activities";
 import InfoTip from "./InfoTip";
 
@@ -252,6 +253,7 @@ export default function GuidedWizard({ country, data, onSave }) {
             <ExpensesStep
               conv={conv}
               erEdits={erEdits} setErEdits={setErEdits}
+              irrProjEdits={irrProjEdits} setIrrProjEdits={setIrrProjEdits}
               onIrregularVisited={() => setExpVisitedIrregular(true)}
               visitedIrregular={expVisitedIrregular}
             />
@@ -644,14 +646,281 @@ function ExpenseCategoryRows({ cat, catTotal, erEdits, setErEdits, conv }) {
 // Flat list of all 27 workbook item keys — used for grand-total sums.
 const EXPENSES_REGULAR_KEYS_ALL = EXPENSES_REGULAR.flatMap((c) => c.items.map((i) => i.key));
 
-// Placeholder for Step 3 / Irregular sub-tab — content built in next session.
-function IrregularExpensesPlaceholder() {
+// ─── Step 3 / Irregular sub-tab ────────────────────────────────────────────────
+// Table mirrors workbook Expenses_irregular sheet (rows D4–D15) — 12 default
+// rows grouped by category, each editable. Item cells use truncate + "See more"
+// for long workbook descriptions. Country teams can add rows beyond the 12 via
+// "+ Add item" under each category.
+
+const ITEM_TRUNCATE_AT = 60;
+
+// Editable item cell — truncated to ITEM_TRUNCATE_AT chars in read state, with
+// a "See more" link when overflowing. Click → multi-line textarea opens inline
+// for editing. Click outside → collapses back. Empty cells show a "(blank — click to enter item)" hint.
+function IrregularItemCell({ value, onChange, descriptionExample }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value || "");
+  // Sync external value changes (e.g. when a row above is deleted) into local draft
+  useEffect(() => { if (!editing) setDraft(value || ""); }, [value, editing]);
+
+  const overflows = (value || "").length > ITEM_TRUNCATE_AT;
+  const truncated = overflows ? value.slice(0, ITEM_TRUNCATE_AT).trimEnd() + "…" : (value || "");
+
+  const commit = () => {
+    setEditing(false);
+    if (draft !== value) onChange(draft);
+  };
+
+  if (editing) {
+    return (
+      <div style={{ position: "relative" }}>
+        <textarea
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          rows={Math.min(8, Math.max(3, Math.ceil((draft.length || 1) / 70)))}
+          style={{
+            width: "100%",
+            border: `1px solid ${C.teal}`,
+            borderRadius: 5,
+            padding: "6px 8px",
+            fontSize: 13,
+            fontFamily: "inherit",
+            lineHeight: 1.45,
+            resize: "vertical",
+            outline: "none",
+            background: "#fff",
+          }}
+        />
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 2 }}>
+          <button
+            onClick={(e) => { e.preventDefault(); commit(); }}
+            style={{ background: "transparent", border: "none", color: C.teal, fontSize: 11, cursor: "pointer", textDecoration: "underline", padding: 0 }}
+          >
+            See less
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const isBlank = !value;
   return (
-    <div style={{ background: "#fff8e8", border: `1px dashed ${C.yellow}`, borderRadius: 8, padding: "20px 22px", textAlign: "center" }}>
-      <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 6 }}>Irregular Expenses</div>
-      <p style={{ fontSize: 13, color: "#555", lineHeight: 1.6, margin: 0 }}>
-        We'll build this together on our next call. Irregular expenses cover one-time and infrequent large purchases — vehicles, building renovations, IT upgrades, one-time conferences, SOP harmonization projects, etc.
+    <div
+      onClick={() => setEditing(true)}
+      title={value || ""}
+      style={{ cursor: "pointer", lineHeight: 1.45, fontSize: 13, color: isBlank ? "#aaa" : C.navy, fontStyle: isBlank ? "italic" : "normal" }}
+    >
+      {isBlank ? "(blank — click to enter item)" : truncated}
+      {overflows && (
+        <>
+          {" "}
+          <span
+            style={{ color: C.teal, textDecoration: "underline", fontSize: 12, fontWeight: 500, whiteSpace: "nowrap" }}
+          >
+            See more
+          </span>
+        </>
+      )}
+      {!overflows && descriptionExample && (
+        <span style={{ marginLeft: 6, verticalAlign: "middle" }} onClick={(e) => e.stopPropagation()}>
+          <InfoTip title="Example description (from workbook)">{descriptionExample}</InfoTip>
+        </span>
+      )}
+    </div>
+  );
+}
+
+// Simple text/select input for funder + dates.
+function IrregularTextInput({ value, onChange, placeholder, type = "text" }) {
+  return (
+    <input
+      type={type}
+      value={value || ""}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      style={{
+        width: "100%",
+        border: "1px solid #ccc",
+        borderRadius: 4,
+        padding: "5px 7px",
+        fontSize: 12,
+        fontFamily: "inherit",
+        background: "#fff",
+      }}
+    />
+  );
+}
+
+function StepExpensesIrregular({ conv, irrProjEdits, setIrrProjEdits }) {
+  // Hydrate to workbook defaults if irrProjEdits is empty or in legacy shape.
+  // (App.jsx's merge guard handles this on load; this is a safety net.)
+  useEffect(() => {
+    if (!irrProjEdits || irrProjEdits.length === 0 || irrProjEdits.some((r) => r && r.category === undefined)) {
+      setIrrProjEdits(JSON.parse(JSON.stringify(EXPENSES_IRREGULAR_DEFAULTS)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const updateRow = (idx, patch) => {
+    setIrrProjEdits((rows) => rows.map((r, i) => i === idx ? { ...r, ...patch } : r));
+  };
+  const addRow = (category) => {
+    setIrrProjEdits((rows) => [
+      ...rows,
+      { category, item: "", funder: "", amount: null, startDate: "", endDate: "", descriptionExample: "" },
+    ]);
+  };
+  const deleteRow = (idx) => {
+    setIrrProjEdits((rows) => rows.filter((_, i) => i !== idx));
+  };
+
+  const grandTotal = (irrProjEdits || []).reduce((s, r) => {
+    const v = r?.amount;
+    if (v === null || v === undefined || v === "") return s;
+    return s + (Number(v) || 0);
+  }, 0);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <p style={descStyle}>
+        Irregular expenses are one-time or infrequent large costs — vehicles, building works,
+        IT upgrades, one-off projects funded by grants or reserves.
+        The categories and pre-filled items below are drawn from the TRACE Financial Workbook (rows D4–D15).
+        <strong> All cells are editable</strong> — including the item description. Click any row to add a new item under that category.
+        Click <em>See more</em> on long items to read and edit the full text.
       </p>
+
+      {IRREGULAR_CATEGORIES.map((cat) => {
+        const rowsInCat = (irrProjEdits || [])
+          .map((r, idx) => ({ row: r, idx }))
+          .filter(({ row }) => row?.category === cat);
+        const catTotal = rowsInCat.reduce((s, { row }) => s + (Number(row?.amount) || 0), 0);
+
+        return (
+          <div key={cat} style={{ background: "#fff", border: "1px solid #dde", borderRadius: 8, overflow: "hidden" }}>
+            <div style={{ background: C.lightBG, padding: "10px 14px", fontSize: 13, fontWeight: 700, color: C.navy, borderBottom: "1px solid #dde" }}>
+              {cat}
+            </div>
+
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 880 }}>
+                <thead>
+                  <tr style={{ background: "#f8fafb" }}>
+                    <th style={{ ...thStyle, width: 32 }}>#</th>
+                    <th style={{ ...thStyle, minWidth: 320 }}>Item</th>
+                    <th style={{ ...thStyle, textAlign: "right", width: 130 }}>
+                      Amount ({conv.displayCode === "USD" ? "US Dollars" : conv.displayCode})
+                    </th>
+                    {conv.showAlt && (
+                      <th style={{ ...thStyle, textAlign: "right", width: 110 }}>≈ ({conv.altSym})</th>
+                    )}
+                    <th style={{ ...thStyle, width: 160 }}>Funding source</th>
+                    <th style={{ ...thStyle, width: 130 }}>Start date</th>
+                    <th style={{ ...thStyle, width: 130 }}>End date</th>
+                    <th style={{ ...thStyle, width: 28 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rowsInCat.length === 0 && (
+                    <tr>
+                      <td colSpan={conv.showAlt ? 8 : 7} style={{ padding: "14px 12px", fontSize: 12, color: "#999", fontStyle: "italic", textAlign: "center" }}>
+                        No items yet — use the + Add item button below.
+                      </td>
+                    </tr>
+                  )}
+                  {rowsInCat.map(({ row, idx }, displayIdx) => (
+                    <tr key={idx} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top" }}>
+                      <td style={{ padding: "10px 10px", fontSize: 12, color: C.blueGrey, fontFamily: "monospace" }}>
+                        {displayIdx + 1}
+                      </td>
+                      <td style={{ padding: "8px 10px" }}>
+                        <IrregularItemCell
+                          value={row.item}
+                          onChange={(v) => updateRow(idx, { item: v })}
+                          descriptionExample={row.descriptionExample}
+                        />
+                      </td>
+                      <td style={{ padding: "8px 10px" }}>
+                        <BlankableAmountInput
+                          usdVal={row.amount}
+                          conv={conv}
+                          onChangeUSD={(v) => updateRow(idx, { amount: v ?? null })}
+                        />
+                      </td>
+                      {conv.showAlt && (
+                        <td style={{ padding: "8px 10px", textAlign: "right", fontFamily: "monospace", fontSize: 11, color: C.blueGrey }}>
+                          {formatLocked(row.amount, conv)}
+                        </td>
+                      )}
+                      <td style={{ padding: "8px 10px" }}>
+                        <IrregularTextInput
+                          value={row.funder}
+                          onChange={(v) => updateRow(idx, { funder: v })}
+                          placeholder="e.g. Gates Foundation"
+                        />
+                      </td>
+                      <td style={{ padding: "8px 10px" }}>
+                        <IrregularTextInput
+                          value={row.startDate}
+                          onChange={(v) => updateRow(idx, { startDate: v })}
+                          placeholder="MM/YYYY"
+                        />
+                      </td>
+                      <td style={{ padding: "8px 10px" }}>
+                        <IrregularTextInput
+                          value={row.endDate}
+                          onChange={(v) => updateRow(idx, { endDate: v })}
+                          placeholder="MM/YYYY"
+                        />
+                      </td>
+                      <td style={{ padding: "8px 4px", textAlign: "center" }}>
+                        <button
+                          onClick={() => deleteRow(idx)}
+                          title="Delete this row"
+                          style={{ background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: 16, padding: "2px 6px", lineHeight: 1 }}
+                        >
+                          ×
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  <tr style={{ background: "#fafbfc" }}>
+                    <td colSpan={conv.showAlt ? 8 : 7} style={{ padding: "8px 10px" }}>
+                      <button
+                        onClick={() => addRow(cat)}
+                        style={{
+                          background: "transparent",
+                          border: `1px dashed ${C.teal}`,
+                          color: C.teal,
+                          borderRadius: 5,
+                          padding: "5px 12px",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        + Add item
+                      </button>
+                      <span style={{ marginLeft: 14, fontSize: 11, color: C.blueGrey, fontStyle: "italic" }}>
+                        Category subtotal: <strong style={{ color: C.navy, fontFamily: "monospace" }}>${catTotal.toLocaleString()}</strong>
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })}
+
+      <div style={{ background: C.navy, color: "#fff", padding: "12px 18px", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>Total irregular expenses (USD)</span>
+        <span style={{ fontSize: 18, fontWeight: 700, fontFamily: "monospace" }}>
+          ${grandTotal.toLocaleString()}
+        </span>
+      </div>
     </div>
   );
 }
@@ -957,7 +1226,7 @@ function StepActivitiesSubTab({ rows, onUpdate }) {
 
 // ─── Step 3: Expenses (sub-tabs: Regular | Irregular) ─────────────────────────
 
-function ExpensesStep({ conv, erEdits, setErEdits, onIrregularVisited, visitedIrregular }) {
+function ExpensesStep({ conv, erEdits, setErEdits, irrProjEdits, setIrrProjEdits, onIrregularVisited, visitedIrregular }) {
   const [sub, setSub] = useState("regular");
   const handleSubChange = (id) => {
     setSub(id);
@@ -975,7 +1244,9 @@ function ExpensesStep({ conv, erEdits, setErEdits, onIrregularVisited, visitedIr
       {sub === "regular" && (
         <StepExpensesRegular conv={conv} erEdits={erEdits} setErEdits={setErEdits} />
       )}
-      {sub === "irregular" && <IrregularExpensesPlaceholder />}
+      {sub === "irregular" && (
+        <StepExpensesIrregular conv={conv} irrProjEdits={irrProjEdits} setIrrProjEdits={setIrrProjEdits} />
+      )}
     </div>
   );
 }

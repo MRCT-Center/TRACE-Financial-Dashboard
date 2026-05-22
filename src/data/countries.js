@@ -1,4 +1,10 @@
 import { EXPENSES_REGULAR_USD_DEFAULTS } from "./expensesRegular";
+import { EXPENSES_IRREGULAR_DEFAULTS } from "./expensesIrregular";
+
+// Per Willyanne 2026-05-22: irrProj seed mirrors workbook Expenses_irregular
+// (D4–D15). All 5 testing countries get identical defaults; country teams edit
+// freely and can add rows beyond the 12.
+const cloneIrregularDefaults = () => JSON.parse(JSON.stringify(EXPENSES_IRREGULAR_DEFAULTS));
 
 // Per Willyanne 2026-05-22: all 5 testing countries seed identical USD dummy
 // amounts from workbook 2026-04-17 Expenses_regular column H (total $351,500).
@@ -41,15 +47,7 @@ export const COUNTRIES = {
       { name: "Participant feedback, concerns, complaints, questions", nearTerm: "Increase",  longTerm: "Increase", note: "Interactive website to increase accountability and transparency." },
       { name: "Other ethics activities",                          nearTerm: "Increase",        longTerm: "Increase", note: "Joint protocol submission e-platform; regular ethics training." },
     ],
-    irrProj: [
-      { name: "Digital ethics platform",    funder: "Gates Foundation", amount: 100000 },
-      { name: "Capacity building",          funder: "Gates Foundation", amount: 50000  },
-      { name: "Harmonization of SOPs",      funder: "Gates Foundation", amount: 75000  },
-      { name: "Financial sustainability",   funder: "Gates Foundation", amount: 10000  },
-      { name: "Communications revamp",      funder: "Gates Foundation", amount: 15000  },
-      { name: "Vehicle for site visits",    funder: "Reserves",         amount: 50000  },
-      { name: "Admin & M&E personnel",      funder: "Gates Foundation", amount: 50000  },
-    ],
+    irrProj: cloneIrregularDefaults(),
   },
 
   Nigeria: {
@@ -85,12 +83,7 @@ export const COUNTRIES = {
       { name: "Participant feedback, concerns, complaints, questions", nearTerm: "Remain the same", longTerm: "Increase" },
       { name: "Other ethics activities",                          nearTerm: "Increase",        longTerm: "Increase" },
     ],
-    irrProj: [
-      { name: "Digital platform upgrade", funder: "Gates Foundation", amount: 120000 },
-      { name: "Reviewer training",        funder: "Gates Foundation", amount: 80000  },
-      { name: "Vehicle purchase",         funder: "Reserves",         amount: 30000  },
-      { name: "M&E staffing",             funder: "Gates Foundation", amount: 50000  },
-    ],
+    irrProj: cloneIrregularDefaults(),
   },
 
   Rwanda: {
@@ -126,11 +119,7 @@ export const COUNTRIES = {
       { name: "Participant feedback, concerns, complaints, questions", nearTerm: "Remain the same", longTerm: "Increase" },
       { name: "Other ethics activities",                          nearTerm: "Increase",        longTerm: "Increase" },
     ],
-    irrProj: [
-      { name: "E-submission platform", funder: "Gates Foundation", amount: 80000  },
-      { name: "SOP harmonization",     funder: "Gates Foundation", amount: 40000  },
-      { name: "Training development",  funder: "Gates Foundation", amount: 30000  },
-    ],
+    irrProj: cloneIrregularDefaults(),
   },
 
   Tanzania: {
@@ -166,12 +155,7 @@ export const COUNTRIES = {
       { name: "Participant feedback, concerns, complaints, questions", nearTerm: "Remain the same", longTerm: "Increase" },
       { name: "Other ethics activities",                          nearTerm: "Increase",        longTerm: "Increase" },
     ],
-    irrProj: [
-      { name: "Digital platform",  funder: "Gates Foundation", amount: 90000  },
-      { name: "Capacity building", funder: "Gates Foundation", amount: 60000  },
-      { name: "Vehicle purchase",  funder: "Reserves",         amount: 20000  },
-      { name: "Communications",    funder: "Gates Foundation", amount: 30000  },
-    ],
+    irrProj: cloneIrregularDefaults(),
   },
 
   Zimbabwe: {
@@ -207,10 +191,6 @@ export const COUNTRIES = {
       { name: "Participant feedback, concerns, complaints, questions", nearTerm: "Remain the same", longTerm: "Increase" },
       { name: "Other ethics activities",                          nearTerm: "Increase",        longTerm: "Increase" },
     ],
-    irrProj: [
-      { name: "IT system upgrade", funder: "Gates Foundation", amount: 70000  },
-      { name: "SOP development",   funder: "Gates Foundation", amount: 35000  },
-      { name: "Vehicle",           funder: "Reserves",         amount: 15000  },
-    ],
+    irrProj: cloneIrregularDefaults(),
   },
 };

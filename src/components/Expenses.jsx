@@ -113,19 +113,23 @@ export default function Expenses({ country, data: d, flag, onEdit }) {
                 </tr>
               </thead>
               <tbody>
-                {d.irrProj.map((p, i) => (
-                  <tr key={i} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                    <td style={{ padding: "9px 12px" }}>
-                      <EditableCell value={p.name} path={`irrProj.${i}.name`} onEdit={onEdit} type="text" align="left" />
-                    </td>
-                    <td style={{ padding: "9px 12px", color: C.blueGrey }}>
-                      <EditableCell value={p.funder} path={`irrProj.${i}.funder`} onEdit={onEdit} type="text" align="left" />
-                    </td>
-                    <td style={{ padding: "9px 12px", fontWeight: 600, color: C.navy }}>
-                      <EditableCell value={p.amount} display={fmt(p.amount)} path={`irrProj.${i}.amount`} onEdit={onEdit} />
-                    </td>
-                  </tr>
-                ))}
+                {d.irrProj.map((p, i) => {
+                  const itemText = p.item ?? p.name ?? "";
+                  const itemPath = p.item !== undefined ? `irrProj.${i}.item` : `irrProj.${i}.name`;
+                  return (
+                    <tr key={i} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                      <td style={{ padding: "9px 12px" }}>
+                        <EditableCell value={itemText} path={itemPath} onEdit={onEdit} type="text" align="left" />
+                      </td>
+                      <td style={{ padding: "9px 12px", color: C.blueGrey }}>
+                        <EditableCell value={p.funder} path={`irrProj.${i}.funder`} onEdit={onEdit} type="text" align="left" />
+                      </td>
+                      <td style={{ padding: "9px 12px", fontWeight: 600, color: C.navy }}>
+                        <EditableCell value={p.amount} display={fmt(p.amount)} path={`irrProj.${i}.amount`} onEdit={onEdit} />
+                      </td>
+                    </tr>
+                  );
+                })}
                 <tr style={{ background: "#f8f8f8", fontWeight: 700 }}>
                   <td style={{ padding: "9px 12px" }} colSpan={2}>Total</td>
                   <td style={{ padding: "9px 12px", color: C.navy }}>{fmt(m.ti)}</td>

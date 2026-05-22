@@ -75,11 +75,19 @@ export default function App() {
           // versions so the new Regular Expenses table renders. Rows already
           // saved in the new shape are trusted as-is.
           const NEW_ER_PROBE_KEY = "salaries"; // workbook item present only post-rekey
+          // Phase 1 Tier 3 (2026-05-22) irregular rekey: if any Supabase irrProj
+          // row lacks a `category` key, it's the legacy {name, funder, amount}
+          // shape — substitute the fresh countries.js workbook defaults so the
+          // new Irregular Expenses table renders. (Supabase data preserved
+          // until Willyanne approves the migration.)
+          const isLegacyIrr = (rows) =>
+            !Array.isArray(rows) || rows.length === 0 ||
+            rows.some((r) => r && typeof r === "object" && r.category === undefined);
           const updated = { ...COUNTRIES };
           data.forEach(({ country, data: d }) => {
             if (!updated[country]) return;
             const supabaseHasNewShape = d?.er && Object.prototype.hasOwnProperty.call(d.er, NEW_ER_PROBE_KEY);
-            updated[country] = supabaseHasNewShape
+            const merged = supabaseHasNewShape
               ? { ...updated[country], ...d }
               : {
                   ...updated[country],
@@ -87,6 +95,11 @@ export default function App() {
                   er:        updated[country].er,
                   _legacyEr: updated[country]._legacyEr,
                 };
+            // Irregular shape guard — independent of er probe
+            if (isLegacyIrr(d?.irrProj)) {
+              merged.irrProj = updated[country].irrProj;
+            }
+            updated[country] = merged;
           });
           setCountryCache(updated);
         }
