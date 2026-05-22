@@ -106,7 +106,7 @@ export default function Revenue({ country, data: d, flag, onEdit }) {
           </Card>
         )}
 
-        <Card title="Fee Revenue — % from fees" style={{ flex: "1 1 220px" }}>
+        <Card title="% of Regular Revenue from Fees" style={{ flex: "1 1 220px" }}>
           <p style={narrativeStyle}>
             {feePct >= 80
               ? "Strong fee self-sufficiency — most regular revenue comes from review fees."

@@ -4,6 +4,7 @@ import StepInstructions from "./StepInstructions";
 import { WIZARD_STEP_INSTRUCTIONS } from "../data/instructions";
 import { CURRENCIES as CURRENCY_MAP, COUNTRY_CURRENCIES } from "../utils/CurrencyContext";
 import { EXPENSES_REGULAR } from "../data/expensesRegular";
+import { ACTIVITY_LIST, ACTIVITY_DESCRIPTIONS } from "../data/activities";
 import InfoTip from "./InfoTip";
 
 const CURRENCIES = [
@@ -22,36 +23,6 @@ const UNIT_OPTIONS = [
   "Local IRB Secretariat/mgmt.",
   "Local IRB Ethics Committee",
 ];
-
-const ACTIVITY_LIST = [
-  "Managing and leading",
-  "Developing/reviewing/conducting/advising on training",
-  "Receipt, screening, and maintaining logs",
-  "Determining risk, triaging, and assigning study proposals",
-  "Reviewing minimal risk studies",
-  "Reviewing, preparing for, and participating in full board meetings",
-  "Minutes and record-keeping",
-  "On-study review",
-  "Close out of study",
-  "Preparing and monitoring sites, inspections, and audits",
-  "Participant feedback, concerns, complaints, questions",
-  "Other ethics activities",
-];
-
-const ACTIVITY_DESCRIPTIONS = {
-  "Managing and leading": "Drafting and updating SOPs; drafting and communicating policies (like the frequency and format of REC meetings); drafting and updating forms; creating email letter templates and checklists; reviewing plans for website redesign and language; networking and engaging new partners; hiring and managing staff; managing budgets; organizing meetings (other than ethics review/study determination meetings).",
-  "Developing/reviewing/conducting/advising on training": "Advising on concepts; reviewing outlines, language and formatting for training on ethics; reviewing training materials; conducting training (arranging logistics, securing venues, giving lectures, following up on any questions); tracking ethics training expiration dates.",
-  "Receipt, screening, and maintaining logs": "Reviewing completeness of the study protocol and plain language summary, informed consent documents, investigator's brochure, all study instruments; communicating with the study team as needed to complete the review for proposal completeness.",
-  "Determining risk, triaging, and assigning study proposals": "Triaging Not Human Subjects Research Determinations (NHSRD) and Exempt Determinations; communicating with the study team as needed to make the determination; making risk determination (minimal risk / more than minimal risk).",
-  "Reviewing minimal risk studies": "Reviewing minimal risk studies by an individual(s) delegated by the board; communicating with the study team as needed to complete the risk determination and review of minimal risk studies.",
-  "Reviewing, preparing for, and participating in full board meetings": "Facilitating logistics for the ethics review meeting; confirming members and quorum; assigning primary and secondary reviewers; ensuring confidentiality agreements; preparing and sending agendas; reviewing/responding to emails; reading preparatory materials; assessing materials for ethics to prepare advanced questions; attending the meeting; communicating the decision.",
-  "Minutes and record-keeping": "Compiling a list of determinations and minimal risk approvals and including the list in the Board's minutes. For full board review, taking notes and attendance and providing meeting minutes; record-keeping.",
-  "On-study review": "Reviewing adverse events; reviewing protocol deviations; reviewing protocol amendments and appeals; notifying study staff of upcoming deadlines and monitoring; conducting annual review.",
-  "Close out of study": "Providing ethical oversight of studies in the data analysis phase; review study closure form; retain all study-related information.",
-  "Preparing and monitoring sites, inspections, and audits": "Providing tools such as document templates, regulatory binders, and educational programs; following up on any outstanding issues; retaining all monitoring documents.",
-  "Participant feedback, concerns, complaints, questions": "Receiving, triaging, and responding to participants' feedback including complaints, concerns and questions about research; deciding on the most appropriate follow up procedures; retaining all documentation.",
-  "Other ethics activities": "Participating in ethics training; learning new software or ethics review processes; traveling to ethics conferences/meetings; staying abreast of any changes in national or international regulations or guidance.",
-};
 
 const TREND_OPTIONS = ["Remain the same", "Increase", "Decrease"];
 

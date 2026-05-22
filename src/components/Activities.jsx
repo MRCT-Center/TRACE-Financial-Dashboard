@@ -1,23 +1,6 @@
 import { COLORS as C } from "../utils/metrics";
+import { ACTIVITY_DESCRIPTIONS } from "../data/activities";
 import InfoTip from "./InfoTip";
-
-// Activity names are sourced verbatim from the TRACE Financial Workbook (slide 17).
-// Descriptions expand on the workbook's brief parenthetical examples. Lines marked SUGGESTED
-// go beyond the source and should be reviewed by Willyanne before final release.
-const ACTIVITY_DESCRIPTIONS = {
-  "Managing and leading": /* SUGGESTED elaboration */ "Drafting and updating SOPs; drafting and communicating policies; updating forms; creating email and letter templates; reviewing website plans; networking and engaging new partners; hiring and managing staff; managing budgets; organizing meetings.",
-  "Developing/reviewing/conducting/advising on training": /* SUGGESTED elaboration */ "Advising on training concepts; reviewing outlines, language, and formatting; conducting training sessions; tracking ethics training expiration dates.",
-  "Receipt, screening, and maintaining logs": /* SUGGESTED elaboration */ "Reviewing completeness of study protocols, consent documents, investigators' brochures, and other required materials; communicating with study teams about completeness.",
-  "Determining risk, triaging, and assigning study proposals": /* SUGGESTED elaboration */ "Triaging non-human subjects and exempt determinations; communicating with study teams; making risk determinations (minimal vs. more than minimal risk).",
-  "Reviewing minimal risk studies": /* SUGGESTED elaboration */ "Reviewing minimal risk studies by a delegated individual or group; communicating with the study team as needed.",
-  "Reviewing, preparing for, and participating in full board meetings": /* SUGGESTED elaboration */ "Facilitating meeting logistics; confirming quorum; assigning reviewers; preparing agendas; reading materials; assessing ethics questions; communicating decisions.",
-  "Minutes and record-keeping": /* SUGGESTED elaboration */ "Compiling determination lists; taking notes and attendance; writing minutes; retaining all study-related records.",
-  "On-study review": /* sourced from slide 17 parenthetical */ "Reviewing adverse events (AEs), serious adverse events (SAEs), unanticipated problems (UPs), and protocol amendments; monitoring deadlines; conducting annual continuing reviews.",
-  "Close out of study": /* SUGGESTED elaboration */ "Overseeing studies in data analysis phase; reviewing closure forms; retaining all study-related information.",
-  "Preparing and monitoring sites, inspections, and audits": /* SUGGESTED elaboration */ "Providing document templates and regulatory tools; following up on outstanding issues; retaining monitoring documents.",
-  "Participant feedback, concerns, complaints, questions": /* SUGGESTED elaboration */ "Receiving and responding to participant feedback; deciding on appropriate follow-up; retaining all documentation.",
-  "Other ethics activities": /* sourced from slide 17 parenthetical */ "Learning new software; attending ethics conferences; staying abreast of changes in national and international regulations.",
-};
 
 const TREND_COLORS = {
   increase: { bg: "#e8f5e9", border: "#4CAF50", text: "#2e7d32" },
