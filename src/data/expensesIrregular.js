@@ -17,16 +17,34 @@ export const IRREGULAR_CATEGORIES = [
 
 // 12 rows mirroring workbook D4–D15. `amount` is null where workbook col I is
 // blank, a number where it's populated. `descriptionExample` (workbook col L)
-// drives the InfoTip — only set on pre-filled rows.
+// is populated for ALL 12 rows — including the blank-item ones — because the
+// workbook provides example guidance for every row, not just the pre-filled
+// ones (per Willyanne 2026-05-22).
 export const EXPENSES_IRREGULAR_DEFAULTS = [
-  // D4 — Capital costs (durable goods), blank
-  { category: IRREGULAR_CATEGORIES[0], item: "", funder: "", amount: null, startDate: "", endDate: "", descriptionExample: "" },
-  // D5 — Capital costs (durable goods), blank
-  { category: IRREGULAR_CATEGORIES[0], item: "", funder: "", amount: null, startDate: "", endDate: "", descriptionExample: "" },
-  // D6 — Capital costs (one-time/irregular activities), blank
-  { category: IRREGULAR_CATEGORIES[1], item: "", funder: "", amount: null, startDate: "", endDate: "", descriptionExample: "" },
-  // D7 — Capital costs (one-time/irregular activities), blank
-  { category: IRREGULAR_CATEGORIES[1], item: "", funder: "", amount: null, startDate: "", endDate: "", descriptionExample: "" },
+  // D4 — Capital costs (durable goods), blank item, vehicle example
+  {
+    category: IRREGULAR_CATEGORIES[0],
+    item: "", funder: "", amount: null, startDate: "", endDate: "",
+    descriptionExample: "e.g., Vehicle purchase.",
+  },
+  // D5 — Capital costs (durable goods), blank item, building/equipment example
+  {
+    category: IRREGULAR_CATEGORIES[0],
+    item: "", funder: "", amount: null, startDate: "", endDate: "",
+    descriptionExample: "e.g., Building renovation/equipment (such as a furnace).",
+  },
+  // D6 — Capital costs (one-time/irregular activities), blank, legal settlement example
+  {
+    category: IRREGULAR_CATEGORIES[1],
+    item: "", funder: "", amount: null, startDate: "", endDate: "",
+    descriptionExample: "e.g., legal settlement or other large payout.",
+  },
+  // D7 — Capital costs (one-time/irregular activities), blank, one-time conference example
+  {
+    category: IRREGULAR_CATEGORIES[1],
+    item: "", funder: "", amount: null, startDate: "", endDate: "",
+    descriptionExample: "One-time conference/meeting investment.",
+  },
   // D8 — Digitalization
   {
     category: IRREGULAR_CATEGORIES[1],
@@ -75,7 +93,7 @@ export const EXPENSES_IRREGULAR_DEFAULTS = [
     amount: 15000,
     startDate: "",
     endDate: "",
-    descriptionExample: "One time investment/contract for communications strengthening (e.g., develop/revise communication strategy, develop newsletter templates).",
+    descriptionExample: "One time investment/contract for communications strengthening (e.g., develop/revise communication strategy, develop newsletter, development of an initial website).",
   },
   // D13 — Admin personnel
   {
@@ -97,8 +115,12 @@ export const EXPENSES_IRREGULAR_DEFAULTS = [
     endDate: "",
     descriptionExample: "Project staffing based on LoE for implementation.",
   },
-  // D15 — blank
-  { category: IRREGULAR_CATEGORIES[1], item: "", funder: "", amount: null, startDate: "", endDate: "", descriptionExample: "" },
+  // D15 — blank item, "Other one-time activity" example
+  {
+    category: IRREGULAR_CATEGORIES[1],
+    item: "", funder: "", amount: null, startDate: "", endDate: "",
+    descriptionExample: "Other one-time activity",
+  },
 ];
 
 // Detects whether a row is the new shape (has `category`) or the legacy shape
