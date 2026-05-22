@@ -68,10 +68,25 @@ export default function App() {
           // First run: seed Supabase with hardcoded data
           await seedSupabase();
         } else {
-          // Merge Supabase data into cache (Supabase wins over hardcoded)
+          // Merge Supabase data into cache (Supabase wins over hardcoded).
+          // Phase 1 er.* rekey: if a Supabase row carries the legacy expense
+          // shape (secSal/secBen/nSal/...) without any post-rekey workbook
+          // keys, replace its er and _legacyEr with the fresh countries.js
+          // versions so the new Regular Expenses table renders. Rows already
+          // saved in the new shape are trusted as-is.
+          const NEW_ER_PROBE_KEY = "salaries"; // workbook item present only post-rekey
           const updated = { ...COUNTRIES };
           data.forEach(({ country, data: d }) => {
-            if (updated[country]) updated[country] = { ...updated[country], ...d };
+            if (!updated[country]) return;
+            const supabaseHasNewShape = d?.er && Object.prototype.hasOwnProperty.call(d.er, NEW_ER_PROBE_KEY);
+            updated[country] = supabaseHasNewShape
+              ? { ...updated[country], ...d }
+              : {
+                  ...updated[country],
+                  ...d,
+                  er:        updated[country].er,
+                  _legacyEr: updated[country]._legacyEr,
+                };
           });
           setCountryCache(updated);
         }

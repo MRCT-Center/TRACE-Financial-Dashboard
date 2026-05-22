@@ -1,6 +1,7 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { gm, fmtPct, COLORS as C } from "../utils/metrics";
 import { useCurrency } from "../utils/CurrencyContext";
+import { EXPENSES_REGULAR_ITEM_LOOKUP, NEC_KEYS } from "../data/expensesRegular";
 import EditableCell from "./EditableCell";
 import InfoTip, { Def } from "./InfoTip";
 
@@ -117,22 +118,17 @@ function KPIColumns({ m, d }) {
 
 function ExpensePieCard({ d }) {
   const { fmt } = useCurrency();
-  const erLabels = {
-    secSal: "Secretariat salaries", secBen: "Secretariat benefits", secRec: "Secretariat recurring",
-    nSal: "NEC payments", nBen: "NEC benefits", nRec: "NEC recurring",
-    recG: "Government/Grants", recGov: "Government support",
-  };
-  const necKeys = ["nSal", "nBen", "nRec"];
+  const getLabel = (k) => EXPENSES_REGULAR_ITEM_LOOKUP[k]?.label || k;
 
-  const fullPie = Object.entries(d.er)
+  const fullPie = Object.entries(d.er || {})
     .filter(([, v]) => v > 0)
-    .map(([k, v], i) => ({ name: erLabels[k] || k, value: v, color: EXP_COLORS[i % EXP_COLORS.length] }));
+    .map(([k, v], i) => ({ name: getLabel(k), value: v, color: EXP_COLORS[i % EXP_COLORS.length] }));
 
-  const necPie = necKeys
-    .filter((k) => d.er[k] > 0)
-    .map((k, i) => ({ name: erLabels[k] || k, value: d.er[k], color: [C.navy, C.teal, C.steelblue][i] }));
+  const necPie = NEC_KEYS
+    .filter((k) => (d.er?.[k] || 0) > 0)
+    .map((k, i) => ({ name: getLabel(k), value: d.er[k], color: [C.navy, C.teal, C.steelblue, C.purple, C.darkTeal][i % 5] }));
 
-  const necTotal = necKeys.reduce((s, k) => s + (d.er[k] || 0), 0);
+  const necTotal = NEC_KEYS.reduce((s, k) => s + (d.er?.[k] || 0), 0);
 
   return (
     <Card title="Regular Expense Breakdown" style={{ flex: "1 1 360px" }}>
