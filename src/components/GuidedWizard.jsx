@@ -723,7 +723,7 @@ function IrregularItemCell({ value, onChange, descriptionExample }) {
           </span>
         </>
       )}
-      {!overflows && descriptionExample && (
+      {descriptionExample && (
         <span style={{ marginLeft: 6, verticalAlign: "middle" }} onClick={(e) => e.stopPropagation()}>
           <InfoTip title="Example description (from workbook)">{descriptionExample}</InfoTip>
         </span>
