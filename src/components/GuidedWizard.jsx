@@ -31,7 +31,7 @@ const TREND_OPTIONS = ["Remain the same", "Increase", "Decrease"];
 // Before production deployment with real country teams, this MUST be replaced
 // with server-side persistence (Supabase) so drafts survive logout and follow
 // the user across devices. See plan velvety-seeking-marble.md.
-const DRAFT_VERSION = 2;
+const DRAFT_VERSION = 3;
 const draftKey = (country) => `trace-wizard-draft:${country}:v${DRAFT_VERSION}`;
 
 function loadDraft(country) {
@@ -68,7 +68,7 @@ export default function GuidedWizard({ country, data, onSave }) {
   const [currency, setCurrency]   = useState(() =>
     CURRENCIES.find((c) => c.code === draft?.currencyCode) || localCurrency
   );
-  const [inputMode, setInputMode] = useState(() => draft?.inputMode || "local"); // "usd" | "local"
+  const [inputMode, setInputMode] = useState(() => draft?.inputMode || "usd"); // "usd" | "local"
   const [unit, setUnit]           = useState(() => draft?.unit || "");
   // Static rate sourced from CurrencyContext (replaces the prior live fetch).
   // Rate is locked at submission time (`ratesAsOf` payload field). Country
@@ -93,6 +93,11 @@ export default function GuidedWizard({ country, data, onSave }) {
 
   const [stepSources, setStepSources] = useState(() => draft?.stepSources || Array(STEPS.length).fill(""));
   const [stepNotes,   setStepNotes]   = useState(() => draft?.stepNotes   || Array(STEPS.length).fill(""));
+  // Track which Expenses sub-tabs (Regular / Irregular) the user has visited.
+  // Per Willyanne 2026-05-22: country teams must visit BOTH sub-tabs before
+  // advancing from Step 3 → Revenue, so Irregular doesn't get silently skipped.
+  // (Regular defaults to true since the user lands there on entry.)
+  const [expVisitedIrregular, setExpVisitedIrregular] = useState(() => !!draft?.expVisitedIrregular);
   const [submitted, setSubmitted] = useState(false);
   const [saving,    setSaving]    = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState(draft?.savedAt || null);
@@ -112,9 +117,10 @@ export default function GuidedWizard({ country, data, onSave }) {
       hasRisks, hasOpps, riskText, oppText,
       activityRows, stepSources, stepNotes,
       erEdits, feesEdits, irrProjEdits, ikRegEdits, ikIrrEdits,
+      expVisitedIrregular,
     });
     setDraftSavedAt(new Date().toISOString());
-  }, [country, submitted, step, currency.code, inputMode, unit, hasRisks, hasOpps, riskText, oppText, activityRows, stepSources, stepNotes, erEdits, feesEdits, irrProjEdits, ikRegEdits, ikIrrEdits]);
+  }, [country, submitted, step, currency.code, inputMode, unit, hasRisks, hasOpps, riskText, oppText, activityRows, stepSources, stepNotes, erEdits, feesEdits, irrProjEdits, ikRegEdits, ikIrrEdits, expVisitedIrregular]);
 
   // Static exchange rate — recomputed when currency changes. Rates source: CurrencyContext map.
   useEffect(() => {
@@ -134,7 +140,16 @@ export default function GuidedWizard({ country, data, onSave }) {
   const conv = { toDisplay, fromDisplay, displaySym, altSym, toAlt, showAlt, displayCode };
 
   const currentStep = STEPS[step];
-  const canAdvance  = stepSources[step].trim().length > 0 && stepNotes[step].trim().length > 0;
+  // Step 2 (Expenses) additionally requires the user to have visited the
+  // Irregular sub-tab — without this, Regular alone lets them skip Irregular.
+  const sourcesNotesOk = stepSources[step].trim().length > 0 && stepNotes[step].trim().length > 0;
+  const expensesSubtabsOk = step !== 2 || expVisitedIrregular;
+  const canAdvance = sourcesNotesOk && expensesSubtabsOk;
+  const advanceBlockReason = !sourcesNotesOk
+    ? "Fill in data source and notes to continue"
+    : !expensesSubtabsOk
+      ? "Open the Irregular sub-tab before advancing"
+      : "";
 
   function updateActivity(i, field, val) {
     setActivityRows((rows) => rows.map((r, idx) => idx === i ? { ...r, [field]: val } : r));
@@ -237,6 +252,8 @@ export default function GuidedWizard({ country, data, onSave }) {
             <ExpensesStep
               conv={conv}
               erEdits={erEdits} setErEdits={setErEdits}
+              onIrregularVisited={() => setExpVisitedIrregular(true)}
+              visitedIrregular={expVisitedIrregular}
             />
           )}
           {step === 3 && <StepRevenue conv={conv} feesEdits={feesEdits} setFeesEdits={setFeesEdits} />}
@@ -266,9 +283,14 @@ export default function GuidedWizard({ country, data, onSave }) {
                     style={textareaStyle} rows={2}
                   />
                 </div>
-                {!canAdvance && (
+                {!sourcesNotesOk && (
                   <div style={{ fontSize: 12, color: C.red, fontStyle: "italic" }}>
                     Please fill in both the data source and notes to continue.
+                  </div>
+                )}
+                {sourcesNotesOk && !expensesSubtabsOk && (
+                  <div style={{ fontSize: 12, color: C.red, fontStyle: "italic" }}>
+                    Open the <strong>Irregular</strong> sub-tab and review it before continuing to Revenue.
                   </div>
                 )}
               </div>
@@ -289,7 +311,7 @@ export default function GuidedWizard({ country, data, onSave }) {
           <button
             onClick={() => canAdvance && setStep((s) => s + 1)}
             disabled={!canAdvance}
-            title={!canAdvance ? "Fill in data source and notes to continue" : ""}
+            title={advanceBlockReason}
             style={{ ...navBtnStyle, background: canAdvance ? C.teal : "#ccc", color: "#fff", cursor: canAdvance ? "pointer" : "not-allowed" }}
           >
             Next →
@@ -531,7 +553,9 @@ function StepExpensesRegular({ conv, erEdits, setErEdits }) {
           <thead>
             <tr style={{ background: C.lightBG }}>
               <th style={thStyle}>Item</th>
-              <th style={{ ...thStyle, textAlign: "right", width: 160 }}>Amount ({conv.displayCode})</th>
+              <th style={{ ...thStyle, textAlign: "right", width: 160 }}>
+                Amount ({conv.displayCode === "USD" ? "US Dollars" : conv.displayCode})
+              </th>
               {conv.showAlt && (
                 <th style={{ ...thStyle, textAlign: "right", width: 140 }}>≈ ({conv.altSym})</th>
               )}
@@ -830,7 +854,7 @@ function TrendSelect({ val, onChange }) {
 
 function SubTabs({ tabs, active, onChange }) {
   return (
-    <div style={{ display: "flex", gap: 4, marginBottom: 16, borderBottom: `1px solid #e0e6ea` }}>
+    <div style={{ display: "flex", gap: 6, marginBottom: 18, borderBottom: `2px solid ${C.teal}`, paddingLeft: 2 }}>
       {tabs.map((t) => {
         const isActive = active === t.id;
         return (
@@ -838,13 +862,20 @@ function SubTabs({ tabs, active, onChange }) {
             key={t.id}
             onClick={() => onChange(t.id)}
             style={{
-              padding: "9px 18px", fontSize: 13,
-              fontWeight: isActive ? 700 : 500,
-              color: isActive ? C.teal : C.blueGrey,
-              background: "transparent", border: "none",
-              borderBottom: `3px solid ${isActive ? C.teal : "transparent"}`,
-              marginBottom: -1, cursor: "pointer",
-              whiteSpace: "nowrap", minHeight: 40,
+              padding: "11px 22px",
+              fontSize: 14,
+              fontWeight: isActive ? 700 : 600,
+              color: isActive ? "#fff" : C.navy,
+              background: isActive ? C.teal : "#eef2f5",
+              border: `1px solid ${isActive ? C.teal : "#cdd5dc"}`,
+              borderBottom: isActive ? `1px solid ${C.teal}` : `1px solid ${C.teal}`,
+              borderRadius: "8px 8px 0 0",
+              marginBottom: -2,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              minHeight: 42,
+              boxShadow: isActive ? "0 -1px 0 rgba(0,0,0,0.04)" : "none",
+              transition: "background 120ms ease",
             }}
           >
             {t.label}
@@ -926,16 +957,20 @@ function StepActivitiesSubTab({ rows, onUpdate }) {
 
 // ─── Step 3: Expenses (sub-tabs: Regular | Irregular) ─────────────────────────
 
-function ExpensesStep({ conv, erEdits, setErEdits }) {
+function ExpensesStep({ conv, erEdits, setErEdits, onIrregularVisited, visitedIrregular }) {
   const [sub, setSub] = useState("regular");
+  const handleSubChange = (id) => {
+    setSub(id);
+    if (id === "irregular" && onIrregularVisited) onIrregularVisited();
+  };
   return (
     <div>
       <SubTabs
         tabs={[
           { id: "regular",   label: "Regular" },
-          { id: "irregular", label: "Irregular" },
+          { id: "irregular", label: visitedIrregular ? "Irregular" : "Irregular •" },
         ]}
-        active={sub} onChange={setSub}
+        active={sub} onChange={handleSubChange}
       />
       {sub === "regular" && (
         <StepExpensesRegular conv={conv} erEdits={erEdits} setErEdits={setErEdits} />

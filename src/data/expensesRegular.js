@@ -108,3 +108,37 @@ export const NEC_KEYS = [
   ...EXPENSES_REGULAR.find((c) => c.categoryKey === "necPersonnelBenefits").items.map((i) => i.key),
   ...EXPENSES_REGULAR.find((c) => c.categoryKey === "necRecurrentGeneral").items.map((i) => i.key),
 ];
+
+// USD dummy amounts for all 5 testing countries — sourced verbatim from workbook
+// 2026-04-17 Expenses_regular sheet, column H (Amount USD). Total $351,500.
+// Per Willyanne 2026-05-22 call: all 5 countries seed identical USD values for
+// testing; country teams can toggle to local currency or edit values once live.
+export const EXPENSES_REGULAR_USD_DEFAULTS = {
+  salaries: 150000,
+  healthInsurance: 25000,
+  pensions: 25000,
+  rent: 0,
+  cleaningServiceMaterials: 0,
+  securityServices: 0,
+  vehicleFuelMaintenance: 2500,
+  vehicleRental: 0,
+  officeExpenses: 2500,
+  internetService: 1000,
+  websiteDomainHosting: 500,
+  websiteEditsConsultant: 2500,
+  commMarketingConsultant: 0,
+  annualConferenceHosting: 18000,
+  otherConferenceMeetingTravel: 7500,
+  refundPayments: 2500,
+  contingencyReserveFund: 5000,
+  govtFees: 50000,
+  regularEthicsTraining: 5000,
+  siteVisitsMonitoring: 2500,
+  computers: 1000,
+  furniture: 1000,
+  necReviewerSalaryReview: 30000,
+  necReviewerSalaryTraining: 5000,
+  necTravelTimeStipend: 5000,
+  necTravelCostStipend: 5000,
+  necReviewMeetingHosting: 5000,
+};

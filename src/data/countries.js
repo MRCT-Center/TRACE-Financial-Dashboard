@@ -1,17 +1,11 @@
+import { EXPENSES_REGULAR_USD_DEFAULTS } from "./expensesRegular";
+
+// Per Willyanne 2026-05-22: all 5 testing countries seed identical USD dummy
+// amounts from workbook 2026-04-17 Expenses_regular column H (total $351,500).
+// Country teams can edit values or toggle to local currency once live.
 export const COUNTRIES = {
   Kenya: {
-    // Regular expenses — keys map to items in src/data/expensesRegular.js (workbook order).
-    // Phase 1 v1: only `salaries` and the NEC items (mapped from prior necDetail values) carry
-    // real data. All other workbook items are blank pending country team input.
-    er: {
-      salaries: 150000,
-      // NEC items — populated from prior necDetail breakdown (same values, finer-grained keys).
-      necReviewerSalaryReview:   30000,
-      necReviewerSalaryTraining: 5000,
-      necTravelTimeStipend:      5000,
-      necTravelCostStipend:      5000,
-      necReviewMeetingHosting:   5000,
-    },
+    er: { ...EXPENSES_REGULAR_USD_DEFAULTS },
     // TODO Revenue session: re-home recG / recGov to revOther or ri.grants
     // (they were mis-classified as expenses; preserved here pending the
     // Revenue tab deep-dive with Willyanne).
@@ -59,14 +53,7 @@ export const COUNTRIES = {
   },
 
   Nigeria: {
-    er: {
-      salaries: 180000,
-      necReviewerSalaryReview:   28000,
-      necReviewerSalaryTraining: 5000,
-      necTravelTimeStipend:      4000,
-      necTravelCostStipend:      4000,
-      necReviewMeetingHosting:   7000,
-    },
+    er: { ...EXPENSES_REGULAR_USD_DEFAULTS },
     _legacyEr: { recG: 72000, recGov: 45000 },
     ei: { proj: 248000 },
     revFees: 380000, revOther: 20000,
@@ -107,14 +94,7 @@ export const COUNTRIES = {
   },
 
   Rwanda: {
-    er: {
-      salaries: 95000,
-      necReviewerSalaryReview:   14000,
-      necReviewerSalaryTraining: 2000,
-      necTravelTimeStipend:      2000,
-      necTravelCostStipend:      2000,
-      necReviewMeetingHosting:   4000,
-    },
+    er: { ...EXPENSES_REGULAR_USD_DEFAULTS },
     _legacyEr: { recG: 35000, recGov: 25000 },
     ei: { proj: 150000 },
     revFees: 195000, revOther: 15000,
@@ -154,14 +134,7 @@ export const COUNTRIES = {
   },
 
   Tanzania: {
-    er: {
-      salaries: 120000,
-      necReviewerSalaryReview:   19600,
-      necReviewerSalaryTraining: 2800,
-      necTravelTimeStipend:      2800,
-      necTravelCostStipend:      2800,
-      necReviewMeetingHosting:   6000,
-    },
+    er: { ...EXPENSES_REGULAR_USD_DEFAULTS },
     _legacyEr: { recG: 48000, recGov: 35000 },
     ei: { proj: 200000 },
     revFees: 270000, revOther: 10000,
@@ -202,14 +175,7 @@ export const COUNTRIES = {
   },
 
   Zimbabwe: {
-    er: {
-      salaries: 85000,
-      necReviewerSalaryReview:   12600,
-      necReviewerSalaryTraining: 1800,
-      necTravelTimeStipend:      1800,
-      necTravelCostStipend:      1800,
-      necReviewMeetingHosting:   3500,
-    },
+    er: { ...EXPENSES_REGULAR_USD_DEFAULTS },
     _legacyEr: { recG: 32000, recGov: 22000 },
     ei: { proj: 135000 },
     revFees: 165000, revOther: 5000,
