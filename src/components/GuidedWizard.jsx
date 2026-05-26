@@ -6,6 +6,8 @@ import { CURRENCIES as CURRENCY_MAP, COUNTRY_CURRENCIES } from "../utils/Currenc
 import { EXPENSES_REGULAR_ROW_DEFAULTS, EXPENSES_REGULAR_CATEGORIES } from "../data/expensesRegular";
 import { EXPENSES_IRREGULAR_DEFAULTS, IRREGULAR_CATEGORIES } from "../data/expensesIrregular";
 import { ACTIVITY_LIST, ACTIVITY_DESCRIPTIONS, ACTIVITY_DEFAULT_ROWS } from "../data/activities";
+import { REVENUE_REGULAR_OTHER_DEFAULTS, REVENUE_REGULAR_OTHER_CATEGORIES } from "../data/revenueRegularOther";
+import { REVENUE_IRREGULAR_DEFAULTS, REVENUE_IRREGULAR_CATEGORIES, PAYMENT_STATUS_OPTIONS } from "../data/revenueIrregular";
 import { KEY_CONSIDERATIONS_DEFAULTS } from "../data/countries";
 import InfoTip from "./InfoTip";
 
@@ -33,7 +35,7 @@ const TREND_OPTIONS = ["Remain the same", "Increase", "Decrease"];
 // Before production deployment with real country teams, this MUST be replaced
 // with server-side persistence (Supabase) so drafts survive logout and follow
 // the user across devices. See plan velvety-seeking-marble.md.
-const DRAFT_VERSION = 4;
+const DRAFT_VERSION = 5;
 const draftKey = (country) => `trace-wizard-draft:${country}:v${DRAFT_VERSION}`;
 
 function loadDraft(country) {
@@ -140,6 +142,22 @@ export default function GuidedWizard({ country, data, onSave }) {
   );
   const [feesEdits,    setFeesEdits]    = useState(() => draft?.feesEdits    || JSON.parse(JSON.stringify(data?.fees    || [])));
   const [irrProjEdits, setIrrProjEdits] = useState(() => draft?.irrProjEdits || JSON.parse(JSON.stringify(data?.irrProj || [])));
+  // Per Willyanne 2026-05-26 #19/#20: Revenue tab gets a Regular sub-tab with
+  // a stacked "Regular Revenue from Other Sources" section under Fees, and an
+  // Irregular sub-tab with 4 categories + Payment status dropdown. Saved data
+  // > draft > workbook blank defaults.
+  const [revRegOtherEdits, setRevRegOtherEdits] = useState(() =>
+    draft?.revRegOtherEdits
+      ?? (Array.isArray(data?.revRegOther) && data.revRegOther.length > 0
+          ? JSON.parse(JSON.stringify(data.revRegOther))
+          : JSON.parse(JSON.stringify(REVENUE_REGULAR_OTHER_DEFAULTS)))
+  );
+  const [revIrrEdits, setRevIrrEdits] = useState(() =>
+    draft?.revIrrEdits
+      ?? (Array.isArray(data?.revIrr) && data.revIrr.length > 0
+          ? JSON.parse(JSON.stringify(data.revIrr))
+          : JSON.parse(JSON.stringify(REVENUE_IRREGULAR_DEFAULTS)))
+  );
   const [ikRegEdits,   setIkRegEdits]   = useState(() => draft?.ikRegEdits   || { ...(data?.ikReg || {}) });
   const [ikIrrEdits,   setIkIrrEdits]   = useState(() => draft?.ikIrrEdits   || { ...(data?.ikIrr || {}) });
 
@@ -150,11 +168,13 @@ export default function GuidedWizard({ country, data, onSave }) {
       step, currencyCode: currency.code, inputMode, unit,
       hasRisks, hasOpps, riskText, oppText,
       activityRows, stepSources, stepNotes,
-      erRowsEdits, feesEdits, irrProjEdits, ikRegEdits, ikIrrEdits,
+      erRowsEdits, feesEdits, irrProjEdits,
+      revRegOtherEdits, revIrrEdits,
+      ikRegEdits, ikIrrEdits,
       expVisitedIrregular,
     });
     setDraftSavedAt(new Date().toISOString());
-  }, [country, submitted, step, currency.code, inputMode, unit, hasRisks, hasOpps, riskText, oppText, activityRows, stepSources, stepNotes, erRowsEdits, feesEdits, irrProjEdits, ikRegEdits, ikIrrEdits, expVisitedIrregular]);
+  }, [country, submitted, step, currency.code, inputMode, unit, hasRisks, hasOpps, riskText, oppText, activityRows, stepSources, stepNotes, erRowsEdits, feesEdits, irrProjEdits, revRegOtherEdits, revIrrEdits, ikRegEdits, ikIrrEdits, expVisitedIrregular]);
 
   // Static exchange rate — recomputed when currency changes. Rates source: CurrencyContext map.
   useEffect(() => {
@@ -297,7 +317,14 @@ export default function GuidedWizard({ country, data, onSave }) {
               visitedIrregular={expVisitedIrregular}
             />
           )}
-          {step === 3 && <StepRevenue conv={conv} feesEdits={feesEdits} setFeesEdits={setFeesEdits} />}
+          {step === 3 && (
+            <StepRevenue
+              conv={conv}
+              feesEdits={feesEdits} setFeesEdits={setFeesEdits}
+              revRegOtherEdits={revRegOtherEdits} setRevRegOtherEdits={setRevRegOtherEdits}
+              revIrrEdits={revIrrEdits} setRevIrrEdits={setRevIrrEdits}
+            />
+          )}
           {step === 4 && <StepInKind  conv={conv} ikRegEdits={ikRegEdits} setIkRegEdits={setIkRegEdits} ikIrrEdits={ikIrrEdits} setIkIrrEdits={setIkIrrEdits} />}
           {step === 5 && <StepReview  country={country} activityRows={activityRows} currency={currency} erRowsEdits={erRowsEdits} feesEdits={feesEdits} />}
 
@@ -378,6 +405,19 @@ export default function GuidedWizard({ country, data, onSave }) {
               for (const row of erRowsEdits || []) {
                 if (row && row.key) erFlat[row.key] = row.amount ?? null;
               }
+              // Roll up revRegOther → flat `revOther` and revIrr → flat `ri.*`
+              // so Overview/Gap views continue to render without changes today.
+              // Country teams enter rows; Results-side reads the rolled-up totals.
+              const sumRows = (rows) => (rows || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
+              const revOtherTotal = sumRows(revRegOtherEdits);
+              const riRollup = (revIrrEdits || []).reduce((acc, r) => {
+                const v = Number(r?.amount) || 0;
+                if (r?.category === "Grant")                acc.grants    += v;
+                else if (r?.category === "Contract")        acc.contracts += v;
+                else if (r?.category === "Other 1-time payment") acc.other     += v;
+                else if (r?.category === "Deferred reserves") acc.reserves += v;
+                return acc;
+              }, { grants: 0, contracts: 0, other: 0, reserves: 0 });
               const updates = {
                 activities:  activityRows,
                 hasRisks, riskText, hasOpps, oppText,
@@ -388,6 +428,10 @@ export default function GuidedWizard({ country, data, onSave }) {
                 erRows:  erRowsEdits,
                 fees:    feesEdits,
                 revFees: feesEdits.reduce((s, f) => s + (f.ctPro || 0) * f.ind + (f.ctStu || 0) * f.ngo, 0),
+                revRegOther: revRegOtherEdits,
+                revOther: revOtherTotal,
+                revIrr:  revIrrEdits,
+                ri:      riRollup,
                 irrProj: irrProjEdits,
                 ei:      { proj: irrProjEdits.reduce((s, p) => s + (p.amount || 0), 0) },
                 ikReg:   ikRegFinal,
@@ -1097,7 +1141,350 @@ function StepExpensesIrregular({ conv, irrProjEdits, setIrrProjEdits }) {
   );
 }
 
-function StepRevenue({ conv, feesEdits, setFeesEdits }) {
+// Per Willyanne 2026-05-26 #17/#18/#19/#20: Step 4 Revenue gets Regular |
+// Irregular sub-tabs. Regular has stacked collapsible sections — "Regular
+// Revenue from Fees" (the existing fee-based UI, untouched today; redesign
+// scheduled for item 21 on 2026-05-27) above "Regular Revenue from Other
+// Sources" (6 categories: Subsidy federal/institutional/other; Income
+// rental/investment/other). Irregular has 4 categories (Grant, Contract,
+// Other 1-time payment, Deferred reserves) plus a Payment status dropdown
+// column unique to Irregular Revenue.
+function StepRevenue({ conv, feesEdits, setFeesEdits, revRegOtherEdits, setRevRegOtherEdits, revIrrEdits, setRevIrrEdits }) {
+  const [sub, setSub] = useState("regular");
+  return (
+    <div>
+      <SubTabs
+        tabs={[
+          { id: "regular",   label: "Regular" },
+          { id: "irregular", label: "Irregular" },
+        ]}
+        active={sub} onChange={setSub}
+      />
+      {sub === "regular" && (
+        <StepRevenueRegular
+          conv={conv}
+          feesEdits={feesEdits} setFeesEdits={setFeesEdits}
+          revRegOtherEdits={revRegOtherEdits} setRevRegOtherEdits={setRevRegOtherEdits}
+        />
+      )}
+      {sub === "irregular" && (
+        <StepRevenueIrregular
+          conv={conv}
+          revIrrEdits={revIrrEdits} setRevIrrEdits={setRevIrrEdits}
+        />
+      )}
+    </div>
+  );
+}
+
+// Collapsible section header — used to stack Fees + Other Sources within the
+// Regular sub-tab. Per Willyanne 2026-05-26: default expanded, click the
+// header to collapse so a country team can fold a section once they're done.
+function CollapsibleSection({ title, defaultOpen = true, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ border: "1px solid #cdd5dc", borderRadius: 8, overflow: "hidden", background: "#fff" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: "100%",
+          textAlign: "left",
+          background: C.lightBG,
+          border: "none",
+          borderBottom: open ? "1px solid #cdd5dc" : "none",
+          padding: "12px 16px",
+          fontSize: 14,
+          fontWeight: 700,
+          color: C.navy,
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          minHeight: 44,
+        }}
+        aria-expanded={open}
+      >
+        <span style={{ display: "inline-block", width: 14, fontSize: 10, transform: open ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 120ms" }}>▼</span>
+        <span>{title}</span>
+      </button>
+      {open && <div style={{ padding: "16px 18px" }}>{children}</div>}
+    </div>
+  );
+}
+
+function StepRevenueRegular({ conv, feesEdits, setFeesEdits, revRegOtherEdits, setRevRegOtherEdits }) {
+  // Safety net: if rows are missing or in a legacy shape, hydrate from defaults.
+  // App.jsx's merge guard handles this on load too.
+  useEffect(() => {
+    if (!Array.isArray(revRegOtherEdits) || revRegOtherEdits.length === 0 ||
+        revRegOtherEdits.some((r) => r && r.category === undefined)) {
+      setRevRegOtherEdits(JSON.parse(JSON.stringify(REVENUE_REGULAR_OTHER_DEFAULTS)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const feeTotal = feesEdits.reduce((s, f) => s + (f.ctPro || 0) * f.ind + (f.ctStu || 0) * f.ngo, 0);
+  const otherTotal = (revRegOtherEdits || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <p style={descStyle}>
+        Regular revenue comes from two sources: <strong>fees</strong> charged for ethics reviews (top),
+        and <strong>other recurring revenue</strong> like government or institutional subsidies, rental
+        or investment income, etc. (below). Click a section header to collapse or expand it.
+      </p>
+
+      <CollapsibleSection title="Regular Revenue from Fees" defaultOpen={true}>
+        <StepRevenueFees conv={conv} feesEdits={feesEdits} setFeesEdits={setFeesEdits} />
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Regular Revenue from Other Sources" defaultOpen={true}>
+        <RevenueCategoryCards
+          conv={conv}
+          rows={revRegOtherEdits}
+          setRows={setRevRegOtherEdits}
+          categories={REVENUE_REGULAR_OTHER_CATEGORIES}
+          withPaymentStatus={false}
+          intro="Subsidies and recurring non-fee income, organized by category. Each row captures the funder, amount, and start/end dates. Use + Add item to extend a category."
+        />
+      </CollapsibleSection>
+
+      <div style={{ background: C.navy, color: "#fff", padding: "12px 18px", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>Total regular revenue ({conv.displayCode})</span>
+        <span style={{ fontSize: 18, fontWeight: 700, fontFamily: "monospace" }}>
+          {conv.displaySym}{conv.toDisplay(feeTotal + otherTotal).toLocaleString()}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function StepRevenueIrregular({ conv, revIrrEdits, setRevIrrEdits }) {
+  useEffect(() => {
+    if (!Array.isArray(revIrrEdits) || revIrrEdits.length === 0 ||
+        revIrrEdits.some((r) => r && r.category === undefined)) {
+      setRevIrrEdits(JSON.parse(JSON.stringify(REVENUE_IRREGULAR_DEFAULTS)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const grandTotal = (revIrrEdits || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <p style={descStyle}>
+        Irregular revenue is one-time, time-limited, or non-recurring funding — grants, contracts,
+        other one-time payments, or draws from deferred reserves. Each row captures the funder,
+        amount, start/end dates, and <strong>payment status</strong> (whether and when the funds
+        have been received). <strong>All cells are editable</strong> — use <em>+ Add item</em> to
+        extend a category.
+      </p>
+      <RevenueCategoryCards
+        conv={conv}
+        rows={revIrrEdits}
+        setRows={setRevIrrEdits}
+        categories={REVENUE_IRREGULAR_CATEGORIES}
+        withPaymentStatus={true}
+      />
+      <div style={{ background: C.navy, color: "#fff", padding: "12px 18px", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>Total irregular revenue ({conv.displayCode})</span>
+        <span style={{ fontSize: 18, fontWeight: 700, fontFamily: "monospace" }}>
+          {conv.displaySym}{conv.toDisplay(grandTotal).toLocaleString()}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// Shared category-card block: renders one card per category with editable
+// label, ⓘ description, funder, USD amount (+ alt-currency display when
+// applicable), start/end dates, optional Payment status dropdown, and a
+// × delete per row. "+ Add item" appends a new blank row to a category.
+function RevenueCategoryCards({ conv, rows, setRows, categories, withPaymentStatus = false, intro }) {
+  const updateRow = (idx, patch) => {
+    setRows((rs) => rs.map((r, i) => i === idx ? { ...r, ...patch } : r));
+  };
+  const addRow = (category) => {
+    setRows((rs) => [
+      ...rs,
+      {
+        category, item: "", description: "", funder: "",
+        amount: null, startDate: "", endDate: "",
+        ...(withPaymentStatus ? { paymentStatus: "" } : {}),
+      },
+    ]);
+  };
+  const deleteRow = (idx) => {
+    setRows((rs) => rs.filter((_, i) => i !== idx));
+  };
+
+  // Visible columns: # | Item (incl. ⓘ) | Funder | Amount | [alt] | Start | End | [Payment] | ×
+  const visibleCols = 7 + (conv.showAlt ? 1 : 0) + (withPaymentStatus ? 1 : 0) + 1; // + the × column
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {intro && <p style={descStyle}>{intro}</p>}
+      {categories.map((cat) => {
+        const rowsInCat = (rows || [])
+          .map((r, idx) => ({ row: r, idx }))
+          .filter(({ row }) => row?.category === cat);
+        const catTotal = rowsInCat.reduce((s, { row }) => s + (Number(row?.amount) || 0), 0);
+
+        return (
+          <div key={cat} style={{ background: "#fff", border: "1px solid #dde", borderRadius: 8, overflow: "hidden" }}>
+            <div style={{ background: "#f4f7f9", padding: "10px 14px", fontSize: 13, fontWeight: 700, color: C.navy, borderBottom: "1px solid #dde" }}>
+              {cat}
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: withPaymentStatus ? 1040 : 880 }}>
+                <thead>
+                  <tr style={{ background: "#f8fafb" }}>
+                    <th style={{ ...thStyle, width: 32 }}>#</th>
+                    <th style={{ ...thStyle, minWidth: 220 }}>Item</th>
+                    <th style={{ ...thStyle, width: 150 }}>Funding source</th>
+                    <th style={{ ...thStyle, textAlign: "right", width: 130 }}>
+                      Amount ({conv.displayCode === "USD" ? "US Dollars" : conv.displayCode})
+                    </th>
+                    {conv.showAlt && (
+                      <th style={{ ...thStyle, textAlign: "right", width: 110 }}>≈ ({conv.altSym})</th>
+                    )}
+                    <th style={{ ...thStyle, width: 110 }}>Start date</th>
+                    <th style={{ ...thStyle, width: 110 }}>End date</th>
+                    {withPaymentStatus && (
+                      <th style={{ ...thStyle, width: 180 }}>Payment status</th>
+                    )}
+                    <th style={{ ...thStyle, width: 28 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rowsInCat.length === 0 && (
+                    <tr>
+                      <td colSpan={visibleCols} style={{ padding: "14px 12px", fontSize: 12, color: "#999", fontStyle: "italic", textAlign: "center" }}>
+                        No items yet — use the + Add item button below.
+                      </td>
+                    </tr>
+                  )}
+                  {rowsInCat.map(({ row, idx }, displayIdx) => (
+                    <tr key={idx} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top" }}>
+                      <td style={{ padding: "10px 10px", fontSize: 12, color: C.blueGrey, fontFamily: "monospace" }}>
+                        {displayIdx + 1}
+                      </td>
+                      <td style={{ padding: "8px 10px" }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <IrregularItemCell
+                              value={row.item}
+                              onChange={(v) => updateRow(idx, { item: v })}
+                            />
+                          </div>
+                          <EditableDescription
+                            value={row.description}
+                            label={row.item || "Item"}
+                            onChange={(v) => updateRow(idx, { description: v })}
+                          />
+                        </div>
+                      </td>
+                      <td style={{ padding: "8px 10px" }}>
+                        <IrregularTextInput
+                          value={row.funder}
+                          onChange={(v) => updateRow(idx, { funder: v })}
+                          placeholder="e.g. Ministry of Health"
+                        />
+                      </td>
+                      <td style={{ padding: "8px 10px" }}>
+                        <BlankableAmountInput
+                          usdVal={row.amount}
+                          conv={conv}
+                          onChangeUSD={(v) => updateRow(idx, { amount: v ?? null })}
+                        />
+                      </td>
+                      {conv.showAlt && (
+                        <td style={{ padding: "8px 10px", textAlign: "right", fontFamily: "monospace", fontSize: 11, color: C.blueGrey }}>
+                          {formatLocked(row.amount, conv)}
+                        </td>
+                      )}
+                      <td style={{ padding: "8px 10px" }}>
+                        <IrregularTextInput
+                          value={row.startDate}
+                          onChange={(v) => updateRow(idx, { startDate: v })}
+                          placeholder="MM/YYYY"
+                        />
+                      </td>
+                      <td style={{ padding: "8px 10px" }}>
+                        <IrregularTextInput
+                          value={row.endDate}
+                          onChange={(v) => updateRow(idx, { endDate: v })}
+                          placeholder="MM/YYYY"
+                        />
+                      </td>
+                      {withPaymentStatus && (
+                        <td style={{ padding: "8px 10px" }}>
+                          <select
+                            value={row.paymentStatus || ""}
+                            onChange={(e) => updateRow(idx, { paymentStatus: e.target.value })}
+                            style={{
+                              width: "100%",
+                              border: "1px solid #ccc",
+                              borderRadius: 4,
+                              padding: "5px 6px",
+                              fontSize: 12,
+                              fontFamily: "inherit",
+                              background: "#fff",
+                              color: row.paymentStatus ? C.navy : "#888",
+                            }}
+                          >
+                            <option value="">Select…</option>
+                            {PAYMENT_STATUS_OPTIONS.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        </td>
+                      )}
+                      <td style={{ padding: "8px 4px", textAlign: "center" }}>
+                        <button
+                          onClick={() => deleteRow(idx)}
+                          title="Delete this row"
+                          style={{ background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: 16, padding: "2px 6px", lineHeight: 1 }}
+                        >
+                          ×
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  <tr style={{ background: "#fafbfc" }}>
+                    <td colSpan={visibleCols} style={{ padding: "8px 10px" }}>
+                      <button
+                        onClick={() => addRow(cat)}
+                        style={{
+                          background: "transparent",
+                          border: `1px dashed ${C.teal}`,
+                          color: C.teal,
+                          borderRadius: 5,
+                          padding: "5px 12px",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        + Add item
+                      </button>
+                      <span style={{ marginLeft: 14, fontSize: 11, color: C.blueGrey, fontStyle: "italic" }}>
+                        Category subtotal: <strong style={{ color: C.navy, fontFamily: "monospace" }}>${catTotal.toLocaleString()}</strong>
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function StepRevenueFees({ conv, feesEdits, setFeesEdits }) {
   function updateFee(i, field, raw) {
     const val = parseFloat(raw) || 0;
     setFeesEdits((rows) => rows.map((f, idx) => idx === i ? { ...f, [field]: field === "ctPro" || field === "ctStu" ? val : conv.fromDisplay(val) } : f));

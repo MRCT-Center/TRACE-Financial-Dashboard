@@ -112,6 +112,15 @@ export default function App() {
                 : row.amount,
             }));
           };
+          // 2026-05-26 #19/#20: pre-existing Supabase rows lack `revRegOther`
+          // and `revIrr` array shapes (they only had a flat `revOther` number
+          // and `ri.{grants,contracts,other,reserves}` rollup). Detect missing
+          // or legacy shape and substitute the workbook blank-row defaults
+          // from countries.js so the new Revenue UI renders. User-entered
+          // Revenue Other / Irregular Revenue rows are preserved if present.
+          const isLegacyRevRows = (rows) =>
+            !Array.isArray(rows) || rows.length === 0 ||
+            rows.some((r) => r && typeof r === "object" && r.category === undefined);
           const updated = { ...COUNTRIES };
           data.forEach(({ country, data: d }) => {
             if (!updated[country]) return;
@@ -143,6 +152,13 @@ export default function App() {
             // Activities row-shape guard (Willyanne 2026-05-26 #9)
             if (isLegacyActivities(d?.activities)) {
               merged.activities = updated[country].activities;
+            }
+            // Revenue Other + Irregular Revenue guards (Willyanne 2026-05-26 #19/#20)
+            if (isLegacyRevRows(d?.revRegOther)) {
+              merged.revRegOther = updated[country].revRegOther;
+            }
+            if (isLegacyRevRows(d?.revIrr)) {
+              merged.revIrr = updated[country].revIrr;
             }
             updated[country] = merged;
           });

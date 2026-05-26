@@ -1,6 +1,8 @@
 import { EXPENSES_REGULAR_USD_DEFAULTS } from "./expensesRegular";
 import { EXPENSES_IRREGULAR_DEFAULTS } from "./expensesIrregular";
 import { ACTIVITY_DEFAULT_ROWS } from "./activities";
+import { REVENUE_REGULAR_OTHER_DEFAULTS } from "./revenueRegularOther";
+import { REVENUE_IRREGULAR_DEFAULTS } from "./revenueIrregular";
 
 // Per Willyanne 2026-05-22: irrProj seed mirrors workbook Expenses_irregular
 // (D4–D15). All 5 testing countries get identical defaults; country teams edit
@@ -11,6 +13,14 @@ const cloneIrregularDefaults = () => JSON.parse(JSON.stringify(EXPENSES_IRREGULA
 // activity rows from workbook col I (near-term) + col J (long-term), with
 // editable names and descriptions (#7/#8).
 const cloneActivityDefaults = () => JSON.parse(JSON.stringify(ACTIVITY_DEFAULT_ROWS));
+
+// Per Willyanne 2026-05-26 #19/#20: Revenue tab gets sub-tabs Regular |
+// Irregular, with Regular containing a stacked "Regular Revenue from Fees"
+// section (untouched today; redesign scheduled for item 21 on 2026-05-27)
+// above a new "Regular Revenue from Other Sources" section. All 5 testing
+// countries seed identical blank starter rows from the workbook.
+const cloneRevRegOtherDefaults = () => JSON.parse(JSON.stringify(REVENUE_REGULAR_OTHER_DEFAULTS));
+const cloneRevIrrDefaults       = () => JSON.parse(JSON.stringify(REVENUE_IRREGULAR_DEFAULTS));
 
 // Per Willyanne 2026-05-26 #6: Key Considerations workbook (cell 2c/2d/2e)
 // pre-fills both risks and opportunities to "yes" with the descriptions from
@@ -53,6 +63,8 @@ export const COUNTRIES = {
     ],
     activities: cloneActivityDefaults(),
     irrProj: cloneIrregularDefaults(),
+    revRegOther: cloneRevRegOtherDefaults(),
+    revIrr: cloneRevIrrDefaults(),
   },
 
   Nigeria: {
@@ -76,6 +88,8 @@ export const COUNTRIES = {
     ],
     activities: cloneActivityDefaults(),
     irrProj: cloneIrregularDefaults(),
+    revRegOther: cloneRevRegOtherDefaults(),
+    revIrr: cloneRevIrrDefaults(),
   },
 
   Rwanda: {
@@ -99,6 +113,8 @@ export const COUNTRIES = {
     ],
     activities: cloneActivityDefaults(),
     irrProj: cloneIrregularDefaults(),
+    revRegOther: cloneRevRegOtherDefaults(),
+    revIrr: cloneRevIrrDefaults(),
   },
 
   Tanzania: {
@@ -122,6 +138,8 @@ export const COUNTRIES = {
     ],
     activities: cloneActivityDefaults(),
     irrProj: cloneIrregularDefaults(),
+    revRegOther: cloneRevRegOtherDefaults(),
+    revIrr: cloneRevIrrDefaults(),
   },
 
   Zimbabwe: {
@@ -145,5 +163,7 @@ export const COUNTRIES = {
     ],
     activities: cloneActivityDefaults(),
     irrProj: cloneIrregularDefaults(),
+    revRegOther: cloneRevRegOtherDefaults(),
+    revIrr: cloneRevIrrDefaults(),
   },
 };
