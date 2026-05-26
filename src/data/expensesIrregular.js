@@ -13,6 +13,9 @@
 export const IRREGULAR_CATEGORIES = [
   "Capital costs (durable goods)",
   "Capital costs (one-time/irregular activities)",
+  // Per Willyanne 2026-05-26 #15: ethics committee one-time/irregular costs
+  // belong in their own bucket. Two blank editable starter rows.
+  "Ethics Committee capital costs (one-time/irregular activities)",
 ];
 
 // 12 rows mirroring workbook D4–D15. `amount` is null where workbook col I is
@@ -120,6 +123,19 @@ export const EXPENSES_IRREGULAR_DEFAULTS = [
     category: IRREGULAR_CATEGORIES[1],
     item: "", funder: "", amount: null, startDate: "", endDate: "",
     descriptionExample: "Other one-time activity",
+  },
+  // Two blank starter rows for the new Ethics Committee one-time bucket
+  // (Willyanne 2026-05-26 #15). All fields editable; no workbook examples
+  // yet — country teams describe their own items.
+  {
+    category: IRREGULAR_CATEGORIES[2],
+    item: "", funder: "", amount: null, startDate: "", endDate: "",
+    descriptionExample: "",
+  },
+  {
+    category: IRREGULAR_CATEGORIES[2],
+    item: "", funder: "", amount: null, startDate: "", endDate: "",
+    descriptionExample: "",
   },
 ];
 

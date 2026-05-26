@@ -19,3 +19,11 @@ body {
 button { cursor: pointer; border: none; background: none; font-family: inherit; font-size: inherit; }
 input, select, textarea { font-family: inherit; font-size: inherit; }
 a { color: inherit; text-decoration: none; }
+
+/* Hide the up/down spinner controls on numeric inputs (per Willyanne 2026-05-26 #13/#14). */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }

@@ -2,9 +2,12 @@
 // columns F (Activity list) and G (Activity description).
 // Names are kept in the project's existing short-form for table readability;
 // descriptions are verbatim from the workbook (column G).
-// Use these whenever rendering activities — both inside the wizard and on
-// the Results-side Activities display — so the SUGGESTED-elaboration
-// placeholders previously embedded in components are retired.
+//
+// Per Willyanne 2026-05-26 #7/#8/#9: Activities are now fully editable in the
+// wizard — country teams can rename activities, rewrite descriptions, add new
+// activities, and delete them. Near-term (col I) and long-term (col J)
+// defaults come from the workbook so all 5 countries seed identically for
+// testing. `ACTIVITY_DEFAULTS_ROWS` is the row-shape used by the wizard.
 
 export const ACTIVITY_LIST = [
   "Managing and leading",
@@ -47,3 +50,28 @@ export const ACTIVITY_DESCRIPTIONS = {
   "Other ethics activities":
     "Participating in ethics training; learning new software or ethics review processes/forms and becoming proficient with them; traveling to ethics conferences/meetings (other than training); staying abreast of any changes in national or international regulations or guidance.",
 };
+
+// Workbook col-I / col-J defaults (Willyanne 2026-05-26 #9). Combined into
+// row-shape that the wizard hydrates from for first-time submissions.
+export const WORKBOOK_TREND_DEFAULTS = {
+  "Managing and leading":                                                       { nearTerm: "Increase",        longTerm: "Increase" },
+  "Developing/reviewing/conducting/advising on training":                       { nearTerm: "Increase",        longTerm: "Increase" },
+  "Receipt, screening, and maintaining logs":                                   { nearTerm: "Remain the same", longTerm: "Increase" },
+  "Determining risk, triaging, and assigning study proposals":                  { nearTerm: "Increase",        longTerm: "Increase" },
+  "Reviewing minimal risk studies":                                             { nearTerm: "Remain the same", longTerm: "Increase" },
+  "Reviewing, preparing for, and participating in full board meetings":        { nearTerm: "Remain the same", longTerm: "Increase" },
+  "Minutes and record-keeping":                                                 { nearTerm: "Remain the same", longTerm: "Increase" },
+  "On-study review":                                                            { nearTerm: "Increase",        longTerm: "Increase" },
+  "Close out of study":                                                         { nearTerm: "Remain the same", longTerm: "Increase" },
+  "Preparing and monitoring sites, inspections, and audits":                    { nearTerm: "Remain the same", longTerm: "Increase" },
+  "Participant feedback, concerns, complaints, questions":                      { nearTerm: "Increase",        longTerm: "Increase" },
+  "Other ethics activities":                                                    { nearTerm: "Increase",        longTerm: "Increase" },
+};
+
+export const ACTIVITY_DEFAULT_ROWS = ACTIVITY_LIST.map((name) => ({
+  name,
+  description: ACTIVITY_DESCRIPTIONS[name] || "",
+  nearTerm: WORKBOOK_TREND_DEFAULTS[name]?.nearTerm || "",
+  longTerm: WORKBOOK_TREND_DEFAULTS[name]?.longTerm || "",
+  note: "",
+}));

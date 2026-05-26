@@ -23,7 +23,7 @@ export default function Expenses({ country, data: d, flag, onEdit }) {
       <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
         <KPI label="Total Regular Expenses" val={fmt(m.te)} color={C.navy} />
         <KPI label="Secretariat" val={fmt(secTotal)} color={C.teal} />
-        <KPI label="Ethics Committee (NEC)" val={fmt(necTotal)} color={C.purple} />
+        <KPI label="Ethics Committee" val={fmt(necTotal)} color={C.purple} />
         <KPI label="Total Irregular Expenses" val={fmt(m.ti)} color={C.steelblue} />
       </div>
 
@@ -68,7 +68,7 @@ export default function Expenses({ country, data: d, flag, onEdit }) {
       </Card>
 
       {d.necDetail && (
-        <Card title={<>Ethics Committee — Detailed Breakdown<InfoTip title="Ethics Committee (NEC) budget">The funding for the ethics committee — including payments to members of the ethics committee, food for ethics meetings, etc. — is usually disbursed by the management structure/secretariat, so the ethics committee budget is part of the overall budget controlled by the management structure/secretariat. It is helpful to disaggregate those components within the overall budget.</InfoTip></>}>
+        <Card title={<>Ethics Committee — Detailed Breakdown<InfoTip title="Ethics Committee budget">The funding for the ethics committee — including payments to members of the ethics committee, food for ethics meetings, etc. — is usually disbursed by the management structure/secretariat, so the ethics committee budget is part of the overall budget controlled by the management structure/secretariat. It is helpful to disaggregate those components within the overall budget.</InfoTip></>}>
           <p style={narrativeStyle}>
             The ethics committee budget covers reviewer payments, training time, travel supplements, and meeting hosting.
           </p>

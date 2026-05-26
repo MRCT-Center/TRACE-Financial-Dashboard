@@ -3,9 +3,10 @@ import { COLORS as C } from "../utils/metrics";
 import StepInstructions from "./StepInstructions";
 import { WIZARD_STEP_INSTRUCTIONS } from "../data/instructions";
 import { CURRENCIES as CURRENCY_MAP, COUNTRY_CURRENCIES } from "../utils/CurrencyContext";
-import { EXPENSES_REGULAR } from "../data/expensesRegular";
+import { EXPENSES_REGULAR_ROW_DEFAULTS, EXPENSES_REGULAR_CATEGORIES } from "../data/expensesRegular";
 import { EXPENSES_IRREGULAR_DEFAULTS, IRREGULAR_CATEGORIES } from "../data/expensesIrregular";
-import { ACTIVITY_LIST, ACTIVITY_DESCRIPTIONS } from "../data/activities";
+import { ACTIVITY_LIST, ACTIVITY_DESCRIPTIONS, ACTIVITY_DEFAULT_ROWS } from "../data/activities";
+import { KEY_CONSIDERATIONS_DEFAULTS } from "../data/countries";
 import InfoTip from "./InfoTip";
 
 const CURRENCIES = [
@@ -17,12 +18,12 @@ const CURRENCIES = [
   { code: "ZWG", symbol: "ZiG", name: "Zimbabwe Gold"    },
 ];
 
-// Setup tab — Unit options (from workbook dropdown sheet, locked 2026-05-21).
+// Setup tab — Unit options. Per Willyanne 2026-05-26 #4: only the two
+// "/mgmt." options are user-facing (the Ethics Committee variants are
+// reported through the parent Secretariat's submission, not as separate units).
 const UNIT_OPTIONS = [
   "National Secretariat/mgmt.",
-  "National Ethics Committee",
   "Local IRB Secretariat/mgmt.",
-  "Local IRB Ethics Committee",
 ];
 
 const TREND_OPTIONS = ["Remain the same", "Increase", "Decrease"];
@@ -32,7 +33,7 @@ const TREND_OPTIONS = ["Remain the same", "Increase", "Decrease"];
 // Before production deployment with real country teams, this MUST be replaced
 // with server-side persistence (Supabase) so drafts survive logout and follow
 // the user across devices. See plan velvety-seeking-marble.md.
-const DRAFT_VERSION = 3;
+const DRAFT_VERSION = 4;
 const draftKey = (country) => `trace-wizard-draft:${country}:v${DRAFT_VERSION}`;
 
 function loadDraft(country) {
@@ -76,20 +77,43 @@ export default function GuidedWizard({ country, data, onSave }) {
   // teams see "as of [today]" in Setup.
   const [exchangeRate, setExchangeRate] = useState(() => CURRENCY_MAP[currency.code]?.rate ?? 1);
 
-  const [hasRisks, setHasRisks] = useState(() => draft?.hasRisks || "");
-  const [hasOpps,  setHasOpps]  = useState(() => draft?.hasOpps || "");
-  const [riskText, setRiskText] = useState(() => draft?.riskText || "");
-  const [oppText,  setOppText]  = useState(() => draft?.oppText || "");
+  // Workbook 2c/2d/2e seed both risks and opportunities to "yes" with descriptions
+  // (Willyanne 2026-05-26 #6). Saved data > draft > workbook default.
+  const [hasRisks, setHasRisks] = useState(() => draft?.hasRisks ?? data?.hasRisks ?? KEY_CONSIDERATIONS_DEFAULTS.hasRisks);
+  const [hasOpps,  setHasOpps]  = useState(() => draft?.hasOpps  ?? data?.hasOpps  ?? KEY_CONSIDERATIONS_DEFAULTS.hasOpps);
+  const [riskText, setRiskText] = useState(() => draft?.riskText ?? data?.riskText ?? KEY_CONSIDERATIONS_DEFAULTS.riskText);
+  const [oppText,  setOppText]  = useState(() => draft?.oppText  ?? data?.oppText  ?? KEY_CONSIDERATIONS_DEFAULTS.oppText);
 
+  // Per Willyanne 2026-05-26 #7/#8/#9: activities are fully editable rows —
+  // name, description, near-term, long-term, note. Workbook col-I/col-J seed
+  // values pre-fill near-term/long-term for first-time submissions. Saved
+  // data merges over workbook defaults by matching on `name`.
   const [activityRows, setActivityRows] = useState(() => {
     if (draft?.activityRows) return draft.activityRows;
     const saved = data?.activities || [];
-    return ACTIVITY_LIST.map((name) => {
-      const existing = saved.find((a) => a.name === name);
-      return existing
-        ? { name, nearTerm: existing.nearTerm || "", longTerm: existing.longTerm || "", note: existing.note || "" }
-        : { name, nearTerm: "", longTerm: "", note: "" };
-    });
+    return ACTIVITY_DEFAULT_ROWS.map((def) => {
+      const existing = saved.find((a) => a.name === def.name);
+      if (!existing) return { ...def };
+      return {
+        name:        def.name,
+        description: existing.description ?? def.description,
+        nearTerm:    existing.nearTerm    ?? def.nearTerm,
+        longTerm:    existing.longTerm    ?? def.longTerm,
+        note:        existing.note        ?? def.note,
+      };
+    }).concat(
+      // Carry forward any user-added activities saved previously that aren't
+      // in the workbook defaults.
+      saved
+        .filter((a) => !ACTIVITY_DEFAULT_ROWS.some((d) => d.name === a.name))
+        .map((a) => ({
+          name: a.name,
+          description: a.description || "",
+          nearTerm: a.nearTerm || "",
+          longTerm: a.longTerm || "",
+          note: a.note || "",
+        }))
+    );
   });
 
   const [stepSources, setStepSources] = useState(() => draft?.stepSources || Array(STEPS.length).fill(""));
@@ -104,7 +128,16 @@ export default function GuidedWizard({ country, data, onSave }) {
   const [draftSavedAt, setDraftSavedAt] = useState(draft?.savedAt || null);
 
   // Editable budget data — all stored in USD
-  const [erEdits,      setErEdits]      = useState(() => draft?.erEdits      || { ...(data?.er    || {}) });
+  // Per Willyanne 2026-05-26 #11/#12: Regular Expenses uses row-shape (array)
+  // so labels, descriptions, and amounts are all editable + rows can be
+  // added/deleted. The flat `er` is rebuilt on submit from the rows for
+  // backwards compatibility with Overview/Expenses display.
+  const [erRowsEdits, setErRowsEdits] = useState(() =>
+    draft?.erRowsEdits
+      ?? (Array.isArray(data?.erRows) && data.erRows.length > 0
+          ? JSON.parse(JSON.stringify(data.erRows))
+          : JSON.parse(JSON.stringify(EXPENSES_REGULAR_ROW_DEFAULTS)))
+  );
   const [feesEdits,    setFeesEdits]    = useState(() => draft?.feesEdits    || JSON.parse(JSON.stringify(data?.fees    || [])));
   const [irrProjEdits, setIrrProjEdits] = useState(() => draft?.irrProjEdits || JSON.parse(JSON.stringify(data?.irrProj || [])));
   const [ikRegEdits,   setIkRegEdits]   = useState(() => draft?.ikRegEdits   || { ...(data?.ikReg || {}) });
@@ -117,11 +150,11 @@ export default function GuidedWizard({ country, data, onSave }) {
       step, currencyCode: currency.code, inputMode, unit,
       hasRisks, hasOpps, riskText, oppText,
       activityRows, stepSources, stepNotes,
-      erEdits, feesEdits, irrProjEdits, ikRegEdits, ikIrrEdits,
+      erRowsEdits, feesEdits, irrProjEdits, ikRegEdits, ikIrrEdits,
       expVisitedIrregular,
     });
     setDraftSavedAt(new Date().toISOString());
-  }, [country, submitted, step, currency.code, inputMode, unit, hasRisks, hasOpps, riskText, oppText, activityRows, stepSources, stepNotes, erEdits, feesEdits, irrProjEdits, ikRegEdits, ikIrrEdits, expVisitedIrregular]);
+  }, [country, submitted, step, currency.code, inputMode, unit, hasRisks, hasOpps, riskText, oppText, activityRows, stepSources, stepNotes, erRowsEdits, feesEdits, irrProjEdits, ikRegEdits, ikIrrEdits, expVisitedIrregular]);
 
   // Static exchange rate — recomputed when currency changes. Rates source: CurrencyContext map.
   useEffect(() => {
@@ -145,16 +178,22 @@ export default function GuidedWizard({ country, data, onSave }) {
   // Irregular sub-tab — without this, Regular alone lets them skip Irregular.
   const sourcesNotesOk = stepSources[step].trim().length > 0 && stepNotes[step].trim().length > 0;
   const expensesSubtabsOk = step !== 2 || expVisitedIrregular;
-  const canAdvance = sourcesNotesOk && expensesSubtabsOk;
+  // Step 1 (Key Considerations) — per Willyanne 2026-05-26 #5: yes/no AND
+  // description are required for both risks and opportunities.
+  const riskAnswered = hasRisks === "yes" || hasRisks === "no";
+  const oppAnswered  = hasOpps  === "yes" || hasOpps  === "no";
+  const riskDescOk   = hasRisks !== "yes" || riskText.trim().length > 0;
+  const oppDescOk    = hasOpps  !== "yes" || oppText.trim().length > 0;
+  const keyConsidOk  = step !== 1 || (riskAnswered && oppAnswered && riskDescOk && oppDescOk);
+  const canAdvance = sourcesNotesOk && expensesSubtabsOk && keyConsidOk;
   const advanceBlockReason = !sourcesNotesOk
     ? "Fill in data source and notes to continue"
     : !expensesSubtabsOk
       ? "Open the Irregular sub-tab before advancing"
-      : "";
+      : !keyConsidOk
+        ? "Answer the risks and opportunities questions (and add a description for each Yes) before advancing"
+        : "";
 
-  function updateActivity(i, field, val) {
-    setActivityRows((rows) => rows.map((r, idx) => idx === i ? { ...r, [field]: val } : r));
-  }
 
   if (submitted) {
     return (
@@ -246,13 +285,13 @@ export default function GuidedWizard({ country, data, onSave }) {
               hasOpps={hasOpps}   setHasOpps={setHasOpps}
               riskText={riskText} setRiskText={setRiskText}
               oppText={oppText}   setOppText={setOppText}
-              activityRows={activityRows} onUpdateActivity={updateActivity}
+              activityRows={activityRows} setActivityRows={setActivityRows}
             />
           )}
           {step === 2 && (
             <ExpensesStep
               conv={conv}
-              erEdits={erEdits} setErEdits={setErEdits}
+              erRowsEdits={erRowsEdits} setErRowsEdits={setErRowsEdits}
               irrProjEdits={irrProjEdits} setIrrProjEdits={setIrrProjEdits}
               onIrregularVisited={() => setExpVisitedIrregular(true)}
               visitedIrregular={expVisitedIrregular}
@@ -260,7 +299,7 @@ export default function GuidedWizard({ country, data, onSave }) {
           )}
           {step === 3 && <StepRevenue conv={conv} feesEdits={feesEdits} setFeesEdits={setFeesEdits} />}
           {step === 4 && <StepInKind  conv={conv} ikRegEdits={ikRegEdits} setIkRegEdits={setIkRegEdits} ikIrrEdits={ikIrrEdits} setIkIrrEdits={setIkIrrEdits} />}
-          {step === 5 && <StepReview  country={country} activityRows={activityRows} currency={currency} erEdits={erEdits} feesEdits={feesEdits} />}
+          {step === 5 && <StepReview  country={country} activityRows={activityRows} currency={currency} erRowsEdits={erRowsEdits} feesEdits={feesEdits} />}
 
           {/* Sources & Notes — required on every step except review */}
           {step < STEPS.length - 1 && (
@@ -295,6 +334,11 @@ export default function GuidedWizard({ country, data, onSave }) {
                     Open the <strong>Irregular</strong> sub-tab and review it before continuing to Revenue.
                   </div>
                 )}
+                {sourcesNotesOk && expensesSubtabsOk && !keyConsidOk && (
+                  <div style={{ fontSize: 12, color: C.red, fontStyle: "italic" }}>
+                    Answer both the risks and opportunities questions, and add a description for each "Yes," before continuing.
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -326,13 +370,22 @@ export default function GuidedWizard({ country, data, onSave }) {
                 ...ikRegEdits,
                 total: (ikRegEdits.federal || 0) + (ikRegEdits.institutional || 0) + (ikRegEdits.other || 0),
               };
+              // Rebuild flat `er` from the new row-shape for backward
+              // compatibility with Overview/Expenses display. Only rows whose
+              // `key` matches a workbook-canonical key are included; user-added
+              // rows with generated keys are preserved in `erRows` only.
+              const erFlat = {};
+              for (const row of erRowsEdits || []) {
+                if (row && row.key) erFlat[row.key] = row.amount ?? null;
+              }
               const updates = {
                 activities:  activityRows,
                 hasRisks, riskText, hasOpps, oppText,
                 unit,
                 currencyCode: currency.code,
                 ratesAsOf:    new Date().toISOString(),
-                er:      erEdits,
+                er:      erFlat,
+                erRows:  erRowsEdits,
                 fees:    feesEdits,
                 revFees: feesEdits.reduce((s, f) => s + (f.ctPro || 0) * f.ind + (f.ctStu || 0) * f.ngo, 0),
                 irrProj: irrProjEdits,
@@ -451,11 +504,13 @@ function StepSetup({ country, localCurrency, currency, inputMode, onInputModeCha
 }
 
 function StepRisks({ hasRisks, onHasRisks, hasOpps, onHasOpps, riskText, onRiskText, oppText, onOppText }) {
+  const riskNeedsDesc = hasRisks === "yes" && !riskText.trim();
+  const oppNeedsDesc  = hasOpps  === "yes" && !oppText.trim();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       <p style={descStyle}>Do you expect any major financial risks or opportunities in the next year? These may include political instability, currency changes, loss or gain of international funding, or changes in research activity volume.</p>
       <div>
-        <label style={labelStyle}>Do you expect major financial risks in the next year?</label>
+        <label style={labelStyle}>Do you expect major financial risks in the next year? <span style={{ color: C.red }}>*</span></label>
         <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
           {["Yes", "No"].map((opt) => (
             <button key={opt} onClick={() => onHasRisks(opt.toLowerCase())}
@@ -465,13 +520,17 @@ function StepRisks({ hasRisks, onHasRisks, hasOpps, onHasOpps, riskText, onRiskT
           ))}
         </div>
         {hasRisks === "yes" && (
-          <textarea value={riskText} onChange={(e) => onRiskText(e.target.value)}
-            placeholder="Describe the risks and how significantly you think they will impact ethics review..."
-            style={{ ...textareaStyle, marginTop: 10 }} rows={3} />
+          <>
+            <label style={{ ...labelStyle, marginTop: 12, fontWeight: 500 }}>Describe the risks <span style={{ color: C.red }}>*</span></label>
+            <textarea value={riskText} onChange={(e) => onRiskText(e.target.value)}
+              placeholder="Describe the risks and how significantly you think they will impact ethics review..."
+              style={{ ...textareaStyle, marginTop: 4, borderColor: riskNeedsDesc ? C.red : "#ccc" }} rows={3} />
+            {riskNeedsDesc && <div style={{ fontSize: 11, color: C.red, fontStyle: "italic", marginTop: 4 }}>A description is required when "Yes" is selected.</div>}
+          </>
         )}
       </div>
       <div>
-        <label style={labelStyle}>Do you expect major financial opportunities in the next year?</label>
+        <label style={labelStyle}>Do you expect major financial opportunities in the next year? <span style={{ color: C.red }}>*</span></label>
         <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
           {["Yes", "No"].map((opt) => (
             <button key={opt} onClick={() => onHasOpps(opt.toLowerCase())}
@@ -481,27 +540,20 @@ function StepRisks({ hasRisks, onHasRisks, hasOpps, onHasOpps, riskText, onRiskT
           ))}
         </div>
         {hasOpps === "yes" && (
-          <textarea value={oppText} onChange={(e) => onOppText(e.target.value)}
-            placeholder="Describe the opportunities and how significantly you think they will impact ethics review..."
-            style={{ ...textareaStyle, marginTop: 10 }} rows={3} />
+          <>
+            <label style={{ ...labelStyle, marginTop: 12, fontWeight: 500 }}>Describe the opportunities <span style={{ color: C.red }}>*</span></label>
+            <textarea value={oppText} onChange={(e) => onOppText(e.target.value)}
+              placeholder="Describe the opportunities and how significantly you think they will impact ethics review..."
+              style={{ ...textareaStyle, marginTop: 4, borderColor: oppNeedsDesc ? C.red : "#ccc" }} rows={3} />
+            {oppNeedsDesc && <div style={{ fontSize: 11, color: C.red, fontStyle: "italic", marginTop: 4 }}>A description is required when "Yes" is selected.</div>}
+          </>
         )}
       </div>
     </div>
   );
 }
 
-// ─── Step 3 sub-tab: Regular Expenses (workbook-driven, locked items) ──────────
-
-// Sum item values for a list of keys, skipping null/undefined (blank ≠ 0).
-function sumKeys(erEdits, keys) {
-  let total = 0;
-  for (const k of keys) {
-    const v = erEdits[k];
-    if (v === null || v === undefined || v === "") continue;
-    total += Number(v) || 0;
-  }
-  return total;
-}
+// ─── Step 3 sub-tab: Regular Expenses (row-shape, fully editable) ─────────────
 
 // Locked-display formatter — renders blank when value is null/undefined.
 function formatLocked(val, conv) {
@@ -533,118 +585,238 @@ function BlankableAmountInput({ usdVal, conv, onChangeUSD }) {
   );
 }
 
-function StepExpensesRegular({ conv, erEdits, setErEdits }) {
-  const grandTotal = EXPENSES_REGULAR_KEYS_ALL.reduce(
-    (s, k) => {
-      const v = erEdits[k];
-      if (v === null || v === undefined || v === "") return s;
-      return s + (Number(v) || 0);
-    },
-    0,
-  );
+// Editable ⓘ description — renders the info circle inline; click opens a
+// pop-out textarea so country teams can rewrite the workbook description in
+// place. Per Willyanne 2026-05-26 #11 ("can the I information description be
+// editable?"). Closes on Save, Escape, or click-outside.
+function EditableDescription({ value, label, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(value || "");
+  useEffect(() => { if (!open) setDraft(value || ""); }, [value, open]);
+
+  const commit = () => {
+    setOpen(false);
+    if (draft !== value) onChange(draft);
+  };
+  const revert = () => { setDraft(value || ""); setOpen(false); };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+    <span style={{ position: "relative", display: "inline-block", marginLeft: 4 }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title="Edit description"
+        aria-label={`Edit description for ${label}`}
+        style={{
+          background: open ? C.teal : "#eef2f5",
+          color: open ? "#fff" : C.teal,
+          border: `1px solid ${C.teal}`,
+          borderRadius: "50%",
+          width: 18,
+          height: 18,
+          fontSize: 11,
+          fontWeight: 700,
+          lineHeight: 1,
+          padding: 0,
+          cursor: "pointer",
+          verticalAlign: "middle",
+        }}
+      >
+        i
+      </button>
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            left: -6,
+            zIndex: 30,
+            background: "#fff",
+            border: `1px solid ${C.teal}`,
+            borderRadius: 7,
+            padding: 10,
+            minWidth: 280,
+            maxWidth: 380,
+            boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
+          }}
+        >
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, marginBottom: 6 }}>{label} — description</div>
+          <textarea
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Escape") revert(); }}
+            rows={4}
+            placeholder="Describe what counts toward this item..."
+            style={{ width: "100%", border: "1px solid #ccc", borderRadius: 5, padding: "6px 8px", fontSize: 12, lineHeight: 1.5, fontFamily: "inherit", resize: "vertical" }}
+          />
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 6 }}>
+            <button onClick={revert} style={{ background: "transparent", border: "none", color: C.blueGrey, fontSize: 11, cursor: "pointer" }}>Cancel</button>
+            <button onClick={commit} style={{ background: C.teal, color: "#fff", border: "none", borderRadius: 4, padding: "4px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Save</button>
+          </div>
+        </div>
+      )}
+    </span>
+  );
+}
+
+function StepExpensesRegular({ conv, erRowsEdits, setErRowsEdits }) {
+  // Safety net: if rows are missing or in legacy shape, hydrate from defaults.
+  // App.jsx's merge guard handles this on load too.
+  useEffect(() => {
+    if (!Array.isArray(erRowsEdits) || erRowsEdits.length === 0) {
+      setErRowsEdits(JSON.parse(JSON.stringify(EXPENSES_REGULAR_ROW_DEFAULTS)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const rows = Array.isArray(erRowsEdits) ? erRowsEdits : [];
+
+  const updateRow = (idx, patch) => {
+    setErRowsEdits((rs) => rs.map((r, i) => i === idx ? { ...r, ...patch } : r));
+  };
+  const addRow = (category) => {
+    const customKey = `custom-${Date.now()}`;
+    setErRowsEdits((rs) => [
+      ...rs,
+      { category, key: customKey, label: "", description: "", amount: null },
+    ]);
+  };
+  const deleteRow = (idx) => {
+    setErRowsEdits((rs) => rs.filter((_, i) => i !== idx));
+  };
+
+  const grandTotal = rows.reduce((s, r) => {
+    const v = r?.amount;
+    if (v === null || v === undefined || v === "") return s;
+    return s + (Number(v) || 0);
+  }, 0);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       <p style={descStyle}>
-        Enter your committee's regular annual expenses below. The categories and items are pre-populated from the TRACE Financial Workbook — they are locked so country teams report on a consistent set.
-        Click the <strong>i</strong> next to any item for its description. Leave an amount <em>blank</em> if it doesn't apply; enter <em>0</em> only if the actual amount is zero.
+        Enter your committee's regular annual expenses below. The categories and items are pre-populated from the TRACE Financial Workbook.
+        <strong> All cells are editable</strong> — click the item to rename it, click the <strong>ⓘ</strong> to edit its description, or use <em>+ Add item</em> to extend a category.
+        Leave an amount <em>blank</em> if it doesn't apply; enter <em>0</em> only if the actual amount is zero.
       </p>
 
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 620 }}>
-          <thead>
-            <tr style={{ background: C.lightBG }}>
-              <th style={thStyle}>Item</th>
-              <th style={{ ...thStyle, textAlign: "right", width: 160 }}>
-                Amount ({conv.displayCode === "USD" ? "US Dollars" : conv.displayCode})
-              </th>
-              {conv.showAlt && (
-                <th style={{ ...thStyle, textAlign: "right", width: 140 }}>≈ ({conv.altSym})</th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {EXPENSES_REGULAR.map((cat) => {
-              const catKeys = cat.items.map((i) => i.key);
-              const catTotal = sumKeys(erEdits, catKeys);
-              return (
-                <ExpenseCategoryRows
-                  key={cat.categoryKey}
-                  cat={cat}
-                  catTotal={catTotal}
-                  catKeys={catKeys}
-                  erEdits={erEdits}
-                  setErEdits={setErEdits}
-                  conv={conv}
-                />
-              );
-            })}
-            <tr style={{ fontWeight: 700, background: C.lightBG, borderTop: `2px solid ${C.navy}` }}>
-              <td style={{ padding: "11px 12px", fontSize: 14, color: C.navy }}>TOTAL</td>
-              <td style={{ padding: "11px 12px", textAlign: "right", fontFamily: "monospace", fontSize: 14, color: C.navy }}>
-                {conv.displaySym}{conv.toDisplay(grandTotal).toLocaleString()}
-              </td>
-              {conv.showAlt && (
-                <td style={{ padding: "11px 12px", textAlign: "right", fontFamily: "monospace", fontSize: 13, color: C.blueGrey }}>
-                  {conv.altSym} {Math.round(conv.toAlt(grandTotal)).toLocaleString()}
-                </td>
-              )}
-            </tr>
-          </tbody>
-        </table>
+      {EXPENSES_REGULAR_CATEGORIES.map((cat) => {
+        const rowsInCat = rows
+          .map((r, idx) => ({ row: r, idx }))
+          .filter(({ row }) => row?.category === cat);
+        const catTotal = rowsInCat.reduce((s, { row }) => s + (Number(row?.amount) || 0), 0);
+
+        return (
+          <div key={cat} style={{ background: "#fff", border: "1px solid #dde", borderRadius: 8, overflow: "hidden" }}>
+            <div style={{ background: C.lightBG, padding: "10px 14px", fontSize: 13, fontWeight: 700, color: C.navy, borderBottom: "1px solid #dde" }}>
+              {cat}
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 620 }}>
+                <thead>
+                  <tr style={{ background: "#f8fafb" }}>
+                    <th style={{ ...thStyle, width: 32 }}>#</th>
+                    <th style={{ ...thStyle, minWidth: 340 }}>Item</th>
+                    <th style={{ ...thStyle, textAlign: "right", width: 150 }}>
+                      Amount ({conv.displayCode === "USD" ? "US Dollars" : conv.displayCode})
+                    </th>
+                    {conv.showAlt && (
+                      <th style={{ ...thStyle, textAlign: "right", width: 120 }}>≈ ({conv.altSym})</th>
+                    )}
+                    <th style={{ ...thStyle, width: 28 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rowsInCat.length === 0 && (
+                    <tr>
+                      <td colSpan={conv.showAlt ? 5 : 4} style={{ padding: "14px 12px", fontSize: 12, color: "#999", fontStyle: "italic", textAlign: "center" }}>
+                        No items yet — use + Add item below.
+                      </td>
+                    </tr>
+                  )}
+                  {rowsInCat.map(({ row, idx }, displayIdx) => (
+                    <tr key={row.key || idx} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top" }}>
+                      <td style={{ padding: "10px 10px", fontSize: 12, color: C.blueGrey, fontFamily: "monospace" }}>
+                        {displayIdx + 1}
+                      </td>
+                      <td style={{ padding: "8px 10px" }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <IrregularItemCell
+                              value={row.label}
+                              onChange={(v) => updateRow(idx, { label: v })}
+                            />
+                          </div>
+                          <EditableDescription
+                            value={row.description}
+                            label={row.label || "Item"}
+                            onChange={(v) => updateRow(idx, { description: v })}
+                          />
+                        </div>
+                      </td>
+                      <td style={{ padding: "8px 10px" }}>
+                        <BlankableAmountInput
+                          usdVal={row.amount}
+                          conv={conv}
+                          onChangeUSD={(v) => updateRow(idx, { amount: v ?? null })}
+                        />
+                      </td>
+                      {conv.showAlt && (
+                        <td style={{ padding: "8px 10px", textAlign: "right", fontFamily: "monospace", fontSize: 12, color: C.blueGrey }}>
+                          {formatLocked(row.amount, conv)}
+                        </td>
+                      )}
+                      <td style={{ padding: "8px 4px", textAlign: "center" }}>
+                        <button
+                          onClick={() => deleteRow(idx)}
+                          title="Delete this row"
+                          style={{ background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: 16, padding: "2px 6px", lineHeight: 1 }}
+                        >
+                          ×
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  <tr style={{ background: "#fafbfc" }}>
+                    <td colSpan={conv.showAlt ? 5 : 4} style={{ padding: "8px 10px" }}>
+                      <button
+                        onClick={() => addRow(cat)}
+                        style={{
+                          background: "transparent",
+                          border: `1px dashed ${C.teal}`,
+                          color: C.teal,
+                          borderRadius: 5,
+                          padding: "5px 12px",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        + Add item
+                      </button>
+                      <span style={{ marginLeft: 14, fontSize: 11, color: C.blueGrey, fontStyle: "italic" }}>
+                        Category subtotal: <strong style={{ color: C.navy, fontFamily: "monospace" }}>
+                          {conv.displaySym}{conv.toDisplay(catTotal).toLocaleString()}
+                        </strong>
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })}
+
+      <div style={{ background: C.navy, color: "#fff", padding: "12px 18px", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>Total regular expenses ({conv.displayCode})</span>
+        <span style={{ fontSize: 18, fontWeight: 700, fontFamily: "monospace" }}>
+          {conv.displaySym}{conv.toDisplay(grandTotal).toLocaleString()}
+        </span>
       </div>
     </div>
   );
 }
-
-function ExpenseCategoryRows({ cat, catTotal, erEdits, setErEdits, conv }) {
-  return (
-    <>
-      <tr>
-        <td colSpan={conv.showAlt ? 3 : 2} style={{ background: "#e8eef2", padding: "8px 12px", fontSize: 12, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: 0.4 }}>
-          {cat.categoryLabel}
-        </td>
-      </tr>
-      {cat.items.map((item) => {
-        const v = erEdits[item.key];
-        return (
-          <tr key={item.key} style={{ borderBottom: "1px solid #f0f0f0" }}>
-            <td style={{ padding: "8px 12px", display: "flex", alignItems: "center", gap: 4 }}>
-              <span>{item.label}</span>
-              <InfoTip title={item.label}>{item.description}</InfoTip>
-            </td>
-            <td style={{ padding: "5px 10px" }}>
-              <BlankableAmountInput
-                usdVal={v}
-                conv={conv}
-                onChangeUSD={(nv) => setErEdits((prev) => ({ ...prev, [item.key]: nv }))}
-              />
-            </td>
-            {conv.showAlt && (
-              <td style={{ padding: "8px 10px", textAlign: "right", fontFamily: "monospace", fontSize: 12, color: C.blueGrey }}>
-                {formatLocked(v, conv)}
-              </td>
-            )}
-          </tr>
-        );
-      })}
-      <tr style={{ background: "#f9fafb", fontWeight: 600 }}>
-        <td style={{ padding: "7px 12px", fontSize: 12, color: C.blueGrey, fontStyle: "italic" }}>Subtotal — {cat.categoryLabel}</td>
-        <td style={{ padding: "7px 12px", textAlign: "right", fontFamily: "monospace", fontSize: 13, color: C.navy }}>
-          {conv.displaySym}{conv.toDisplay(catTotal).toLocaleString()}
-        </td>
-        {conv.showAlt && (
-          <td style={{ padding: "7px 12px", textAlign: "right", fontFamily: "monospace", fontSize: 12, color: C.blueGrey }}>
-            {conv.altSym} {Math.round(conv.toAlt(catTotal)).toLocaleString()}
-          </td>
-        )}
-      </tr>
-    </>
-  );
-}
-
-// Flat list of all 27 workbook item keys — used for grand-total sums.
-const EXPENSES_REGULAR_KEYS_ALL = EXPENSES_REGULAR.flatMap((c) => c.items.map((i) => i.key));
 
 // ─── Step 3 / Irregular sub-tab ────────────────────────────────────────────────
 // Table mirrors workbook Expenses_irregular sheet (rows D4–D15) — 12 default
@@ -1090,20 +1262,108 @@ function StepInKind({ conv, ikRegEdits, setIkRegEdits, ikIrrEdits, setIkIrrEdits
   );
 }
 
-function StepActivities({ rows, onUpdate }) {
+// Activities table — Willyanne 2026-05-26 #7/#8/#9:
+// - Name (editable inline)
+// - ⓘ editable description per row
+// - Near-term + long-term TrendSelect (seeded from workbook col I / col J)
+// - × delete + "+ Add activity" at bottom
+function StepActivities({ rows, setRows }) {
+  const updateRow = (idx, patch) => {
+    setRows((rs) => rs.map((r, i) => i === idx ? { ...r, ...patch } : r));
+  };
+  const addRow = () => {
+    setRows((rs) => [...rs, { name: "", description: "", nearTerm: "", longTerm: "", note: "" }]);
+  };
+  const deleteRow = (idx) => {
+    setRows((rs) => rs.filter((_, i) => i !== idx));
+  };
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <p style={descStyle}>For each activity, select whether you expect effort to remain the same, increase, or decrease — in the near term (next year) and long term (3–5 years). Hover over an activity name for its full description.</p>
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "6px 10px", padding: "6px 0", fontSize: 11, fontWeight: 700, color: C.blueGrey, textTransform: "uppercase" }}>
-        <span>Activity</span><span>Near-term</span><span>Long-term</span>
-      </div>
-      {rows.map((row, i) => (
-        <div key={row.name} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "6px 10px", alignItems: "start", padding: "10px", background: i % 2 === 0 ? "#f9f9fb" : "#fff", borderRadius: 7 }}>
-          <div title={ACTIVITY_DESCRIPTIONS[row.name] || row.name} style={{ fontSize: 13, color: C.navy, cursor: "help", lineHeight: 1.4 }}>{row.name}</div>
-          <TrendSelect val={row.nearTerm} onChange={(v) => onUpdate(i, "nearTerm", v)} />
-          <TrendSelect val={row.longTerm} onChange={(v) => onUpdate(i, "longTerm", v)} />
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <p style={descStyle}>
+        For each activity, select whether you expect effort to <strong>remain the same</strong>, <strong>increase</strong>, or <strong>decrease</strong>
+        in the near term (next year) and the long term (3–5 years). Activity names and descriptions are editable — click the
+        name to rename it, click the <strong>ⓘ</strong> to rewrite its description, or use <em>+ Add activity</em> to capture
+        an activity that isn't on the list.
+      </p>
+      <div style={{ background: "#fff", border: "1px solid #dde", borderRadius: 8, overflow: "hidden" }}>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 720 }}>
+            <thead>
+              <tr style={{ background: C.lightBG }}>
+                <th style={{ ...thStyle, width: 32 }}>#</th>
+                <th style={{ ...thStyle, minWidth: 320 }}>Activity</th>
+                <th style={{ ...thStyle, width: 170 }}>Near-term effort</th>
+                <th style={{ ...thStyle, width: 170 }}>Long-term effort</th>
+                <th style={{ ...thStyle, width: 28 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={5} style={{ padding: "14px 12px", fontSize: 12, color: "#999", fontStyle: "italic", textAlign: "center" }}>
+                    No activities yet — use + Add activity below.
+                  </td>
+                </tr>
+              )}
+              {rows.map((row, idx) => (
+                <tr key={idx} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top" }}>
+                  <td style={{ padding: "10px 10px", fontSize: 12, color: C.blueGrey, fontFamily: "monospace" }}>{idx + 1}</td>
+                  <td style={{ padding: "8px 10px" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <IrregularItemCell
+                          value={row.name}
+                          onChange={(v) => updateRow(idx, { name: v })}
+                        />
+                      </div>
+                      <EditableDescription
+                        value={row.description}
+                        label={row.name || "Activity"}
+                        onChange={(v) => updateRow(idx, { description: v })}
+                      />
+                    </div>
+                  </td>
+                  <td style={{ padding: "8px 10px" }}>
+                    <TrendSelect val={row.nearTerm} onChange={(v) => updateRow(idx, { nearTerm: v })} />
+                  </td>
+                  <td style={{ padding: "8px 10px" }}>
+                    <TrendSelect val={row.longTerm} onChange={(v) => updateRow(idx, { longTerm: v })} />
+                  </td>
+                  <td style={{ padding: "8px 4px", textAlign: "center" }}>
+                    <button
+                      onClick={() => deleteRow(idx)}
+                      title="Delete this activity"
+                      style={{ background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: 16, padding: "2px 6px", lineHeight: 1 }}
+                    >
+                      ×
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              <tr style={{ background: "#fafbfc" }}>
+                <td colSpan={5} style={{ padding: "8px 10px" }}>
+                  <button
+                    onClick={addRow}
+                    style={{
+                      background: "transparent",
+                      border: `1px dashed ${C.teal}`,
+                      color: C.teal,
+                      borderRadius: 5,
+                      padding: "5px 12px",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    + Add activity
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-      ))}
+      </div>
     </div>
   );
 }
@@ -1157,7 +1417,7 @@ function SubTabs({ tabs, active, onChange }) {
 
 // ─── Step 2: Key Considerations (sub-tabs: Risks & Opps | Activities) ─────────
 
-function KeyConsiderationsStep({ hasRisks, setHasRisks, hasOpps, setHasOpps, riskText, setRiskText, oppText, setOppText, activityRows, onUpdateActivity }) {
+function KeyConsiderationsStep({ hasRisks, setHasRisks, hasOpps, setHasOpps, riskText, setRiskText, oppText, setOppText, activityRows, setActivityRows }) {
   const [sub, setSub] = useState("risks");
   return (
     <div>
@@ -1177,56 +1437,15 @@ function KeyConsiderationsStep({ hasRisks, setHasRisks, hasOpps, setHasOpps, ris
         />
       )}
       {sub === "activities" && (
-        <StepActivitiesSubTab rows={activityRows} onUpdate={onUpdateActivity} />
+        <StepActivities rows={activityRows} setRows={setActivityRows} />
       )}
-    </div>
-  );
-}
-
-// Activities sub-tab — read-only workbook context on top + per-activity entry below.
-// Per Willyanne 2026-05-21: "they need to understand what we are paying for, what we are
-// doing, the scope of the work."
-function StepActivitiesSubTab({ rows, onUpdate }) {
-  const [showContext, setShowContext] = useState(true);
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ background: "#eef8f4", border: `1px solid ${C.teal}`, borderRadius: 8, overflow: "hidden" }}>
-        <button
-          onClick={() => setShowContext((v) => !v)}
-          style={{ width: "100%", padding: "10px 16px", background: "transparent", border: "none", textAlign: "left", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-        >
-          <span style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>
-            What activities does ethics review cover? (read-only context)
-          </span>
-          <span style={{ fontSize: 12, color: C.teal }}>{showContext ? "▼ Hide" : "▶ Show"}</span>
-        </button>
-        {showContext && (
-          <div style={{ padding: "4px 16px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
-            <p style={{ fontSize: 12, color: "#555", lineHeight: 1.55, margin: "0 0 6px 0", fontStyle: "italic" }}>
-              The 12 activities below are the canonical scope of ethics review per the TRACE workbook.
-              Skim these first, then use the table below to share how you expect effort on each to change in the near and long term.
-            </p>
-            {ACTIVITY_LIST.map((name) => (
-              <div key={name} style={{ background: "#fff", borderRadius: 6, padding: "8px 12px" }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: C.navy }}>{name}</div>
-                <div style={{ fontSize: 12, color: "#555", marginTop: 3, lineHeight: 1.55 }}>{ACTIVITY_DESCRIPTIONS[name]}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginTop: 4 }}>
-        Your activity expectations
-      </div>
-      <StepActivities rows={rows} onUpdate={onUpdate} />
     </div>
   );
 }
 
 // ─── Step 3: Expenses (sub-tabs: Regular | Irregular) ─────────────────────────
 
-function ExpensesStep({ conv, erEdits, setErEdits, irrProjEdits, setIrrProjEdits, onIrregularVisited, visitedIrregular }) {
+function ExpensesStep({ conv, erRowsEdits, setErRowsEdits, irrProjEdits, setIrrProjEdits, onIrregularVisited, visitedIrregular }) {
   const [sub, setSub] = useState("regular");
   const handleSubChange = (id) => {
     setSub(id);
@@ -1242,7 +1461,7 @@ function ExpensesStep({ conv, erEdits, setErEdits, irrProjEdits, setIrrProjEdits
         active={sub} onChange={handleSubChange}
       />
       {sub === "regular" && (
-        <StepExpensesRegular conv={conv} erEdits={erEdits} setErEdits={setErEdits} />
+        <StepExpensesRegular conv={conv} erRowsEdits={erRowsEdits} setErRowsEdits={setErRowsEdits} />
       )}
       {sub === "irregular" && (
         <StepExpensesIrregular conv={conv} irrProjEdits={irrProjEdits} setIrrProjEdits={setIrrProjEdits} />
@@ -1251,9 +1470,9 @@ function ExpensesStep({ conv, erEdits, setErEdits, irrProjEdits, setIrrProjEdits
   );
 }
 
-function StepReview({ country, activityRows, currency, erEdits, feesEdits }) {
+function StepReview({ country, activityRows, currency, erRowsEdits, feesEdits }) {
   const filledActivities = activityRows.filter((r) => r.nearTerm && r.longTerm);
-  const totalExpenses = Object.values(erEdits).reduce((s, v) => s + (Number(v) || 0), 0);
+  const totalExpenses = (erRowsEdits || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
   const totalRevenue  = feesEdits.reduce((s, f) => s + (f.ctPro || 0) * f.ind + (f.ctStu || 0) * f.ngo, 0);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

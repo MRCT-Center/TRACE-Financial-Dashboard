@@ -55,7 +55,7 @@ function KPIColumns({ m, d }) {
       label: "Regular Budget",
       color: C.teal,
       rows: [
-        { label: "Expenses", val: fmt(m.te), sub: "Secretariat + NEC" },
+        { label: "Expenses", val: fmt(m.te), sub: "Secretariat + Ethics Committee" },
         { label: "Revenue", val: fmt(m.tr), sub: "Fees + other" },
         { label: "Gap", val: fmt(m.rg), sub: null, gap: true, value: m.rg },
       ],
@@ -158,7 +158,7 @@ function ExpensePieCard({ d }) {
                 <Tooltip formatter={(v) => fmt(v)} />
               </PieChart>
             </ResponsiveContainer>
-            <div style={{ textAlign: "center", fontSize: 11, color: C.blueGrey }}>NEC only</div>
+            <div style={{ textAlign: "center", fontSize: 11, color: C.blueGrey }}>Ethics Committee only</div>
           </div>
         )}
       </div>

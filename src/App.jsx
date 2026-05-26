@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { COUNTRY_FLAGS, COLORS as C } from "./utils/metrics";
 import { COUNTRIES } from "./data/countries";
+import { EXPENSES_REGULAR_ROW_DEFAULTS } from "./data/expensesRegular";
 import { CurrencyProvider, COUNTRY_CURRENCIES, CURRENCIES, useCurrency } from "./utils/CurrencyContext";
 import { supabase } from "./supabaseClient";
 import LoginPage from "./components/LoginPage";
@@ -83,6 +84,34 @@ export default function App() {
           const isLegacyIrr = (rows) =>
             !Array.isArray(rows) || rows.length === 0 ||
             rows.some((r) => r && typeof r === "object" && r.category === undefined);
+          // 2026-05-26 #15: Supabase rows from Friday's seed lack the new
+          // "Ethics Committee capital costs (one-time/irregular activities)"
+          // category. If the saved data has no row in that category, append
+          // the two blank starter rows from countries.js defaults so the new
+          // category appears in the UI.
+          const ETHICS_COMMITTEE_IRR_CAT = "Ethics Committee capital costs (one-time/irregular activities)";
+          const missingEthicsCommitteeCat = (rows) =>
+            Array.isArray(rows) && !rows.some((r) => r && r.category === ETHICS_COMMITTEE_IRR_CAT);
+          // 2026-05-26 #9: pre-existing Supabase rows have activities arrays
+          // with only `{ name, nearTerm, longTerm, note }` — no `description`
+          // field. Detect that and substitute fresh workbook defaults so the
+          // editable-description UI renders and near/long-term values come
+          // from workbook col I/J for all 5 countries.
+          const isLegacyActivities = (rows) =>
+            !Array.isArray(rows) || rows.length === 0 ||
+            rows.some((r) => r && typeof r === "object" && r.description === undefined);
+          // 2026-05-26 #11/#12 row-shape rekey: if a Supabase row lacks `erRows`,
+          // synthesize it from EXPENSES_REGULAR_ROW_DEFAULTS overlaid with the
+          // row's flat `er` amounts so user edits stored in the flat shape
+          // survive the rekey.
+          const synthEr = (flatEr) => {
+            return EXPENSES_REGULAR_ROW_DEFAULTS.map((row) => ({
+              ...row,
+              amount: flatEr && Object.prototype.hasOwnProperty.call(flatEr, row.key)
+                ? flatEr[row.key]
+                : row.amount,
+            }));
+          };
           const updated = { ...COUNTRIES };
           data.forEach(({ country, data: d }) => {
             if (!updated[country]) return;
@@ -98,6 +127,22 @@ export default function App() {
             // Irregular shape guard — independent of er probe
             if (isLegacyIrr(d?.irrProj)) {
               merged.irrProj = updated[country].irrProj;
+            } else if (missingEthicsCommitteeCat(merged.irrProj)) {
+              // Saved data is post-2026-05-22 (category present) but pre-2026-05-26
+              // (no Ethics Committee category). Append the 2 new blank rows from
+              // defaults so the new category surfaces.
+              const ecRows = updated[country].irrProj.filter(
+                (r) => r.category === ETHICS_COMMITTEE_IRR_CAT,
+              );
+              merged.irrProj = [...merged.irrProj, ...ecRows];
+            }
+            // Regular row-shape guard
+            if (!Array.isArray(merged.erRows) || merged.erRows.length === 0) {
+              merged.erRows = synthEr(merged.er);
+            }
+            // Activities row-shape guard (Willyanne 2026-05-26 #9)
+            if (isLegacyActivities(d?.activities)) {
+              merged.activities = updated[country].activities;
             }
             updated[country] = merged;
           });

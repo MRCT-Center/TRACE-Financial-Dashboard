@@ -1,10 +1,28 @@
 import { EXPENSES_REGULAR_USD_DEFAULTS } from "./expensesRegular";
 import { EXPENSES_IRREGULAR_DEFAULTS } from "./expensesIrregular";
+import { ACTIVITY_DEFAULT_ROWS } from "./activities";
 
 // Per Willyanne 2026-05-22: irrProj seed mirrors workbook Expenses_irregular
 // (D4–D15). All 5 testing countries get identical defaults; country teams edit
 // freely and can add rows beyond the 12.
 const cloneIrregularDefaults = () => JSON.parse(JSON.stringify(EXPENSES_IRREGULAR_DEFAULTS));
+
+// Per Willyanne 2026-05-26 #9: all 5 testing countries seed identical
+// activity rows from workbook col I (near-term) + col J (long-term), with
+// editable names and descriptions (#7/#8).
+const cloneActivityDefaults = () => JSON.parse(JSON.stringify(ACTIVITY_DEFAULT_ROWS));
+
+// Per Willyanne 2026-05-26 #6: Key Considerations workbook (cell 2c/2d/2e)
+// pre-fills both risks and opportunities to "yes" with the descriptions from
+// the workbook's combined risks-and-opportunities cell E2. Country teams can
+// flip to "no" or rewrite the descriptions; both yes/no AND the description
+// are required to advance Step 2 (#5).
+export const KEY_CONSIDERATIONS_DEFAULTS = {
+  hasRisks: "yes",
+  hasOpps:  "yes",
+  riskText: "Loss of USAID funding to researchers doing HIV and Sexual Reproductive Health by USAID; instability of our local currency with high inflation rate; pensions payout are being eroded.",
+  oppText:  "Increase in international funding is expected, e.g., the current Gates Foundation, Africa Clinical Trial Network.",
+};
 
 // Per Willyanne 2026-05-22: all 5 testing countries seed identical USD dummy
 // amounts from workbook 2026-04-17 Expenses_regular column H (total $351,500).
@@ -33,20 +51,7 @@ export const COUNTRIES = {
       { type: "Amendments",                 ind: 200,  ngo: 100,  ctPro: 30, ctStu: 0,   rev: 6000  },
       { type: "Other (ext., penalties)",    ind: 200,  ngo: 100,  ctPro: 60, ctStu: 25,  rev: 14875 },
     ],
-    activities: [
-      { name: "Managing and leading",                             nearTerm: "Increase",        longTerm: "Increase", note: "Standardisation of research ethics activities across all IRBs." },
-      { name: "Developing/reviewing/conducting/advising on training", nearTerm: "Increase",   longTerm: "Increase", note: "Accreditation programme for local IRBs; revising training materials per WHO guidelines." },
-      { name: "Receipt, screening, and maintaining logs",         nearTerm: "Remain the same", longTerm: "Increase", note: "Completeness checklist and informed consent template already in use." },
-      { name: "Determining risk, triaging, and assigning study proposals", nearTerm: "Increase", longTerm: "Increase", note: "Ensuring high-risk studies receive more attention." },
-      { name: "Reviewing minimal risk studies",                   nearTerm: "Remain the same", longTerm: "Increase", note: "Expedited via chairman's action, ratified at full board meeting." },
-      { name: "Reviewing, preparing for, and participating in full board meetings", nearTerm: "Remain the same", longTerm: "Increase", note: "SOP in place for agenda prep, minutes, communications." },
-      { name: "Minutes and record-keeping",                       nearTerm: "Remain the same", longTerm: "Increase", note: "SOP on record keeping in place." },
-      { name: "On-study review",                                  nearTerm: "Increase",        longTerm: "Increase", note: "Increasing site monitoring; secretariat members to undergo CRA course." },
-      { name: "Close out of study",                               nearTerm: "Remain the same", longTerm: "Increase", note: "Continuing reviews ongoing; SOP on archiving in place." },
-      { name: "Preparing and monitoring sites, inspections, and audits", nearTerm: "Remain the same", longTerm: "Increase" },
-      { name: "Participant feedback, concerns, complaints, questions", nearTerm: "Increase",  longTerm: "Increase", note: "Interactive website to increase accountability and transparency." },
-      { name: "Other ethics activities",                          nearTerm: "Increase",        longTerm: "Increase", note: "Joint protocol submission e-platform; regular ethics training." },
-    ],
+    activities: cloneActivityDefaults(),
     irrProj: cloneIrregularDefaults(),
   },
 
@@ -69,20 +74,7 @@ export const COUNTRIES = {
       { type: "Amendments",                 ind: 300,  ngo: 150,  ctPro: 28, ctStu: 12, rev: 10200  },
       { type: "Other",                      ind: 250,  ngo: 125,  ctPro: 35, ctStu: 15, rev: 10625  },
     ],
-    activities: [
-      { name: "Managing and leading",                             nearTerm: "Increase",        longTerm: "Increase" },
-      { name: "Developing/reviewing/conducting/advising on training", nearTerm: "Increase",   longTerm: "Increase" },
-      { name: "Receipt, screening, and maintaining logs",         nearTerm: "Increase",        longTerm: "Increase" },
-      { name: "Determining risk, triaging, and assigning study proposals", nearTerm: "Increase", longTerm: "Increase" },
-      { name: "Reviewing minimal risk studies",                   nearTerm: "Increase",        longTerm: "Increase" },
-      { name: "Reviewing, preparing for, and participating in full board meetings", nearTerm: "Remain the same", longTerm: "Increase" },
-      { name: "Minutes and record-keeping",                       nearTerm: "Remain the same", longTerm: "Increase" },
-      { name: "On-study review",                                  nearTerm: "Increase",        longTerm: "Increase" },
-      { name: "Close out of study",                               nearTerm: "Remain the same", longTerm: "Remain the same" },
-      { name: "Preparing and monitoring sites, inspections, and audits", nearTerm: "Increase", longTerm: "Increase" },
-      { name: "Participant feedback, concerns, complaints, questions", nearTerm: "Remain the same", longTerm: "Increase" },
-      { name: "Other ethics activities",                          nearTerm: "Increase",        longTerm: "Increase" },
-    ],
+    activities: cloneActivityDefaults(),
     irrProj: cloneIrregularDefaults(),
   },
 
@@ -105,20 +97,7 @@ export const COUNTRIES = {
       { type: "Amendments",                 ind: 150,  ngo: 75,   ctPro: 21, ctStu: 9,  rev: 3825   },
       { type: "Other",                      ind: 100,  ngo: 50,   ctPro: 35, ctStu: 15, rev: 4125   },
     ],
-    activities: [
-      { name: "Managing and leading",                             nearTerm: "Increase",        longTerm: "Increase" },
-      { name: "Developing/reviewing/conducting/advising on training", nearTerm: "Remain the same", longTerm: "Increase" },
-      { name: "Receipt, screening, and maintaining logs",         nearTerm: "Remain the same", longTerm: "Remain the same" },
-      { name: "Determining risk, triaging, and assigning study proposals", nearTerm: "Increase", longTerm: "Increase" },
-      { name: "Reviewing minimal risk studies",                   nearTerm: "Remain the same", longTerm: "Increase" },
-      { name: "Reviewing, preparing for, and participating in full board meetings", nearTerm: "Remain the same", longTerm: "Remain the same" },
-      { name: "Minutes and record-keeping",                       nearTerm: "Remain the same", longTerm: "Increase" },
-      { name: "On-study review",                                  nearTerm: "Increase",        longTerm: "Increase" },
-      { name: "Close out of study",                               nearTerm: "Remain the same", longTerm: "Remain the same" },
-      { name: "Preparing and monitoring sites, inspections, and audits", nearTerm: "Increase", longTerm: "Increase" },
-      { name: "Participant feedback, concerns, complaints, questions", nearTerm: "Remain the same", longTerm: "Increase" },
-      { name: "Other ethics activities",                          nearTerm: "Increase",        longTerm: "Increase" },
-    ],
+    activities: cloneActivityDefaults(),
     irrProj: cloneIrregularDefaults(),
   },
 
@@ -141,20 +120,7 @@ export const COUNTRIES = {
       { type: "Amendments",                 ind: 250,  ngo: 125,  ctPro: 28, ctStu: 12, rev: 8500   },
       { type: "Other",                      ind: 150,  ngo: 75,   ctPro: 35, ctStu: 15, rev: 6375   },
     ],
-    activities: [
-      { name: "Managing and leading",                             nearTerm: "Increase",        longTerm: "Increase" },
-      { name: "Developing/reviewing/conducting/advising on training", nearTerm: "Increase",   longTerm: "Increase" },
-      { name: "Receipt, screening, and maintaining logs",         nearTerm: "Remain the same", longTerm: "Increase" },
-      { name: "Determining risk, triaging, and assigning study proposals", nearTerm: "Remain the same", longTerm: "Increase" },
-      { name: "Reviewing minimal risk studies",                   nearTerm: "Increase",        longTerm: "Increase" },
-      { name: "Reviewing, preparing for, and participating in full board meetings", nearTerm: "Increase", longTerm: "Increase" },
-      { name: "Minutes and record-keeping",                       nearTerm: "Remain the same", longTerm: "Remain the same" },
-      { name: "On-study review",                                  nearTerm: "Increase",        longTerm: "Increase" },
-      { name: "Close out of study",                               nearTerm: "Remain the same", longTerm: "Increase" },
-      { name: "Preparing and monitoring sites, inspections, and audits", nearTerm: "Increase", longTerm: "Increase" },
-      { name: "Participant feedback, concerns, complaints, questions", nearTerm: "Remain the same", longTerm: "Increase" },
-      { name: "Other ethics activities",                          nearTerm: "Increase",        longTerm: "Increase" },
-    ],
+    activities: cloneActivityDefaults(),
     irrProj: cloneIrregularDefaults(),
   },
 
@@ -177,20 +143,7 @@ export const COUNTRIES = {
       { type: "Amendments",                 ind: 120,  ngo: 60,   ctPro: 17, ctStu: 8,  rev: 2520   },
       { type: "Other",                      ind: 100,  ngo: 50,   ctPro: 21, ctStu: 9,  rev: 2550   },
     ],
-    activities: [
-      { name: "Managing and leading",                             nearTerm: "Remain the same", longTerm: "Increase" },
-      { name: "Developing/reviewing/conducting/advising on training", nearTerm: "Increase",   longTerm: "Increase" },
-      { name: "Receipt, screening, and maintaining logs",         nearTerm: "Remain the same", longTerm: "Remain the same" },
-      { name: "Determining risk, triaging, and assigning study proposals", nearTerm: "Remain the same", longTerm: "Increase" },
-      { name: "Reviewing minimal risk studies",                   nearTerm: "Remain the same", longTerm: "Remain the same" },
-      { name: "Reviewing, preparing for, and participating in full board meetings", nearTerm: "Remain the same", longTerm: "Increase" },
-      { name: "Minutes and record-keeping",                       nearTerm: "Remain the same", longTerm: "Remain the same" },
-      { name: "On-study review",                                  nearTerm: "Increase",        longTerm: "Increase" },
-      { name: "Close out of study",                               nearTerm: "Remain the same", longTerm: "Increase" },
-      { name: "Preparing and monitoring sites, inspections, and audits", nearTerm: "Increase", longTerm: "Increase" },
-      { name: "Participant feedback, concerns, complaints, questions", nearTerm: "Remain the same", longTerm: "Increase" },
-      { name: "Other ethics activities",                          nearTerm: "Increase",        longTerm: "Increase" },
-    ],
+    activities: cloneActivityDefaults(),
     irrProj: cloneIrregularDefaults(),
   },
 };

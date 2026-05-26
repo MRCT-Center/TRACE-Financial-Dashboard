@@ -1,7 +1,13 @@
 // Source: TRACE Financial Workbook 2026-04-17, "Expenses_regular" sheet.
 // Categories + items + descriptions are verbatim from the workbook
 // (columns C, D, J). Keys are camelCase derived from item labels.
-// Phase 1 v1: items are locked (no Add-Item UI per Willyanne 2026-05-21).
+//
+// Per Willyanne 2026-05-26 (#11/#12): Regular Expenses now mirrors the
+// Irregular Expenses paradigm — every item (label, description, amount) is
+// editable, the ⓘ description can be rewritten, "+ Add item" appends new
+// rows under any category, and a red × deletes rows. The static config below
+// is the workbook seed only; `EXPENSES_REGULAR_ROW_DEFAULTS` flattens it
+// into the row-shape the wizard actually uses.
 
 export const EXPENSES_REGULAR = [
   {
@@ -64,7 +70,7 @@ export const EXPENSES_REGULAR = [
   },
   {
     categoryKey: "necPersonnelSalaries",
-    categoryLabel: "(NEC) Personnel salaries (IRB reviewers)",
+    categoryLabel: "Ethics Committee personnel salaries (IRB reviewers)",
     items: [
       { key: "necReviewerSalaryReview",   label: "[salary] Payments to reviewers (review time)",   description: "Payment to reviewers for their time to assess research quality and ethics." },
       { key: "necReviewerSalaryTraining", label: "[salary] Payments to reviewers (training time)", description: "Payment to reviewers for their time spent in training to be able to assess research quality and ethics." },
@@ -72,7 +78,7 @@ export const EXPENSES_REGULAR = [
   },
   {
     categoryKey: "necPersonnelBenefits",
-    categoryLabel: "(NEC) Personnel benefits (IRB reviewers)",
+    categoryLabel: "Ethics Committee personnel benefits (IRB reviewers)",
     items: [
       { key: "necTravelTimeStipend", label: "Supplement payment for travel time",                       description: "Stipend/allowance for reviewer travel time, if the review meetings or trainings are in-person." },
       { key: "necTravelCostStipend", label: "Supplement payment for travel costs (e.g., tickets, lodging)", description: "Stipend/allowances for reviewer travel costs (e.g., flight, hotel), if the review meetings or trainings are in-person." },
@@ -80,7 +86,7 @@ export const EXPENSES_REGULAR = [
   },
   {
     categoryKey: "necRecurrentGeneral",
-    categoryLabel: "(NEC) Recurrent costs (general)",
+    categoryLabel: "Ethics Committee recurrent costs (general)",
     items: [
       { key: "necReviewMeetingHosting", label: "Review meeting hosting (e.g., venue, catering)", description: "Review board meeting or training meeting hosting costs such as venue rental, food, stationary, etc." },
     ],
@@ -142,3 +148,21 @@ export const EXPENSES_REGULAR_USD_DEFAULTS = {
   necTravelCostStipend: 5000,
   necReviewMeetingHosting: 5000,
 };
+
+// Ordered category labels — used as the canonical category list in the wizard.
+export const EXPENSES_REGULAR_CATEGORIES = EXPENSES_REGULAR.map((c) => c.categoryLabel);
+
+// Row-shape defaults (Willyanne 2026-05-26 #11/#12). Mirrors the Irregular
+// shape: { category, key, label, description, amount }. Country teams can
+// rewrite every field, append rows via "+ Add item," or delete rows with ×.
+// `key` is preserved on workbook rows for Overview/Expenses legacy display;
+// user-added rows get a generated key like `custom-<n>`.
+export const EXPENSES_REGULAR_ROW_DEFAULTS = EXPENSES_REGULAR.flatMap((cat) =>
+  cat.items.map((item) => ({
+    category: cat.categoryLabel,
+    key: item.key,
+    label: item.label,
+    description: item.description,
+    amount: EXPENSES_REGULAR_USD_DEFAULTS[item.key] ?? null,
+  })),
+);

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { COLORS as C } from "../utils/metrics";
 
 const DASHBOARD_SECTIONS = [
@@ -76,7 +77,7 @@ export default function IntroPage({ onNavigate, isAdmin }) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
-        <Section title="About the TRACE Project" logo={<img src="/trace-logo-color.svg" alt="TRACE" style={{ height: 40, objectFit: "contain" }} />}>
+        <Section title="About the TRACE Project" collapsible defaultOpen={false} logo={<img src="/trace-logo-color.svg" alt="TRACE" style={{ height: 40, objectFit: "contain" }} />}>
           <p style={bodyText}>
             TRACE (Trial Regulation and Clinical Ethics Optimization) is a multi-country initiative
             launched in 2025 to strengthen and harmonize clinical trial ethics and regulatory oversight
@@ -127,7 +128,7 @@ export default function IntroPage({ onNavigate, isAdmin }) {
           </div>
         </Section>
 
-        <Section title="MRCT Center's role in TRACE" logo={<img src="/mrct-shield.png" alt="MRCT Center" style={{ height: 40, objectFit: "contain" }} />}>
+        <Section title="MRCT Center's role in TRACE" collapsible defaultOpen={false} logo={<img src="/mrct-shield.png" alt="MRCT Center" style={{ height: 40, objectFit: "contain" }} />}>
           <p style={bodyText}>
             The Multi-Regional Clinical Trials Center of Brigham and Women's Hospital and Harvard (MRCT Center)
             is the training partner within TRACE, funded by the Gates Foundation. The MRCT Center supports the
@@ -232,14 +233,35 @@ export default function IntroPage({ onNavigate, isAdmin }) {
   );
 }
 
-function Section({ title, children, logo }) {
+function Section({ title, children, logo, collapsible = false, defaultOpen = true }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const isOpen = !collapsible || open;
   return (
     <div style={{ background: "#fff", borderRadius: 9, padding: "22px 24px", border: "1px solid #dde" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, paddingBottom: 10, borderBottom: "1px solid #eee" }}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, color: C.navy, margin: 0 }}>{title}</h2>
+      <div
+        onClick={collapsible ? () => setOpen((v) => !v) : undefined}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: isOpen ? 14 : 0,
+          paddingBottom: isOpen ? 10 : 0,
+          borderBottom: isOpen ? "1px solid #eee" : "none",
+          cursor: collapsible ? "pointer" : "default",
+          userSelect: collapsible ? "none" : "auto",
+        }}
+      >
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: C.navy, margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
+          {collapsible && (
+            <span aria-hidden style={{ display: "inline-block", color: C.teal, fontSize: 12, transition: "transform 120ms ease", transform: isOpen ? "rotate(90deg)" : "rotate(0deg)" }}>
+              ▶
+            </span>
+          )}
+          {title}
+        </h2>
         {logo && logo}
       </div>
-      {children}
+      {isOpen && children}
     </div>
   );
 }
