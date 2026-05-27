@@ -35,7 +35,7 @@ const TREND_OPTIONS = ["Remain the same", "Increase", "Decrease"];
 // Before production deployment with real country teams, this MUST be replaced
 // with server-side persistence (Supabase) so drafts survive logout and follow
 // the user across devices. See plan velvety-seeking-marble.md.
-const DRAFT_VERSION = 6;
+const DRAFT_VERSION = 7;
 const draftKey = (country) => `trace-wizard-draft:${country}:v${DRAFT_VERSION}`;
 
 function loadDraft(country) {
@@ -74,6 +74,10 @@ export default function GuidedWizard({ country, data, onSave }) {
   );
   const [inputMode, setInputMode] = useState(() => draft?.inputMode || "usd"); // "usd" | "local"
   const [unit, setUnit]           = useState(() => draft?.unit || "");
+  // Budget year — free-text per Willyanne 2026-05-27 mid-day item #3 (e.g. "2026"
+  // or "FY 2026/27"). Stored in localStorage draft + submit payload; no Supabase
+  // column yet. App.jsx merge-guard pattern handles future migration.
+  const [budgetYear, setBudgetYear] = useState(() => draft?.budgetYear ?? data?.budgetYear ?? "");
   // Static rate sourced from CurrencyContext (replaces the prior live fetch).
   // Rate is locked at submission time (`ratesAsOf` payload field). Country
   // teams see "as of [today]" in Setup.
@@ -125,6 +129,10 @@ export default function GuidedWizard({ country, data, onSave }) {
   // advancing from Step 3 → Revenue, so Irregular doesn't get silently skipped.
   // (Regular defaults to true since the user lands there on entry.)
   const [expVisitedIrregular, setExpVisitedIrregular] = useState(() => !!draft?.expVisitedIrregular);
+  // Mirror of expVisitedIrregular for Revenue — per Willyanne 2026-05-27 mid-day
+  // item #8: country teams must open the Irregular Revenue sub-tab before
+  // advancing to In-Kind. Regular defaults to true since users land there first.
+  const [revVisitedIrregular, setRevVisitedIrregular] = useState(() => !!draft?.revVisitedIrregular);
   const [submitted, setSubmitted] = useState(false);
   const [saving,    setSaving]    = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState(draft?.savedAt || null);
@@ -165,16 +173,16 @@ export default function GuidedWizard({ country, data, onSave }) {
   useEffect(() => {
     if (submitted) return;
     saveDraft(country, {
-      step, currencyCode: currency.code, inputMode, unit,
+      step, currencyCode: currency.code, inputMode, unit, budgetYear,
       hasRisks, hasOpps, riskText, oppText,
       activityRows, stepSources, stepNotes,
       erRowsEdits, feesEdits, irrProjEdits,
       revRegOtherEdits, revIrrEdits,
       ikRegEdits, ikIrrEdits,
-      expVisitedIrregular,
+      expVisitedIrregular, revVisitedIrregular,
     });
     setDraftSavedAt(new Date().toISOString());
-  }, [country, submitted, step, currency.code, inputMode, unit, hasRisks, hasOpps, riskText, oppText, activityRows, stepSources, stepNotes, erRowsEdits, feesEdits, irrProjEdits, revRegOtherEdits, revIrrEdits, ikRegEdits, ikIrrEdits, expVisitedIrregular]);
+  }, [country, submitted, step, currency.code, inputMode, unit, budgetYear, hasRisks, hasOpps, riskText, oppText, activityRows, stepSources, stepNotes, erRowsEdits, feesEdits, irrProjEdits, revRegOtherEdits, revIrrEdits, ikRegEdits, ikIrrEdits, expVisitedIrregular, revVisitedIrregular]);
 
   // Static exchange rate — recomputed when currency changes. Rates source: CurrencyContext map.
   useEffect(() => {
@@ -194,10 +202,12 @@ export default function GuidedWizard({ country, data, onSave }) {
   const conv = { toDisplay, fromDisplay, displaySym, altSym, toAlt, showAlt, displayCode };
 
   const currentStep = STEPS[step];
-  // Step 2 (Expenses) additionally requires the user to have visited the
-  // Irregular sub-tab — without this, Regular alone lets them skip Irregular.
-  const sourcesNotesOk = stepSources[step].trim().length > 0 && stepNotes[step].trim().length > 0;
+  // Step 2 (Expenses) and Step 3 (Revenue) additionally require visiting the
+  // Irregular sub-tab — without this, Regular alone lets users skip Irregular.
+  // Setup step (0) skips the source/notes requirement per Willyanne 2026-05-27 #4.
+  const sourcesNotesOk = step === 0 || (stepSources[step].trim().length > 0 && stepNotes[step].trim().length > 0);
   const expensesSubtabsOk = step !== 2 || expVisitedIrregular;
+  const revenueSubtabsOk  = step !== 3 || revVisitedIrregular;
   // Step 1 (Key Considerations) — per Willyanne 2026-05-26 #5: yes/no AND
   // description are required for both risks and opportunities.
   const riskAnswered = hasRisks === "yes" || hasRisks === "no";
@@ -205,14 +215,16 @@ export default function GuidedWizard({ country, data, onSave }) {
   const riskDescOk   = hasRisks !== "yes" || riskText.trim().length > 0;
   const oppDescOk    = hasOpps  !== "yes" || oppText.trim().length > 0;
   const keyConsidOk  = step !== 1 || (riskAnswered && oppAnswered && riskDescOk && oppDescOk);
-  const canAdvance = sourcesNotesOk && expensesSubtabsOk && keyConsidOk;
+  const canAdvance = sourcesNotesOk && expensesSubtabsOk && revenueSubtabsOk && keyConsidOk;
   const advanceBlockReason = !sourcesNotesOk
     ? "Fill in data source and notes to continue"
     : !expensesSubtabsOk
       ? "Open the Irregular sub-tab before advancing"
-      : !keyConsidOk
-        ? "Answer the risks and opportunities questions (and add a description for each Yes) before advancing"
-        : "";
+      : !revenueSubtabsOk
+        ? "Open the Irregular sub-tab before advancing"
+        : !keyConsidOk
+          ? "Answer the risks and opportunities questions (and add a description for each Yes) before advancing"
+          : "";
 
 
   if (submitted) {
@@ -237,7 +249,7 @@ export default function GuidedWizard({ country, data, onSave }) {
     <div style={{ maxWidth: 960, margin: "0 auto", width: "100%" }}>
       <div style={{ background: C.navy, borderRadius: 10, padding: "16px 22px", color: "#fff", marginBottom: 12 }}>
         <div style={{ fontSize: 18, fontWeight: 700 }}>Guided Wizard — {country}</div>
-        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>Enter data step by step. Each step requires a data source and notes before advancing.</div>
+        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>Enter data step by step. Data source and notes are required on each step (except Setup) before advancing.</div>
       </div>
 
       {/* Autosave indicator — PROTOTYPE: local browser only; replace with server-side drafts before production */}
@@ -297,6 +309,7 @@ export default function GuidedWizard({ country, data, onSave }) {
               inputMode={inputMode} onInputModeChange={setInputMode}
               exchangeRate={exchangeRate}
               unit={unit} onUnitChange={setUnit}
+              budgetYear={budgetYear} onBudgetYearChange={setBudgetYear}
             />
           )}
           {step === 1 && (
@@ -323,13 +336,16 @@ export default function GuidedWizard({ country, data, onSave }) {
               feesEdits={feesEdits} setFeesEdits={setFeesEdits}
               revRegOtherEdits={revRegOtherEdits} setRevRegOtherEdits={setRevRegOtherEdits}
               revIrrEdits={revIrrEdits} setRevIrrEdits={setRevIrrEdits}
+              onIrregularVisited={() => setRevVisitedIrregular(true)}
+              visitedIrregular={revVisitedIrregular}
             />
           )}
           {step === 4 && <StepInKind  conv={conv} ikRegEdits={ikRegEdits} setIkRegEdits={setIkRegEdits} ikIrrEdits={ikIrrEdits} setIkIrrEdits={setIkIrrEdits} />}
           {step === 5 && <StepReview  country={country} activityRows={activityRows} currency={currency} erRowsEdits={erRowsEdits} feesEdits={feesEdits} />}
 
-          {/* Sources & Notes — required on every step except review */}
-          {step < STEPS.length - 1 && (
+          {/* Sources & Notes — required on every step except Setup (per
+              Willyanne 2026-05-27 mid-day item #4) and Review. */}
+          {step > 0 && step < STEPS.length - 1 && (
             <div style={{ marginTop: 24, borderTop: "1px solid #eee", paddingTop: 18 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 10 }}>Required before advancing</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -422,6 +438,7 @@ export default function GuidedWizard({ country, data, onSave }) {
                 activities:  activityRows,
                 hasRisks, riskText, hasOpps, oppText,
                 unit,
+                budgetYear,
                 currencyCode: currency.code,
                 ratesAsOf:    new Date().toISOString(),
                 er:      erFlat,
@@ -455,7 +472,7 @@ export default function GuidedWizard({ country, data, onSave }) {
 
 // ─── Step components ──────────────────────────────────────────────────────────
 
-function StepSetup({ country, localCurrency, currency, inputMode, onInputModeChange, exchangeRate, unit, onUnitChange }) {
+function StepSetup({ country, localCurrency, currency, inputMode, onInputModeChange, exchangeRate, unit, onUnitChange, budgetYear, onBudgetYearChange }) {
   const asOfDate = new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -542,6 +559,28 @@ function StepSetup({ country, localCurrency, currency, inputMode, onInputModeCha
             </div>
           </div>
         )}
+      </div>
+
+      {/* Budget year — grey bar + free-text input per Willyanne 2026-05-27 mid-day item #3 */}
+      <div>
+        <label style={labelStyle}>Budget year</label>
+        <div style={{ marginTop: 6, padding: "10px 14px", background: "#f4f6f8", border: `1px solid #dde`, borderRadius: 8 }}>
+          <input
+            type="text"
+            value={budgetYear || ""}
+            onChange={(e) => onBudgetYearChange && onBudgetYearChange(e.target.value)}
+            placeholder="e.g., 2026 or FY 2026/27"
+            style={{
+              width: "100%",
+              padding: "6px 10px",
+              background: "#fff",
+              border: `1px solid #dde`,
+              borderRadius: 6,
+              fontSize: 14,
+              color: C.navy,
+            }}
+          />
+        </div>
       </div>
     </div>
   );
@@ -739,9 +778,7 @@ function StepExpensesRegular({ conv, erRowsEdits, setErRowsEdits }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       <p style={descStyle}>
-        Enter your committee's regular annual expenses below. The categories and items are pre-populated from the TRACE Financial Workbook.
-        <strong> All cells are editable</strong> — click the item to rename it, click the <strong>ⓘ</strong> to edit its description, or use <em>+ Add item</em> to extend a category.
-        Leave an amount <em>blank</em> if it doesn't apply; enter <em>0</em> only if the actual amount is zero.
+        <em>Enter your unit's regular annual expenses below (inclusive of the Secretariat/mgmt. expenses and the Ethics Committee expenses). The categories and items are pre-populated from the TRACE Financial Workbook. <strong>All cells are editable</strong> — you can click the item to rename it and click the <strong>ⓘ</strong> to edit its description. If an item does not apply in your context, you can remove it by clicking on the red "x" at the right end of the row. You may also add an item under any expense category by clicking on <strong>+ Add item</strong> to input the item name and description. Please note, you can leave an amount blank if you don't know the cost yet for that item; enter 0 only if the actual amount is zero.</em>
       </p>
 
       {EXPENSES_REGULAR_CATEGORIES.map((cat) => {
@@ -1141,16 +1178,20 @@ function StepExpensesIrregular({ conv, irrProjEdits, setIrrProjEdits }) {
 // rental/investment/other). Irregular has 4 categories (Grant, Contract,
 // Other 1-time payment, Deferred reserves) plus a Payment status dropdown
 // column unique to Irregular Revenue.
-function StepRevenue({ conv, feesEdits, setFeesEdits, revRegOtherEdits, setRevRegOtherEdits, revIrrEdits, setRevIrrEdits }) {
+function StepRevenue({ conv, feesEdits, setFeesEdits, revRegOtherEdits, setRevRegOtherEdits, revIrrEdits, setRevIrrEdits, onIrregularVisited, visitedIrregular }) {
   const [sub, setSub] = useState("regular");
+  const handleSub = (id) => {
+    setSub(id);
+    if (id === "irregular" && onIrregularVisited) onIrregularVisited();
+  };
   return (
     <div>
       <SubTabs
         tabs={[
           { id: "regular",   label: "Regular" },
-          { id: "irregular", label: "Irregular" },
+          { id: "irregular", label: visitedIrregular ? "Irregular" : "Irregular •" },
         ]}
-        active={sub} onChange={setSub}
+        active={sub} onChange={handleSub}
       />
       {sub === "regular" && (
         <StepRevenueRegular
@@ -1656,10 +1697,7 @@ function StepActivities({ rows, setRows }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <p style={descStyle}>
-        For each activity, select whether you expect effort to <strong>remain the same</strong>, <strong>increase</strong>, or <strong>decrease</strong>
-        in the near term (next year) and the long term (3–5 years). Activity names and descriptions are editable — click the
-        name to rename it, click the <strong>ⓘ</strong> to rewrite its description, or use <em>+ Add activity</em> to capture
-        an activity that isn't on the list.
+        <em>For each activity, select whether you expect effort to <strong>remain the same</strong>, <strong>increase</strong>, or <strong>decrease</strong> in the near term (next year) and the long term (3–5 years). Activity names and descriptions are editable — you can click the name to rename it and click the <strong>ⓘ</strong> to rewrite its description. If any of the pre-populated activities in the activities list does not apply in your context, you can remove it by clicking the red "x" at the right end of the row; if you would like to add an activity, use <strong>+ Add activity</strong> at the end of the list to name that activity and enter in a description.</em>
       </p>
       <div style={{ background: "#fff", border: "1px solid #dde", borderRadius: 8, overflow: "hidden" }}>
         <div style={{ overflowX: "auto" }}>
