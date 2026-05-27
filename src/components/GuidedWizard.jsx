@@ -8,6 +8,8 @@ import { EXPENSES_IRREGULAR_DEFAULTS, IRREGULAR_CATEGORIES } from "../data/expen
 import { ACTIVITY_LIST, ACTIVITY_DESCRIPTIONS, ACTIVITY_DEFAULT_ROWS } from "../data/activities";
 import { REVENUE_REGULAR_OTHER_DEFAULTS, REVENUE_REGULAR_OTHER_CATEGORIES } from "../data/revenueRegularOther";
 import { REVENUE_IRREGULAR_DEFAULTS, REVENUE_IRREGULAR_CATEGORIES, PAYMENT_STATUS_OPTIONS } from "../data/revenueIrregular";
+import { IN_KIND_REGULAR_DEFAULTS, IN_KIND_REGULAR_CATEGORIES, IN_KIND_FUNDING_SOURCE_OPTIONS } from "../data/inKindRegular";
+import { IN_KIND_IRREGULAR_DEFAULTS, IN_KIND_IRREGULAR_CATEGORIES } from "../data/inKindIrregular";
 import { KEY_CONSIDERATIONS_DEFAULTS } from "../data/countries";
 import InfoTip from "./InfoTip";
 
@@ -35,7 +37,7 @@ const TREND_OPTIONS = ["Remain the same", "Increase", "Decrease"];
 // Before production deployment with real country teams, this MUST be replaced
 // with server-side persistence (Supabase) so drafts survive logout and follow
 // the user across devices. See plan velvety-seeking-marble.md.
-const DRAFT_VERSION = 7;
+const DRAFT_VERSION = 8;
 const draftKey = (country) => `trace-wizard-draft:${country}:v${DRAFT_VERSION}`;
 
 function loadDraft(country) {
@@ -166,8 +168,27 @@ export default function GuidedWizard({ country, data, onSave }) {
           ? JSON.parse(JSON.stringify(data.revIrr))
           : JSON.parse(JSON.stringify(REVENUE_IRREGULAR_DEFAULTS)))
   );
-  const [ikRegEdits,   setIkRegEdits]   = useState(() => draft?.ikRegEdits   || { ...(data?.ikReg || {}) });
-  const [ikIrrEdits,   setIkIrrEdits]   = useState(() => draft?.ikIrrEdits   || { ...(data?.ikIrr || {}) });
+  // Per Willyanne 2026-05-27 PM: In-Kind Regular + Irregular now use row-shape
+  // (mirrors Expenses). Each row has Item ⓘ + Amount + Currency conversion +
+  // Funding source dropdown (3 options) + (Irregular only) start/end dates +
+  // red × delete. The flat `ikReg`/`ikIrr` shapes are rebuilt on submit for
+  // backward compat with Overview/GapView/AdminDashboard/metrics.js.
+  const [ikRegRowsEdits, setIkRegRowsEdits] = useState(() =>
+    draft?.ikRegRowsEdits
+      ?? (Array.isArray(data?.ikRegRows) && data.ikRegRows.length > 0
+          ? JSON.parse(JSON.stringify(data.ikRegRows))
+          : JSON.parse(JSON.stringify(IN_KIND_REGULAR_DEFAULTS)))
+  );
+  const [ikIrrRowsEdits, setIkIrrRowsEdits] = useState(() =>
+    draft?.ikIrrRowsEdits
+      ?? (Array.isArray(data?.ikIrrRows) && data.ikIrrRows.length > 0
+          ? JSON.parse(JSON.stringify(data.ikIrrRows))
+          : JSON.parse(JSON.stringify(IN_KIND_IRREGULAR_DEFAULTS)))
+  );
+  // Mirror of expVisitedIrregular / revVisitedIrregular for In-Kind — per
+  // Willyanne 2026-05-27 PM: country teams must open the Irregular In-Kind
+  // sub-tab before advancing from Step 4 → Review.
+  const [inkVisitedIrregular, setInkVisitedIrregular] = useState(() => !!draft?.inkVisitedIrregular);
 
   // Autosave every state change. Synchronous localStorage write is fast for this payload size.
   useEffect(() => {
@@ -178,11 +199,11 @@ export default function GuidedWizard({ country, data, onSave }) {
       activityRows, stepSources, stepNotes,
       erRowsEdits, feesEdits, irrProjEdits,
       revRegOtherEdits, revIrrEdits,
-      ikRegEdits, ikIrrEdits,
-      expVisitedIrregular, revVisitedIrregular,
+      ikRegRowsEdits, ikIrrRowsEdits,
+      expVisitedIrregular, revVisitedIrregular, inkVisitedIrregular,
     });
     setDraftSavedAt(new Date().toISOString());
-  }, [country, submitted, step, currency.code, inputMode, unit, budgetYear, hasRisks, hasOpps, riskText, oppText, activityRows, stepSources, stepNotes, erRowsEdits, feesEdits, irrProjEdits, revRegOtherEdits, revIrrEdits, ikRegEdits, ikIrrEdits, expVisitedIrregular, revVisitedIrregular]);
+  }, [country, submitted, step, currency.code, inputMode, unit, budgetYear, hasRisks, hasOpps, riskText, oppText, activityRows, stepSources, stepNotes, erRowsEdits, feesEdits, irrProjEdits, revRegOtherEdits, revIrrEdits, ikRegRowsEdits, ikIrrRowsEdits, expVisitedIrregular, revVisitedIrregular, inkVisitedIrregular]);
 
   // Static exchange rate — recomputed when currency changes. Rates source: CurrencyContext map.
   useEffect(() => {
@@ -208,6 +229,7 @@ export default function GuidedWizard({ country, data, onSave }) {
   const sourcesNotesOk = step === 0 || (stepSources[step].trim().length > 0 && stepNotes[step].trim().length > 0);
   const expensesSubtabsOk = step !== 2 || expVisitedIrregular;
   const revenueSubtabsOk  = step !== 3 || revVisitedIrregular;
+  const inKindSubtabsOk   = step !== 4 || inkVisitedIrregular;
   // Step 1 (Key Considerations) — per Willyanne 2026-05-26 #5: yes/no AND
   // description are required for both risks and opportunities.
   const riskAnswered = hasRisks === "yes" || hasRisks === "no";
@@ -215,16 +237,18 @@ export default function GuidedWizard({ country, data, onSave }) {
   const riskDescOk   = hasRisks !== "yes" || riskText.trim().length > 0;
   const oppDescOk    = hasOpps  !== "yes" || oppText.trim().length > 0;
   const keyConsidOk  = step !== 1 || (riskAnswered && oppAnswered && riskDescOk && oppDescOk);
-  const canAdvance = sourcesNotesOk && expensesSubtabsOk && revenueSubtabsOk && keyConsidOk;
+  const canAdvance = sourcesNotesOk && expensesSubtabsOk && revenueSubtabsOk && inKindSubtabsOk && keyConsidOk;
   const advanceBlockReason = !sourcesNotesOk
     ? "Fill in data source and notes to continue"
     : !expensesSubtabsOk
       ? "Open the Irregular sub-tab before advancing"
       : !revenueSubtabsOk
         ? "Open the Irregular sub-tab before advancing"
-        : !keyConsidOk
-          ? "Answer the risks and opportunities questions (and add a description for each Yes) before advancing"
-          : "";
+        : !inKindSubtabsOk
+          ? "Open the Irregular sub-tab before advancing"
+          : !keyConsidOk
+            ? "Answer the risks and opportunities questions (and add a description for each Yes) before advancing"
+            : "";
 
 
   if (submitted) {
@@ -340,7 +364,15 @@ export default function GuidedWizard({ country, data, onSave }) {
               visitedIrregular={revVisitedIrregular}
             />
           )}
-          {step === 4 && <StepInKind  conv={conv} ikRegEdits={ikRegEdits} setIkRegEdits={setIkRegEdits} ikIrrEdits={ikIrrEdits} setIkIrrEdits={setIkIrrEdits} />}
+          {step === 4 && (
+            <InKindStep
+              conv={conv}
+              ikRegRowsEdits={ikRegRowsEdits} setIkRegRowsEdits={setIkRegRowsEdits}
+              ikIrrRowsEdits={ikIrrRowsEdits} setIkIrrRowsEdits={setIkIrrRowsEdits}
+              onIrregularVisited={() => setInkVisitedIrregular(true)}
+              visitedIrregular={inkVisitedIrregular}
+            />
+          )}
           {step === 5 && <StepReview  country={country} activityRows={activityRows} currency={currency} erRowsEdits={erRowsEdits} feesEdits={feesEdits} />}
 
           {/* Sources & Notes — required on every step except Setup (per
@@ -377,6 +409,16 @@ export default function GuidedWizard({ country, data, onSave }) {
                     Open the <strong>Irregular</strong> sub-tab and review it before continuing to Revenue.
                   </div>
                 )}
+                {sourcesNotesOk && !revenueSubtabsOk && (
+                  <div style={{ fontSize: 12, color: C.red, fontStyle: "italic" }}>
+                    Open the <strong>Irregular</strong> sub-tab and review it before continuing to In-Kind.
+                  </div>
+                )}
+                {sourcesNotesOk && !inKindSubtabsOk && (
+                  <div style={{ fontSize: 12, color: C.red, fontStyle: "italic" }}>
+                    Open the <strong>Irregular</strong> sub-tab and review it before continuing to Review.
+                  </div>
+                )}
                 {sourcesNotesOk && expensesSubtabsOk && !keyConsidOk && (
                   <div style={{ fontSize: 12, color: C.red, fontStyle: "italic" }}>
                     Answer both the risks and opportunities questions, and add a description for each "Yes," before continuing.
@@ -409,10 +451,21 @@ export default function GuidedWizard({ country, data, onSave }) {
           <button
             onClick={async () => {
               setSaving(true);
-              const ikRegFinal = {
-                ...ikRegEdits,
-                total: (ikRegEdits.federal || 0) + (ikRegEdits.institutional || 0) + (ikRegEdits.other || 0),
-              };
+              // Compute legacy ikReg/ikIrr shapes from the new row-based state
+              // for backward compat with Overview/GapView/AdminDashboard/metrics.js.
+              // `funder` is a dropdown from IN_KIND_FUNDING_SOURCE_OPTIONS;
+              // empty funder rows contribute to `total` but not the rollup buckets.
+              const ikRegRollup = (ikRegRowsEdits || []).reduce((acc, r) => {
+                const v = Number(r?.amount) || 0;
+                if (r?.funder === "In-kind contribution (federal)")            acc.federal       += v;
+                else if (r?.funder === "In-kind contribution (institutional)") acc.institutional += v;
+                else if (r?.funder === "In-kind contribution (other source)")  acc.other         += v;
+                return acc;
+              }, { federal: 0, institutional: 0, other: 0 });
+              const ikRegTotal = (ikRegRowsEdits || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
+              const ikRegFinal = { ...ikRegRollup, total: ikRegTotal };
+              const ikIrrTotal = (ikIrrRowsEdits || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
+              const ikIrrFinal = { total: ikIrrTotal };
               // Rebuild flat `er` from the new row-shape for backward
               // compatibility with Overview/Expenses display. Only rows whose
               // `key` matches a workbook-canonical key are included; user-added
@@ -451,8 +504,10 @@ export default function GuidedWizard({ country, data, onSave }) {
                 ri:      riRollup,
                 irrProj: irrProjEdits,
                 ei:      { proj: irrProjEdits.reduce((s, p) => s + (p.amount || 0), 0) },
-                ikReg:   ikRegFinal,
-                ikIrr:   ikIrrEdits,
+                ikReg:     ikRegFinal,
+                ikRegRows: ikRegRowsEdits,
+                ikIrr:     ikIrrFinal,
+                ikIrrRows: ikIrrRowsEdits,
               };
               if (onSave) await onSave(updates);
               clearDraft(country);
@@ -1629,51 +1684,376 @@ function StepIrregular({ conv, irrProjEdits, setIrrProjEdits, data }) {
   );
 }
 
-function StepInKind({ conv, ikRegEdits, setIkRegEdits, ikIrrEdits, setIkIrrEdits }) {
-  const ikRegTotal = (ikRegEdits.federal || 0) + (ikRegEdits.institutional || 0) + (ikRegEdits.other || 0);
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <p style={descStyle}>In-kind contributions are non-cash support — staff time, equipment, office space — donated by external organizations. They are tracked separately and do not affect the cash gap.</p>
-      <div style={{ fontWeight: 700, fontSize: 14, color: C.navy }}>Regular In-Kind</div>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-        <thead>
-          <tr style={{ background: C.lightBG }}>
-            <th style={thStyle}>Category</th>
-            <th style={{ ...thStyle, textAlign: "right", width: 160 }}>Amount ({conv.displayCode})</th>
-          </tr>
-        </thead>
-        <tbody>
-          {[["federal", "Federal"], ["institutional", "Institutional"], ["other", "Other"]].map(([key, label]) => (
-            <tr key={key} style={{ borderBottom: "1px solid #f0f0f0" }}>
-              <td style={{ padding: "9px 12px" }}>{label}</td>
-              <td style={{ padding: "6px 12px" }}>
-                <AmountInput usdVal={ikRegEdits[key] || 0} conv={conv}
-                  onChangeUSD={(v) => setIkRegEdits((e) => ({ ...e, [key]: v }))} />
-              </td>
-            </tr>
-          ))}
-          <tr style={{ fontWeight: 700, background: "#f8f8f8" }}>
-            <td style={{ padding: "9px 12px" }}>Total (auto)</td>
-            <td style={{ padding: "9px 12px", textAlign: "right", fontFamily: "monospace" }}>
-              {conv.displaySym}{conv.toDisplay(ikRegTotal).toLocaleString()}
-              {conv.showAlt && <div style={{ fontSize: 11, color: C.blueGrey, fontWeight: 400 }}>≈ {conv.altSym} {Math.round(conv.toAlt(ikRegTotal)).toLocaleString()}</div>}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+// ─── Step 4 / In-Kind Contributions ───────────────────────────────────────────
+// Per Willyanne 2026-05-27 PM: In-Kind step split into Regular + Irregular
+// sub-tabs (mirrors Expenses pattern). Each row has Item ⓘ + Amount +
+// Currency conversion + Funding source dropdown + (Irregular only) start/end
+// dates + red × delete. ⓘ content seeded from workbook col J on Regular and
+// col L on Irregular; editable inline. Funding source dropdown = 3 options
+// sourced from workbook 'Drop down options' col O.
 
-      <div style={{ fontWeight: 700, fontSize: 14, color: C.navy, marginTop: 4 }}>Irregular In-Kind</div>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-        <tbody>
-          <tr style={{ borderBottom: "1px solid #f0f0f0" }}>
-            <td style={{ padding: "9px 12px" }}>Total</td>
-            <td style={{ padding: "6px 12px" }}>
-              <AmountInput usdVal={ikIrrEdits.total || 0} conv={conv}
-                onChangeUSD={(v) => setIkIrrEdits((e) => ({ ...e, total: v }))} />
-            </td>
-          </tr>
-        </tbody>
-      </table>
+function FundingSourceSelect({ value, onChange }) {
+  return (
+    <select
+      value={value || ""}
+      onChange={(e) => onChange(e.target.value)}
+      style={{
+        width: "100%",
+        border: "1px solid #ccc",
+        borderRadius: 4,
+        padding: "5px 7px",
+        fontSize: 12,
+        fontFamily: "inherit",
+        background: "#fff",
+      }}
+    >
+      <option value="">— select —</option>
+      {IN_KIND_FUNDING_SOURCE_OPTIONS.map((opt) => (
+        <option key={opt} value={opt}>{opt}</option>
+      ))}
+    </select>
+  );
+}
+
+function InKindStep({ conv, ikRegRowsEdits, setIkRegRowsEdits, ikIrrRowsEdits, setIkIrrRowsEdits, onIrregularVisited, visitedIrregular }) {
+  const [sub, setSub] = useState("regular");
+  const handleSubChange = (id) => {
+    setSub(id);
+    if (id === "irregular" && onIrregularVisited) onIrregularVisited();
+  };
+  return (
+    <div>
+      <SubTabs
+        tabs={[
+          { id: "regular",   label: "Regular" },
+          { id: "irregular", label: visitedIrregular ? "Irregular" : "Irregular •" },
+        ]}
+        active={sub} onChange={handleSubChange}
+      />
+      {sub === "regular" && (
+        <StepInKindRegular conv={conv} ikRegRowsEdits={ikRegRowsEdits} setIkRegRowsEdits={setIkRegRowsEdits} />
+      )}
+      {sub === "irregular" && (
+        <StepInKindIrregular conv={conv} ikIrrRowsEdits={ikIrrRowsEdits} setIkIrrRowsEdits={setIkIrrRowsEdits} />
+      )}
+    </div>
+  );
+}
+
+function StepInKindRegular({ conv, ikRegRowsEdits, setIkRegRowsEdits }) {
+  useEffect(() => {
+    if (!Array.isArray(ikRegRowsEdits) || ikRegRowsEdits.length === 0) {
+      setIkRegRowsEdits(JSON.parse(JSON.stringify(IN_KIND_REGULAR_DEFAULTS)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const rows = Array.isArray(ikRegRowsEdits) ? ikRegRowsEdits : [];
+
+  const updateRow = (idx, patch) => {
+    setIkRegRowsEdits((rs) => rs.map((r, i) => i === idx ? { ...r, ...patch } : r));
+  };
+  const addRow = (category) => {
+    setIkRegRowsEdits((rs) => [
+      ...rs,
+      { category, item: "", funder: "", amount: null, description: "" },
+    ]);
+  };
+  const deleteRow = (idx) => {
+    setIkRegRowsEdits((rs) => rs.filter((_, i) => i !== idx));
+  };
+
+  const grandTotal = rows.reduce((s, r) => s + (Number(r?.amount) || 0), 0);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <p style={descStyle}>
+        <em>On this page, please enter the regular annual in-kind contributions received by your unit — non-cash support such as donated staff time, office space, equipment, or services from federal, institutional, or other sources. The categories and items below are pre-populated from the TRACE Financial Workbook (in-kind contributions regular tab) and mirror the regular expense items. <strong>All cells are editable</strong> — you can click the item to rename it and click the <strong>ⓘ</strong> to edit its description. If an item does not apply, remove it by clicking the red "x." You may also add an item under any category with <strong>+ Add item</strong>. Select a funding source (federal / institutional / other) for each row. Please note, you can leave an amount blank if you don't know the value yet; enter 0 only if the actual amount is zero.</em>
+      </p>
+
+      {IN_KIND_REGULAR_CATEGORIES.map((cat) => {
+        const rowsInCat = rows
+          .map((r, idx) => ({ row: r, idx }))
+          .filter(({ row }) => row?.category === cat);
+        const catTotal = rowsInCat.reduce((s, { row }) => s + (Number(row?.amount) || 0), 0);
+
+        return (
+          <div key={cat} style={{ background: "#fff", border: "1px solid #dde", borderRadius: 8, overflow: "hidden" }}>
+            <div style={{ background: C.lightBG, padding: "10px 14px", fontSize: 13, fontWeight: 700, color: C.navy, borderBottom: "1px solid #dde" }}>
+              {cat}
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 880 }}>
+                <thead>
+                  <tr style={{ background: "#f8fafb" }}>
+                    <th style={{ ...thStyle, minWidth: 280 }}>Item</th>
+                    <th style={{ ...thStyle, textAlign: "right", width: 140 }}>
+                      Amount ({conv.displayCode === "USD" ? "US Dollars" : conv.displayCode})
+                    </th>
+                    {conv.showAlt && (
+                      <th style={{ ...thStyle, textAlign: "right", width: 110 }}>≈ ({conv.altSym})</th>
+                    )}
+                    <th style={{ ...thStyle, width: 220 }}>Funding source</th>
+                    <th style={{ ...thStyle, width: 28 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rowsInCat.length === 0 && (
+                    <tr>
+                      <td colSpan={conv.showAlt ? 5 : 4} style={{ padding: "14px 12px", fontSize: 12, color: "#999", fontStyle: "italic", textAlign: "center" }}>
+                        No items yet — use + Add item below.
+                      </td>
+                    </tr>
+                  )}
+                  {rowsInCat.map(({ row, idx }) => (
+                    <tr key={idx} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top" }}>
+                      <td style={{ padding: "8px 10px" }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <IrregularItemCell
+                              value={row.item}
+                              onChange={(v) => updateRow(idx, { item: v })}
+                            />
+                          </div>
+                          <EditableDescription
+                            value={row.description}
+                            label={row.item || "Item"}
+                            onChange={(v) => updateRow(idx, { description: v })}
+                          />
+                        </div>
+                      </td>
+                      <td style={{ padding: "8px 10px" }}>
+                        <BlankableAmountInput
+                          usdVal={row.amount}
+                          conv={conv}
+                          onChangeUSD={(v) => updateRow(idx, { amount: v ?? null })}
+                        />
+                      </td>
+                      {conv.showAlt && (
+                        <td style={{ padding: "8px 10px", textAlign: "right", fontFamily: "monospace", fontSize: 12, color: C.blueGrey }}>
+                          {formatLocked(row.amount, conv)}
+                        </td>
+                      )}
+                      <td style={{ padding: "8px 10px" }}>
+                        <FundingSourceSelect
+                          value={row.funder}
+                          onChange={(v) => updateRow(idx, { funder: v })}
+                        />
+                      </td>
+                      <td style={{ padding: "8px 4px", textAlign: "center" }}>
+                        <button
+                          onClick={() => deleteRow(idx)}
+                          title="Delete this row"
+                          style={{ background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: 16, padding: "2px 6px", lineHeight: 1 }}
+                        >
+                          ×
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  <tr style={{ background: "#fafbfc" }}>
+                    <td colSpan={conv.showAlt ? 5 : 4} style={{ padding: "8px 10px" }}>
+                      <button
+                        onClick={() => addRow(cat)}
+                        style={{
+                          background: "transparent",
+                          border: `1px dashed ${C.teal}`,
+                          color: C.teal,
+                          borderRadius: 5,
+                          padding: "5px 12px",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        + Add item
+                      </button>
+                      <span style={{ marginLeft: 14, fontSize: 11, color: C.blueGrey, fontStyle: "italic" }}>
+                        Category subtotal: <strong style={{ color: C.navy, fontFamily: "monospace" }}>
+                          {conv.displaySym}{conv.toDisplay(catTotal).toLocaleString()}
+                        </strong>
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })}
+
+      <div style={{ background: C.navy, color: "#fff", padding: "12px 18px", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>Total regular in-kind ({conv.displayCode})</span>
+        <span style={{ fontSize: 18, fontWeight: 700, fontFamily: "monospace" }}>
+          {conv.displaySym}{conv.toDisplay(grandTotal).toLocaleString()}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function StepInKindIrregular({ conv, ikIrrRowsEdits, setIkIrrRowsEdits }) {
+  useEffect(() => {
+    if (!Array.isArray(ikIrrRowsEdits) || ikIrrRowsEdits.length === 0) {
+      setIkIrrRowsEdits(JSON.parse(JSON.stringify(IN_KIND_IRREGULAR_DEFAULTS)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const rows = Array.isArray(ikIrrRowsEdits) ? ikIrrRowsEdits : [];
+
+  const updateRow = (idx, patch) => {
+    setIkIrrRowsEdits((rs) => rs.map((r, i) => i === idx ? { ...r, ...patch } : r));
+  };
+  const addRow = (category) => {
+    setIkIrrRowsEdits((rs) => [
+      ...rs,
+      { category, item: "", funder: "", amount: null, startDate: "", endDate: "", description: "" },
+    ]);
+  };
+  const deleteRow = (idx) => {
+    setIkIrrRowsEdits((rs) => rs.filter((_, i) => i !== idx));
+  };
+
+  const grandTotal = rows.reduce((s, r) => s + (Number(r?.amount) || 0), 0);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <p style={descStyle}>
+        <em>Irregular in-kind contributions are one-time or infrequent non-cash support — for example, a vehicle donated by a federal entity, a one-time training delivered free by an institution, or capital equipment given for a specific project. Categories and pre-filled items below are drawn from the TRACE Financial Workbook (in-kind contributions irregular tab). <strong>All cells are editable</strong> — including the item description. Click <em>See more</em> on long items to read and edit the full text. Use <strong>+ Add item</strong> under any category to add new rows; use the red "x" to remove a row.</em>
+      </p>
+
+      {IN_KIND_IRREGULAR_CATEGORIES.map((cat) => {
+        const rowsInCat = rows
+          .map((r, idx) => ({ row: r, idx }))
+          .filter(({ row }) => row?.category === cat);
+        const catTotal = rowsInCat.reduce((s, { row }) => s + (Number(row?.amount) || 0), 0);
+
+        return (
+          <div key={cat} style={{ background: "#fff", border: "1px solid #dde", borderRadius: 8, overflow: "hidden" }}>
+            <div style={{ background: C.lightBG, padding: "10px 14px", fontSize: 13, fontWeight: 700, color: C.navy, borderBottom: "1px solid #dde" }}>
+              {cat}
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 1020 }}>
+                <thead>
+                  <tr style={{ background: "#f8fafb" }}>
+                    <th style={{ ...thStyle, minWidth: 280 }}>Item</th>
+                    <th style={{ ...thStyle, textAlign: "right", width: 130 }}>
+                      Amount ({conv.displayCode === "USD" ? "US Dollars" : conv.displayCode})
+                    </th>
+                    {conv.showAlt && (
+                      <th style={{ ...thStyle, textAlign: "right", width: 110 }}>≈ ({conv.altSym})</th>
+                    )}
+                    <th style={{ ...thStyle, width: 200 }}>Funding source</th>
+                    <th style={{ ...thStyle, width: 120 }}>Start date</th>
+                    <th style={{ ...thStyle, width: 120 }}>End date</th>
+                    <th style={{ ...thStyle, width: 28 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rowsInCat.length === 0 && (
+                    <tr>
+                      <td colSpan={conv.showAlt ? 7 : 6} style={{ padding: "14px 12px", fontSize: 12, color: "#999", fontStyle: "italic", textAlign: "center" }}>
+                        No items yet — use the + Add item button below.
+                      </td>
+                    </tr>
+                  )}
+                  {rowsInCat.map(({ row, idx }) => (
+                    <tr key={idx} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top" }}>
+                      <td style={{ padding: "8px 10px" }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <IrregularItemCell
+                              value={row.item}
+                              onChange={(v) => updateRow(idx, { item: v })}
+                            />
+                          </div>
+                          <EditableDescription
+                            value={row.description}
+                            label={row.item || "Item"}
+                            onChange={(v) => updateRow(idx, { description: v })}
+                          />
+                        </div>
+                      </td>
+                      <td style={{ padding: "8px 10px" }}>
+                        <BlankableAmountInput
+                          usdVal={row.amount}
+                          conv={conv}
+                          onChangeUSD={(v) => updateRow(idx, { amount: v ?? null })}
+                        />
+                      </td>
+                      {conv.showAlt && (
+                        <td style={{ padding: "8px 10px", textAlign: "right", fontFamily: "monospace", fontSize: 11, color: C.blueGrey }}>
+                          {formatLocked(row.amount, conv)}
+                        </td>
+                      )}
+                      <td style={{ padding: "8px 10px" }}>
+                        <FundingSourceSelect
+                          value={row.funder}
+                          onChange={(v) => updateRow(idx, { funder: v })}
+                        />
+                      </td>
+                      <td style={{ padding: "8px 10px" }}>
+                        <IrregularTextInput
+                          value={row.startDate}
+                          onChange={(v) => updateRow(idx, { startDate: v })}
+                          placeholder="MM/YYYY"
+                        />
+                      </td>
+                      <td style={{ padding: "8px 10px" }}>
+                        <IrregularTextInput
+                          value={row.endDate}
+                          onChange={(v) => updateRow(idx, { endDate: v })}
+                          placeholder="MM/YYYY"
+                        />
+                      </td>
+                      <td style={{ padding: "8px 4px", textAlign: "center" }}>
+                        <button
+                          onClick={() => deleteRow(idx)}
+                          title="Delete this row"
+                          style={{ background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: 16, padding: "2px 6px", lineHeight: 1 }}
+                        >
+                          ×
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  <tr style={{ background: "#fafbfc" }}>
+                    <td colSpan={conv.showAlt ? 7 : 6} style={{ padding: "8px 10px" }}>
+                      <button
+                        onClick={() => addRow(cat)}
+                        style={{
+                          background: "transparent",
+                          border: `1px dashed ${C.teal}`,
+                          color: C.teal,
+                          borderRadius: 5,
+                          padding: "5px 12px",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        + Add item
+                      </button>
+                      <span style={{ marginLeft: 14, fontSize: 11, color: C.blueGrey, fontStyle: "italic" }}>
+                        Category subtotal: <strong style={{ color: C.navy, fontFamily: "monospace" }}>${catTotal.toLocaleString()}</strong>
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })}
+
+      <div style={{ background: C.navy, color: "#fff", padding: "12px 18px", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>Total irregular in-kind (USD)</span>
+        <span style={{ fontSize: 18, fontWeight: 700, fontFamily: "monospace" }}>
+          ${grandTotal.toLocaleString()}
+        </span>
+      </div>
     </div>
   );
 }
