@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { COLORS as C } from "../utils/metrics";
 
+// Per Willyanne 2026-05-27 email: six sections of the Inputs dashboard, in
+// wizard order. Section 1 is the unit/currency/year Setup step; section 2 is
+// the Key Considerations step (risks/opportunities + activity planning).
 const DASHBOARD_SECTIONS = [
-  { name: "Key Considerations", desc: "Country and unit selection, financial risks and opportunities, and near/long-term activity planning." },
-  { name: "Expenses", desc: "Secretariat and Ethics Committee operating costs — both recurring annual expenses and one-time project costs." },
-  { name: "Revenue", desc: "Review fees and other recurring income, plus grants and time-limited funding sources." },
-  { name: "Gap Analysis", desc: "Combined view of whether revenue covers expenses, and where funding gaps exist." },
-  { name: "Activities", desc: "Near-term and long-term activity planning tied to financial sustainability." },
-  { name: "In-Kind Contributions", desc: "Non-cash support — donated staff time, equipment, or office space from federal agencies, institutions, and others." },
+  { name: "Setup", desc: "Unit (i.e., the unit completing the dashboard, which is a Secretariat/managerial team either at the national level or local IRB level), currency selection, and year for the budget data." },
+  { name: "Key Considerations", desc: "Financial risks and opportunities, and activity planning for both the near- and long-term." },
+  { name: "Expenses", desc: "Regular (annual, recurring) and irregular (one-time, long-term) expenses. The expense input section allows for input of expenses for both the Secretariat/management unit (e.g., for ethics operational systems through personnel, rent, developing training, site visits, etc.) and for the expenses to run the Ethics Committee (which are paid from the Secretariat/mgmt. budget)." },
+  { name: "Revenue", desc: "Regular (annual, recurring) revenue/income from review fees and from other recurring sources (e.g., subsidies, rental income), and irregular (one-time, long-term) revenue from sources such as grants. The revenue section only has the option to report revenue for the Secretariat/mgmt. unit, because revenue is not usually received directly by the Ethics Committee." },
+  { name: "In-Kind Contributions", desc: "Non-cash support such as donated or volunteer staff time, equipment, or office space from federal agencies, institutions, and others. These are essentially expenses/revenue that are \"off-book\" or \"off-budget,\" but which are necessary to the functioning of the ethics review system, and may need to be paid for in the future to support sustainability." },
+  { name: "Review", desc: "An opportunity to check over the inputs section." },
 ];
 
 const HOW_TO_START = [
@@ -162,11 +165,13 @@ export default function IntroPage({ onNavigate, isAdmin }) {
           </div>
         </Section>
 
-        <Section title="Dashboard structure">
+        <Section title="Dashboard structure for user Inputs">
           <p style={{ ...bodyText, marginBottom: 6 }}>
-            Financial data is organized into three categories: <strong>Regular</strong> (recurring annual costs and income),{" "}
-            <strong>Irregular</strong> (one-time or project-based items), and{" "}
-            <strong>In-Kind</strong> (non-cash contributions tracked separately). The dashboard has six main sections:
+            Financial data is organized into three categories: <strong>Regular</strong> (recurring annual expenses and revenue),{" "}
+            <strong>Irregular</strong> (one-time or long-term expenses and revenue), and{" "}
+            <strong>In-Kind</strong> (non-cash contributions, such as donated staff time or office space, tracked
+            separately from expenses and revenue). The Inputs dashboard, accessible from the Inputs tab in the
+            header row or through the guided wizard box below, has six main sections:
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
             {DASHBOARD_SECTIONS.map((section, i) => (
@@ -179,9 +184,13 @@ export default function IntroPage({ onNavigate, isAdmin }) {
               </div>
             ))}
           </div>
+          <p style={{ ...bodyText, marginTop: 14, marginBottom: 0 }}>
+            Once financial data is entered into the Inputs section, users can proceed to the visualization of
+            the data in graphs and charts in the Results section.
+          </p>
         </Section>
 
-        <Section title="How data is organized">
+        <Section title="How data is organized for financial inputs">
           <p style={{ ...bodyText, marginBottom: 14 }}>
             A few design choices shape how data is structured — understanding these makes the dashboard easier to use:
           </p>

@@ -23,12 +23,12 @@ export default function InfoTip({ title, children }) {
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
         aria-label={title || "More information"}
         style={{
-          width: 17, height: 17, borderRadius: "50%",
-          background: open ? C.teal : "#a8c8d0",
-          color: "#fff", fontSize: 10, fontWeight: 700, fontStyle: "italic",
+          width: 18, height: 18, borderRadius: "50%",
+          background: open ? C.teal : "#eef2f5",
+          color: open ? "#fff" : C.teal, fontSize: 11, fontWeight: 700, fontStyle: "italic",
           display: "inline-flex", alignItems: "center", justifyContent: "center",
-          border: "none", cursor: "pointer", marginLeft: 6, flexShrink: 0,
-          transition: "background 0.15s",
+          border: `1px solid ${C.teal}`, cursor: "pointer", marginLeft: 6, flexShrink: 0,
+          transition: "background 0.15s, color 0.15s",
         }}
       >
         i

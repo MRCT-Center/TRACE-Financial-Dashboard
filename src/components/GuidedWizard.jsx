@@ -35,7 +35,7 @@ const TREND_OPTIONS = ["Remain the same", "Increase", "Decrease"];
 // Before production deployment with real country teams, this MUST be replaced
 // with server-side persistence (Supabase) so drafts survive logout and follow
 // the user across devices. See plan velvety-seeking-marble.md.
-const DRAFT_VERSION = 5;
+const DRAFT_VERSION = 6;
 const draftKey = (country) => `trace-wizard-draft:${country}:v${DRAFT_VERSION}`;
 
 function loadDraft(country) {
@@ -55,7 +55,7 @@ const STEPS = [
   { id: "setup",     label: "1. Setup",              title: "Setup"                      },
   { id: "keyconsid", label: "2. Key Considerations", title: "Key Considerations"         },
   { id: "expenses",  label: "3. Expenses",           title: "Expenses"                   },
-  { id: "revenue",   label: "4. Revenue",            title: "Regular Revenue"            },
+  { id: "revenue",   label: "4. Revenue",            title: "Revenue"                    },
   { id: "inKind",    label: "5. In-Kind",            title: "In-Kind Contributions"      },
   { id: "review",    label: "6. Review",             title: "Review & Submit"            },
 ];
@@ -759,7 +759,6 @@ function StepExpensesRegular({ conv, erRowsEdits, setErRowsEdits }) {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 620 }}>
                 <thead>
                   <tr style={{ background: "#f8fafb" }}>
-                    <th style={{ ...thStyle, width: 32 }}>#</th>
                     <th style={{ ...thStyle, minWidth: 340 }}>Item</th>
                     <th style={{ ...thStyle, textAlign: "right", width: 150 }}>
                       Amount ({conv.displayCode === "USD" ? "US Dollars" : conv.displayCode})
@@ -773,16 +772,13 @@ function StepExpensesRegular({ conv, erRowsEdits, setErRowsEdits }) {
                 <tbody>
                   {rowsInCat.length === 0 && (
                     <tr>
-                      <td colSpan={conv.showAlt ? 5 : 4} style={{ padding: "14px 12px", fontSize: 12, color: "#999", fontStyle: "italic", textAlign: "center" }}>
+                      <td colSpan={conv.showAlt ? 4 : 3} style={{ padding: "14px 12px", fontSize: 12, color: "#999", fontStyle: "italic", textAlign: "center" }}>
                         No items yet — use + Add item below.
                       </td>
                     </tr>
                   )}
-                  {rowsInCat.map(({ row, idx }, displayIdx) => (
+                  {rowsInCat.map(({ row, idx }) => (
                     <tr key={row.key || idx} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top" }}>
-                      <td style={{ padding: "10px 10px", fontSize: 12, color: C.blueGrey, fontFamily: "monospace" }}>
-                        {displayIdx + 1}
-                      </td>
                       <td style={{ padding: "8px 10px" }}>
                         <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
@@ -822,7 +818,7 @@ function StepExpensesRegular({ conv, erRowsEdits, setErRowsEdits }) {
                     </tr>
                   ))}
                   <tr style={{ background: "#fafbfc" }}>
-                    <td colSpan={conv.showAlt ? 5 : 4} style={{ padding: "8px 10px" }}>
+                    <td colSpan={conv.showAlt ? 4 : 3} style={{ padding: "8px 10px" }}>
                       <button
                         onClick={() => addRow(cat)}
                         style={{
@@ -1024,7 +1020,6 @@ function StepExpensesIrregular({ conv, irrProjEdits, setIrrProjEdits }) {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 880 }}>
                 <thead>
                   <tr style={{ background: "#f8fafb" }}>
-                    <th style={{ ...thStyle, width: 32 }}>#</th>
                     <th style={{ ...thStyle, minWidth: 320 }}>Item</th>
                     <th style={{ ...thStyle, textAlign: "right", width: 130 }}>
                       Amount ({conv.displayCode === "USD" ? "US Dollars" : conv.displayCode})
@@ -1041,16 +1036,13 @@ function StepExpensesIrregular({ conv, irrProjEdits, setIrrProjEdits }) {
                 <tbody>
                   {rowsInCat.length === 0 && (
                     <tr>
-                      <td colSpan={conv.showAlt ? 8 : 7} style={{ padding: "14px 12px", fontSize: 12, color: "#999", fontStyle: "italic", textAlign: "center" }}>
+                      <td colSpan={conv.showAlt ? 7 : 6} style={{ padding: "14px 12px", fontSize: 12, color: "#999", fontStyle: "italic", textAlign: "center" }}>
                         No items yet — use the + Add item button below.
                       </td>
                     </tr>
                   )}
-                  {rowsInCat.map(({ row, idx }, displayIdx) => (
+                  {rowsInCat.map(({ row, idx }) => (
                     <tr key={idx} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top" }}>
-                      <td style={{ padding: "10px 10px", fontSize: 12, color: C.blueGrey, fontFamily: "monospace" }}>
-                        {displayIdx + 1}
-                      </td>
                       <td style={{ padding: "8px 10px" }}>
                         <IrregularItemCell
                           value={row.item}
@@ -1103,7 +1095,7 @@ function StepExpensesIrregular({ conv, irrProjEdits, setIrrProjEdits }) {
                     </tr>
                   ))}
                   <tr style={{ background: "#fafbfc" }}>
-                    <td colSpan={conv.showAlt ? 8 : 7} style={{ padding: "8px 10px" }}>
+                    <td colSpan={conv.showAlt ? 7 : 6} style={{ padding: "8px 10px" }}>
                       <button
                         onClick={() => addRow(cat)}
                         style={{
@@ -1319,8 +1311,8 @@ function RevenueCategoryCards({ conv, rows, setRows, categories, withPaymentStat
     setRows((rs) => rs.filter((_, i) => i !== idx));
   };
 
-  // Visible columns: # | Item (incl. ⓘ) | Funder | Amount | [alt] | Start | End | [Payment] | ×
-  const visibleCols = 7 + (conv.showAlt ? 1 : 0) + (withPaymentStatus ? 1 : 0) + 1; // + the × column
+  // Visible columns: Item (incl. ⓘ) | Funder | Amount | [alt] | Start | End | [Payment] | ×
+  const visibleCols = 6 + (conv.showAlt ? 1 : 0) + (withPaymentStatus ? 1 : 0) + 1; // + the × column
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -1340,7 +1332,6 @@ function RevenueCategoryCards({ conv, rows, setRows, categories, withPaymentStat
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: withPaymentStatus ? 1040 : 880 }}>
                 <thead>
                   <tr style={{ background: "#f8fafb" }}>
-                    <th style={{ ...thStyle, width: 32 }}>#</th>
                     <th style={{ ...thStyle, minWidth: 220 }}>Item</th>
                     <th style={{ ...thStyle, width: 150 }}>Funding source</th>
                     <th style={{ ...thStyle, textAlign: "right", width: 130 }}>
@@ -1365,11 +1356,8 @@ function RevenueCategoryCards({ conv, rows, setRows, categories, withPaymentStat
                       </td>
                     </tr>
                   )}
-                  {rowsInCat.map(({ row, idx }, displayIdx) => (
+                  {rowsInCat.map(({ row, idx }) => (
                     <tr key={idx} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top" }}>
-                      <td style={{ padding: "10px 10px", fontSize: 12, color: C.blueGrey, fontFamily: "monospace" }}>
-                        {displayIdx + 1}
-                      </td>
                       <td style={{ padding: "8px 10px" }}>
                         <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
@@ -1389,7 +1377,7 @@ function RevenueCategoryCards({ conv, rows, setRows, categories, withPaymentStat
                         <IrregularTextInput
                           value={row.funder}
                           onChange={(v) => updateRow(idx, { funder: v })}
-                          placeholder="e.g. Ministry of Health"
+                          placeholder={row.category === "Subsidy (federal)" ? "e.g., Ministry of Health" : ""}
                         />
                       </td>
                       <td style={{ padding: "8px 10px" }}>

@@ -121,6 +121,28 @@ export default function App() {
           const isLegacyRevRows = (rows) =>
             !Array.isArray(rows) || rows.length === 0 ||
             rows.some((r) => r && typeof r === "object" && r.category === undefined);
+          // Willyanne 2026-05-27 #1/#2: prefix "Secretariat/mgmt." to specific
+          // Secretariat-only expense categories on both Regular and Irregular
+          // tabs. Existing Supabase rows still carry the old category strings;
+          // rewrite them on load so the rendered grouping matches the new
+          // labels. (Ethics Committee categories are left alone.)
+          const CATEGORY_RENAMES = {
+            "Personnel salaries (regular personnel)":              "Secretariat/mgmt. Personnel salaries (regular personnel)",
+            "Personnel benefits — insurance (regular personnel)":  "Secretariat/mgmt. Personnel benefits — insurance (regular personnel)",
+            "Personnel benefits — pension (regular personnel)":    "Secretariat/mgmt. Personnel benefits — pension (regular personnel)",
+            "Recurrent costs (general)":                           "Secretariat/mgmt. Recurrent costs (general)",
+            "Recurrent costs (govt fees & compliance)":            "Secretariat/mgmt. Recurrent costs (govt fees & compliance)",
+            "Capital costs (durable goods)":                       "Secretariat/mgmt. Capital costs (durable goods)",
+            "Capital costs (one-time/irregular activities)":       "Secretariat/mgmt. Capital costs (one-time/irregular activities)",
+          };
+          const renameCategories = (rows) =>
+            Array.isArray(rows)
+              ? rows.map((r) =>
+                  r && CATEGORY_RENAMES[r?.category]
+                    ? { ...r, category: CATEGORY_RENAMES[r.category] }
+                    : r,
+                )
+              : rows;
           const updated = { ...COUNTRIES };
           data.forEach(({ country, data: d }) => {
             if (!updated[country]) return;
@@ -160,6 +182,9 @@ export default function App() {
             if (isLegacyRevRows(d?.revIrr)) {
               merged.revIrr = updated[country].revIrr;
             }
+            // Category prefix migration (Willyanne 2026-05-27 #1/#2)
+            merged.erRows = renameCategories(merged.erRows);
+            merged.irrProj = renameCategories(merged.irrProj);
             updated[country] = merged;
           });
           setCountryCache(updated);

@@ -12,28 +12,28 @@
 export const EXPENSES_REGULAR = [
   {
     categoryKey: "personnelSalariesReg",
-    categoryLabel: "Personnel salaries (regular personnel)",
+    categoryLabel: "Secretariat/mgmt. Personnel salaries (regular personnel)",
     items: [
       { key: "salaries", label: "Salaries", description: "Wages for research, administrative, communication, and technical staff." },
     ],
   },
   {
     categoryKey: "personnelBenefitsInsurance",
-    categoryLabel: "Personnel benefits — insurance (regular personnel)",
+    categoryLabel: "Secretariat/mgmt. Personnel benefits — insurance (regular personnel)",
     items: [
       { key: "healthInsurance", label: "Health Insurance", description: "Employer health insurance contributions." },
     ],
   },
   {
     categoryKey: "personnelBenefitsPension",
-    categoryLabel: "Personnel benefits — pension (regular personnel)",
+    categoryLabel: "Secretariat/mgmt. Personnel benefits — pension (regular personnel)",
     items: [
       { key: "pensions", label: "Pensions", description: "Employer pension contributions to retirement plans." },
     ],
   },
   {
     categoryKey: "recurrentGeneral",
-    categoryLabel: "Recurrent costs (general)",
+    categoryLabel: "Secretariat/mgmt. Recurrent costs (general)",
     items: [
       { key: "rent",                       label: "Rent",                                                                description: "Office rent." },
       { key: "cleaningServiceMaterials",   label: "Cleaning service/materials",                                          description: "Cleaning service and cleaning supplies." },
@@ -53,7 +53,7 @@ export const EXPENSES_REGULAR = [
   },
   {
     categoryKey: "recurrentGovt",
-    categoryLabel: "Recurrent costs (govt fees & compliance)",
+    categoryLabel: "Secretariat/mgmt. Recurrent costs (govt fees & compliance)",
     items: [
       { key: "govtFees",              label: "Government fees (e.g., National Insurance Scheme, Social Security)", description: "Government fees such as National Insurance Scheme or Social Security." },
       { key: "regularEthicsTraining", label: "Regular ethics training",                                            description: "Fees for staff to attend training programs on research ethics, data protection, and regulatory compliance; AND/OR regular development/editing of ethics training programs (if by a consultant and not regular personnel) — note this is only for regular development/review/maintenance of training materials and not a 1-time development of a new training or significant revision of existing training. Time for regular staff spent training should be part of the salary." },
@@ -62,7 +62,7 @@ export const EXPENSES_REGULAR = [
   },
   {
     categoryKey: "capitalCosts",
-    categoryLabel: "Capital costs (durable goods)",
+    categoryLabel: "Secretariat/mgmt. Capital costs (durable goods)",
     items: [
       { key: "computers", label: "Computers", description: "Computers, tablets, printers, scanners, etc." },
       { key: "furniture", label: "Furniture", description: "Desks, chairs, tables, lighting, filing cabinets, etc." },

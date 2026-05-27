@@ -1,6 +1,35 @@
 // Workbook row-1 instructions, verbatim from
 // `2026_04_17 financial workbook _WITH dummy numbers_with in kind contributions.xlsx`.
 // One entry per sheet column with content. Surfaced in the wizard via <StepInstructions>.
+//
+// Per Willyanne 2026-05-27 email: the Setup, Risks & Opportunities, and
+// Activities steps now use her rewritten instructions (below — WIZARD_SETUP_STEPS,
+// WIZARD_RISKS_OPPS_STEPS, WIZARD_ACTIVITIES_STEPS). The KEY_CONSIDERATIONS
+// array is kept for historical reference but no longer wired into the wizard.
+
+// Setup step (Willyanne 2026-05-27).
+export const WIZARD_SETUP_STEPS = [
+  'Step 1: Select the unit that is doing the planning/budgeting from the two options: National Secretariat/mgmt. or Local IRB Secretariat/mgmt. Please note that it is these Secretariats/management units that budget for the Ethics Committees (i.e., the budget for the actual ethics committee review meetings) is planned for, and disbursed by, the Secretariat/management unit.',
+  'Step 2: Select the currency that you would like to use for the financial data entry. This is usually the currency used in your budgets. The dashboard will automatically convert local currency to USD and vice versa.',
+];
+
+// Key Considerations — Risks & Opportunities (Willyanne 2026-05-27).
+export const WIZARD_RISKS_OPPS_STEPS = [
+  'Step 1: Select "yes" or "no" from the two options below to convey whether you expect any major financial risks in the next year. Please note, this may be any type of risk that could affect clinical research ethics activities and funding, whether the risk is national in scope (e.g., war or other political instability, out-migration of talent, tariffs, inflation, austerity measures) or specific to clinical research (e.g., loss of international funding, major pension payout for ethics staff, fewer trials). Then describe in the text box what risks you foresee (if you selected yes) or why you don\'t foresee any risks (if you answered no).',
+  'Step 2: Select "yes" or "no" from the two options below whether you expect any major financial opportunities in the next year. Please note, this may be any type of opportunity that could affect clinical research ethics activities and funding, whether the opportunity is national in scope (e.g., increased political stability, in-migration of talent) or specific to clinical research (e.g., increase in international funding or economic investment). Then describe in the text box what opportunities you foresee (if you selected yes) or why you don\'t foresee any opportunities (if you answered no).',
+  'Step 3: List the data sources (i.e., document name and date, weblink and specific place on the webpage) on which you based your assessment of risks and opportunities.',
+  'Step 4: List any notes that will help others (e.g., other staff in your unit) understand more about your choices in this section. If you don\'t have any notes, please write "NA."',
+];
+
+// Key Considerations — Activities (Willyanne 2026-05-27).
+export const WIZARD_ACTIVITIES_STEPS = [
+  'Step 1: Review the pre-populated list of activities in the "Activities column". Each activity has a pre-populated description you can see when you click on the "i" circle.',
+  'Step 2: Both the pre-populated activity names and descriptions are editable. Please make any edits that reflect the ethics activities in your country. You may also remove any activity from the pre-populated list that doesn\'t apply by clicking on the red "x" at the far right in each row, and/or you may add an activity that is not in the pre-populated list by clicking on "add item" at the bottom of the activity list and then writing in the activity name and description.',
+  'Step 3: For each activity in the activity list, use the drop-down list to select whether you expect effort for that activity to remain the same, increase, or decrease in the short-term (next year). Consider whether you will be adding tasks (e.g., you are not currently doing one or more of the tasks in the list for that activity) or "scaling-up" effort on tasks (e.g., you are not completing the tasks as fully as you would wish).',
+  'Step 4: For each activity in the activity list, use the drop-down list to select whether you expect effort for that activity to remain the same, increase, or decrease over the long-term (next 3-5 years). Consider whether you will be adding tasks or "scaling-up" effort on tasks.',
+  'Step 5: List the data sources (i.e., document name and date, weblink and specific place on the webpage) on which you based your assessment.',
+  'Step 6: List any notes that will help others (e.g., other staff in your unit) understand more about your choices in this section. If you don\'t have any notes, please write "NA."',
+];
 
 export const KEY_CONSIDERATIONS = [
   'Step 1: Select your country from the drop-down list in each "Country" cell below.',
@@ -164,15 +193,14 @@ export const SUMMARY_IRREGULAR = [
 // step doesn't map cleanly to the workbook structure.
 export const WIZARD_STEP_INSTRUCTIONS = {
   setup: {
-    note: "In the workbook, country and unit are selected per row. In the dashboard, country is set at login; select your unit below.",
     sheets: [
-      { name: "From Key considerations sheet (Steps 1–2)", lines: KEY_CONSIDERATIONS.slice(0, 2) },
+      { name: "Setup", lines: WIZARD_SETUP_STEPS },
     ],
   },
   keyconsid: {
     sheets: [
-      { name: "From Key considerations sheet — Risks & Opportunities (Steps 3–5)", lines: KEY_CONSIDERATIONS.slice(2, 5) },
-      { name: "From Key considerations sheet — Activities (Steps 6–11)", lines: KEY_CONSIDERATIONS.slice(5) },
+      { name: "Risks & Opportunities", lines: WIZARD_RISKS_OPPS_STEPS },
+      { name: "Activities", lines: WIZARD_ACTIVITIES_STEPS },
     ],
   },
   expenses: {

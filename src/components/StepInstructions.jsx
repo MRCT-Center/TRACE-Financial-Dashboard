@@ -33,7 +33,7 @@ export default function StepInstructions({ stepInstructions }) {
         }}
       >
         <span style={{ fontSize: 14 }}>{open ? "▼" : "▶"}</span>
-        <span>Instructions for this step (from Willyanne's workbook)</span>
+        <span>Instructions for this step</span>
         <span style={{ fontWeight: 400, fontSize: 11, color: C.blueGrey, marginLeft: "auto" }}>
           {open ? "Hide" : `${lineCount} step${lineCount === 1 ? "" : "s"}`}
         </span>
