@@ -15,7 +15,8 @@ export const IRREGULAR_CATEGORIES = [
   "Secretariat/mgmt. Capital costs (one-time/irregular activities)",
   // Per Willyanne 2026-05-26 #15: ethics committee one-time/irregular costs
   // belong in their own bucket. Two blank editable starter rows.
-  "Ethics Committee capital costs (one-time/irregular activities)",
+  // Per Willyanne 2026-05-27 evening: capitalize "Capital".
+  "Ethics Committee Capital costs (one-time/irregular activities)",
 ];
 
 // 12 rows mirroring workbook D4–D15. `amount` is null where workbook col I is

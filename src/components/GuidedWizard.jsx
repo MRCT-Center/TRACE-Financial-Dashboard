@@ -37,7 +37,7 @@ const TREND_OPTIONS = ["Remain the same", "Increase", "Decrease"];
 // Before production deployment with real country teams, this MUST be replaced
 // with server-side persistence (Supabase) so drafts survive logout and follow
 // the user across devices. See plan velvety-seeking-marble.md.
-const DRAFT_VERSION = 8;
+const DRAFT_VERSION = 9;
 const draftKey = (country) => `trace-wizard-draft:${country}:v${DRAFT_VERSION}`;
 
 function loadDraft(country) {
@@ -1089,11 +1089,15 @@ function StepExpensesIrregular({ conv, irrProjEdits, setIrrProjEdits }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       <p style={descStyle}>
-        Irregular expenses are one-time or infrequent large costs — vehicles, building works,
-        IT upgrades, one-off projects funded by grants or reserves.
-        The categories and pre-filled items below are drawn from the TRACE Financial Workbook (rows D4–D15).
-        <strong> All cells are editable</strong> — including the item description. Click any row to add a new item under that category.
-        Click <em>See more</em> on long items to read and edit the full text.
+        Irregular expenses are one-time or infrequent large expenses that are usually large in size,
+        such as vehicles, building works, IT upgrades, or one-off projects. The categories and items
+        are pre-populated from the TRACE Financial Workbook. <strong>All cells are editable</strong> —
+        you can click the item to rename it and click the <strong>ⓘ</strong> to edit its description.
+        If an item does not apply in your context, you can remove it by clicking on the red "x" at the
+        right end of the row. You may also add an item under any expense category by clicking on{" "}
+        <strong>+ Add item</strong> to input the item name and description. Please note, you can leave
+        an amount blank if you don't know the cost yet for that item; enter 0 only if the actual amount
+        is zero.
       </p>
 
       {IRREGULAR_CATEGORIES.map((cat) => {
@@ -1318,9 +1322,18 @@ function StepRevenueRegular({ conv, feesEdits, setFeesEdits, revRegOtherEdits, s
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <p style={descStyle}>
-        Regular revenue comes from two sources: <strong>fees</strong> charged for ethics reviews (top),
-        and <strong>other recurring revenue</strong> like government or institutional subsidies, rental
-        or investment income, etc. (below). Click a section header to collapse or expand it.
+        Regular revenue is revenue that is received in a regular, recurring way. It comes from two
+        sources: <strong>regular revenue from fees</strong> charged for ethics reviews (top), and{" "}
+        <strong>regular revenue from other sources</strong> such as government or institutional
+        subsidies, rental or investment income, etc. (bottom). Click a section header to collapse or
+        expand it. For the regular revenue from other sources, the categories and items are
+        pre-populated from the TRACE Financial Workbook. <strong>All cells in that section are
+        editable</strong> — you can click the item to rename it and click the <strong>ⓘ</strong> to
+        edit its description. If an item does not apply in your context, you can remove it by clicking
+        on the red "x" at the right end of the row. You may also add an item under any revenue
+        category by clicking on <strong>+ Add item</strong> to input the item name and description.
+        Please note, you can leave an amount blank if you don't know the revenue/income yet for that
+        item; enter 0 only if the actual amount is zero.
       </p>
 
       <CollapsibleSection title="Regular Revenue from Fees" defaultOpen={true}>
@@ -1362,11 +1375,15 @@ function StepRevenueIrregular({ conv, revIrrEdits, setRevIrrEdits }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <p style={descStyle}>
-        Irregular revenue is one-time, time-limited, or non-recurring funding — grants, contracts,
-        other one-time payments, or draws from deferred reserves. Each row captures the funder,
-        amount, start/end dates, and <strong>payment status</strong> (whether and when the funds
-        have been received). <strong>All cells are editable</strong> — use <em>+ Add item</em> to
-        extend a category.
+        Irregular revenue is one-time, time-limited, or otherwise non-recurring funding, such as
+        grants, contracts, other one-time payments. Each row captures the funder, amount, start/end
+        dates, and <strong>payment status</strong> (whether and when the funds have been received).{" "}
+        <strong>All cells are editable</strong> — you can click the item to rename it and click the{" "}
+        <strong>ⓘ</strong> to edit its description. If an item does not apply in your context, you
+        can remove it by clicking on the red "x" at the right end of the row. You may also add an
+        item under any revenue category by clicking on <strong>+ Add item</strong> to input the item
+        name and description. Please note, you can leave an amount blank if you don't know the
+        revenue/income yet for that item; enter 0 only if the actual amount is zero.
       </p>
       <RevenueCategoryCards
         conv={conv}

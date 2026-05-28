@@ -54,25 +54,21 @@ export const EXPENSES_REGULAR = [
   'Step 2: Review the regular expense items listed below. These have been pre-populated by the MRCT Center, based on review of country budget structures and discussion with country staff. Please review this list in tandem with the item descriptions in the "i" circle in the same row as the item name. Both the pre-populated item names and descriptions are editable. Please make any edits that reflect the expense items in your country. You may also remove any item from the pre-populated list that doesn\'t apply by clicking on the red "x" at the far right in each row, and/or you may add an item that is not in the pre-populated list by clicking on "add item" and then writing in the activity name and description.',
   'Step 3a: Enter the expense amount for each item. You will have selected the currency that you want to use for the dashboard on the Setup tab. Once you enter in the expense amount the program will automatically carry out a currency conversion. You can leave an amount blank if you don\'t know the cost yet for that item; enter 0 only if the actual amount is zero.',
   'Step 3b: Please note, IF you will be documenting in-kind contributions that are "off-budget," you will list the portion of the full regular expense that is "donated" on the in-kind contribution_regular worksheet. An in-kind contribution is where an entity (the federal government, an institution such as a University, or another source) "gives" the Secretariat/NEC/IRB personnel time, an office, office supplies, or other items the Secretariat/mgmt. unit does not have to pay for from their regular or irregular budget. For example, if the government gives the Secretariat office space valued at $20,000/year, list $0 on this Expenses Regular page in the row for rent AND then put $20,000 in the row for rent on the In-kind contributions Regular page.',
-  'Step 7: List the data sources (i.e., document name and date, weblink and specific place on the webpage) for the expense item estimate.',
-  'Step 8: List any notes that will help others (e.g., other staff in your unit) understand more about your choices in this section. This is especially important to describe each expense item (e.g., it is helpful to list the number and type of staff that make up the "salaries" expense), and any calculations you make to derive an expense (e.g., 3 staff at $30,000 each = $90,000 for salaries). IF you will be documenting in-kind contributions, you will need to document the distinction between what is captured on this Expenses Regular page and what is captured on the In-kind contributions Regular page.',
+  'Step 4: List the data sources (i.e., document name and date, weblink and specific place on the webpage) for the expense item estimate.',
+  'Step 5: List any notes that will help others (e.g., other staff in your unit) understand more about your choices in this section. This is especially important to describe each expense item (e.g., it is helpful to list the number and type of staff that make up the "salaries" expense), and any calculations you make to derive an expense (e.g., 3 staff at $30,000 each = $90,000 for salaries). IF you will be documenting in-kind contributions, you will need to document the distinction between what is captured on this Expenses Regular page and what is captured on the In-kind contributions Regular page.',
 ];
 
+// Expenses Irregular — Willyanne 2026-05-27 evening rewrite. UI-aligned
+// (collapses workbook's 6a/6b/6c/6d/7a/7b into single currency-aware amount
+// field). Same pattern as EXPENSES_REGULAR mid-day rewrite.
 export const EXPENSES_IRREGULAR = [
-  'Step 1: Select your country from the drop-down list in each "Country" cell below.',
-  'Step 2: Select the unit that you are planning/budgeting for from the drop down list in the cells for "Unit."',
-  'Step 3: Review the irregular expense categories below. The list is pre-populated by the MRCT Center. Irregular expenses are those that are not regularly charged on an annual, or less than annual, basis. Irregular expenses are generally large one-time (or something like one in 5 years) expenses. You are welcome to add additional rows with other types of large [irregular] capital costs that apply in your situation.',
-  'Step 4: IF the country has the irregular expense category listed in the adjacent cell in step 3, enter in the purpose/activities for that item.',
-  'Step 5: IF the country has the irregular expense category listed in this row in step 3, and the expected funding source is a federal or institutional source, please list the department within the government or institution that you expect will provide the funding.',
-  'Step 6a: Enter the expense in local currency if your country primarily uses local currency. Note about in-kind: whereas this expenses_irregular sheet shows what the Secretariat/NEC/local IRB pay for out of their own budget (usually after receiving irregular revenue such as grants), the in-kind contributions_irregular worksheet tracks what is "off-budget." IMPORTANT: PLEASE WRITE NOTES in the notes column explaining the division in funding for each purpose/activity between the expenses_irregular worksheet and the in-kind contributions_irregular worksheet.',
-  'Step 6b: Select from the drop-down list in each cell for "Expense currency" the currency in which the irregular expense is listed in the country budget.',
-  'Step 6c: List the exchange rate for local currency to USD.',
-  'Step 6d: Enter the expense in USD if your country primarily uses USD in its budget reports.',
-  'Step 7a: List the expected or actual start date of the irregular expense. For a vehicle or large renovation list the start date as the date received/completed, and the end date as the end of the life of that vehicle or other capital good (e.g., vehicles usually last 10 years, a one-time IT upgrade may be sufficient for five years before another large upgrade is needed).',
-  'Step 7b: List the expected or actual end date of the revenue (funding).',
-  'Step 8: Review carefully the item descriptions listed below. These have been pre-populated by the MRCT Center, and are examples of possible irregular expenses. Please review this list in tandem with the item column. If you believe the item description should be more detailed or changed, please edit and describe how you edited in the notes/comments column.',
-  'Step 9: List the data source (i.e., document name and date, weblink and specific place on the webpage) that documents each listed revenue (funding) source.',
-  'Step 10: Add any comments that will be helpful to others looking at this worksheet.',
+  'Step 1: Review the irregular expense categories below. The list is pre-populated by the MRCT Center, based on review of country budget structures and discussion with country staff. Irregular expenses are those that are not regularly charged on an annual, or less than annual, basis. Irregular expenses are generally large one-time (or long term, such as every 5 years) expenses.',
+  'Step 2: Review the irregular expense items listed below. These have been pre-populated by the MRCT Center, based on review of country budget structures and discussion with country staff. Please review this list in tandem with the item descriptions in the "i" circle in the same row as the item name. Both the pre-populated item names and descriptions are editable. Please make any edits that reflect the expense items in your country. You may also remove any item from the pre-populated list that doesn\'t apply by clicking on the red "x" at the far right in each row, and/or you may add an item that is not in the pre-populated list by clicking on "add item" and then writing in the item name and description.',
+  'Step 3a: Enter the irregular expense amount for each item. You will have selected the currency that you want to use for the dashboard on the Setup tab. Once you enter in the irregular expense amount the program will automatically carry out a currency conversion. You can leave an amount blank if you don\'t know the cost yet for that item; enter 0 only if the actual amount is zero.',
+  'Step 3b: Please note, IF you will be documenting in-kind contributions that are "off-budget," you will list the portion of the full irregular expense that is "donated" on the in-kind contribution (regular) page. An in-kind contribution for an irregular expense is where an entity (the federal government, an institution such as a University, or another source) "gives" the Secretariat/NEC/IRB irregularly purchased items the Secretariat/mgmt. unit does not have to pay for from their irregular budget. You can add rows if you have multiple in-kind contributions for the same item. For example, if there are in-kind contributions to capital costs (durable goods) from both the federal government (e.g., the government donates a vehicle for permanent use by the Secretariat) and from other sources (e.g., an NGO donates a vehicle for permanent use), you would add an additional row for capital costs (durable goods) for each additional source. You will need to make sure to check against the Expenses irregular page. If you do not receive in-kind contributions of the type listed in that row, or you do not want to track that type of in-kind contribution, leave the cell in the "Category" column blank for that item purpose/activity.',
+  'Step 3c: Please note that the in-kind contribution you list may only partially cover the full irregular expense for that item. For example, it may be that the one-time IT upgrade is made possible not only by a grant to the Secretariat that pays for an IT consultant that costs $100,000, but also by the "donated" work of a consultant that gives one-time support for the IT upgrade (valued at $20,000). You would then list on the in-kind contributions irregular page the value of the consultant\'s time for the duration of the IT upgrade in the row for the item "Capital costs (one-time IT upgrade)" and list on the Expenses irregular page the $100,000 that the Secretariat pays out of their budget for the IT consultant. You will need to be careful because in-kind contributions for the irregular budget should only be contributions that are not covered by any irregular funding source (e.g., grants, federal subsidies) that the Secretariat/NEC/local IRB uses to pay for that one-time capital cost.',
+  'Step 4: List the data sources (i.e., document name and date, weblink and specific place on the webpage) for the expense item estimate.',
+  'Step 5: List any notes that will help others (e.g., other staff in your unit) understand more about your choices in this section. IF you will be documenting in-kind contributions, you will need to document the distinction between what is captured on this Expenses Regular page and what is captured on the In-kind contributions Regular page.',
 ];
 
 export const FEES_MODEL_FORM = [
@@ -95,20 +91,16 @@ export const FEES_MODEL_FORM = [
   'Step 10: Add any comments that will be helpful to others looking at this worksheet. For example, if you feel that data is not correct for a cell, explain why in the notes cell for that row.',
 ];
 
+// Revenue Regular (other) — Willyanne 2026-05-27 evening rewrite. UI-aligned
+// (collapses workbook's 6a/6b/6c/6d into single currency-aware amount field).
 export const REVENUE_REGULAR_OTHER = [
-  'Step 1: Select your country from the drop-down list in each "Country" cell below.',
-  'Step 2: Select the unit that you are planning/budgeting for from the drop down list in the cells for "Unit."',
-  'Step 3: Review the regular revenue categories below. The list is pre-populated by the MRCT Center to show two possible entries for each category of regular revenue. If your country has more than two entries for a category of revenue, please add additional rows. Please note that a subsidy is usually from a government budget line that disburses every year to the Secretariat.',
-  'Step 4: IF the country has the regular revenue category listed in the adjacent cell in step 3, enter in the purpose/activities that will be supported by the funding.',
-  'Step 5: IF the country has the regular revenue category listed in the same row in Step 3, enter in the funding source. If the revenue source is a federal or institutional source, please list the department within the government or institution that provides the revenue.',
-  'Step 6a: Enter the revenue in local currency if your country primarily uses local currency in its budget reports.',
-  'Step 6b: Select the currency that the revenue is received in.',
-  'Step 6c: List the exchange rate for local currency to USD.',
-  'Step 6d: Enter the revenue in USD if your country primarily uses USD in its budget reports.',
-  'Step 7a: List the expected or actual start date of the revenue (funding).',
-  'Step 7b: List the expected or actual end date of the revenue (funding).',
-  'Step 8: List the data source (i.e., document name and date, weblink and specific place on the webpage) that documents each listed revenue (funding) source.',
-  'Step 9: Add any comments that will be helpful to others looking at this worksheet.',
+  'Step 1: Review the regular revenue categories below.',
+  'Step 2: Review the regular revenue items listed below. These have been pre-populated by the MRCT Center, based on review of country budget structures and discussion with country staff. (Note that these are currently blank and we have left room for two items under each category). Both the pre-populated item names and descriptions in the "i" circle are editable. Please make any edits that reflect the revenue items in your country. You may also remove any item from the pre-populated list that doesn\'t apply by clicking on the red "x" at the far right in each row, and/or you may add an item that is not in the pre-populated list by clicking on "add item" and then writing in the item name and description.',
+  'Step 3: Enter the revenue amount for each item. You will have selected the currency that you want to use for the dashboard on the Setup tab. Once you enter in the revenue amount the program will automatically carry out a currency conversion. You can leave an amount blank if you don\'t know the cost yet for that item; enter 0 only if the actual amount is zero.',
+  'Step 4a: Write in the expected or actual start date of the revenue (funding).',
+  'Step 4b: Write in the expected or actual end date of the revenue (funding).',
+  'Step 5: List the data sources (i.e., document name and date, weblink and specific place on the webpage) for the expense item estimate.',
+  'Step 6: List any notes that will help others (e.g., other staff in your unit) understand more about your choices in this section. Please be careful to list any calculations that you have made when you listed your revenue amounts.',
 ];
 
 export const REVENUE_IRREGULAR = [
@@ -203,15 +195,14 @@ export const WIZARD_STEP_INSTRUCTIONS = {
   },
   expenses: {
     sheets: [
-      { name: "From Expenses_regular sheet", lines: EXPENSES_REGULAR },
-      { name: "From Expenses_irregular sheet", lines: EXPENSES_IRREGULAR },
+      { name: "Regular expenses", lines: EXPENSES_REGULAR },
+      { name: "Irregular expenses.", lines: EXPENSES_IRREGULAR },
     ],
   },
   revenue: {
-    note: "The current dashboard step only covers Fees. In a future update we'll add a separate Regular Revenue (other) step for subsidies, grants, and other recurring revenue.",
     sheets: [
-      { name: "From Rev_regular(fees) model form sheet", lines: FEES_MODEL_FORM },
-      { name: "From Revenue_regular (other) sheet — coming soon", lines: REVENUE_REGULAR_OTHER },
+      { name: "Regular revenue from fees.", lines: FEES_MODEL_FORM },
+      { name: "Regular revenue from other sources.", lines: REVENUE_REGULAR_OTHER },
     ],
   },
   inKind: {
