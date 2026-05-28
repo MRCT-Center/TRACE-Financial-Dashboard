@@ -11,6 +11,11 @@ import { REVENUE_IRREGULAR_DEFAULTS, REVENUE_IRREGULAR_CATEGORIES, PAYMENT_STATU
 import { IN_KIND_REGULAR_DEFAULTS, IN_KIND_REGULAR_CATEGORIES, IN_KIND_FUNDING_SOURCE_OPTIONS } from "../data/inKindRegular";
 import { IN_KIND_IRREGULAR_DEFAULTS, IN_KIND_IRREGULAR_CATEGORIES } from "../data/inKindIrregular";
 import { KEY_CONSIDERATIONS_DEFAULTS } from "../data/countries";
+import {
+  FEES_COLUMN_KEYS, FEES_DEFAULT_COLUMN_LABELS, FEES_DEFAULT_ROWS,
+  makeBlankFeeRow, rowRevenue, totalFeesRevenue,
+  deriveLegacyFeeFields, isLegacyFeesArray,
+} from "../data/feesModel";
 import InfoTip from "./InfoTip";
 
 const CURRENCIES = [
@@ -37,7 +42,7 @@ const TREND_OPTIONS = ["Remain the same", "Increase", "Decrease"];
 // Before production deployment with real country teams, this MUST be replaced
 // with server-side persistence (Supabase) so drafts survive logout and follow
 // the user across devices. See plan velvety-seeking-marble.md.
-const DRAFT_VERSION = 9;
+const DRAFT_VERSION = 10;
 const draftKey = (country) => `trace-wizard-draft:${country}:v${DRAFT_VERSION}`;
 
 function loadDraft(country) {
@@ -150,7 +155,19 @@ export default function GuidedWizard({ country, data, onSave }) {
           ? JSON.parse(JSON.stringify(data.erRows))
           : JSON.parse(JSON.stringify(EXPENSES_REGULAR_ROW_DEFAULTS)))
   );
-  const [feesEdits,    setFeesEdits]    = useState(() => draft?.feesEdits    || JSON.parse(JSON.stringify(data?.fees    || [])));
+  // Tier 10 (Willyanne 2026-05-28): new fees row shape with 9 funder/student
+  // $/# column buckets. Draft v10 > saved data > workbook defaults; if any
+  // route yields legacy-shape rows (pre-Tier 10) substitute fresh defaults.
+  const [feesEdits, setFeesEdits] = useState(() => {
+    const candidate = draft?.feesEdits ?? data?.fees ?? null;
+    if (isLegacyFeesArray(candidate)) return JSON.parse(JSON.stringify(FEES_DEFAULT_ROWS));
+    return JSON.parse(JSON.stringify(candidate));
+  });
+  // Editable column headers — country teams adjust to match local terminology.
+  // Persisted alongside feesEdits in draft + submit payload.
+  const [feesColumnsEdits, setFeesColumnsEdits] = useState(() =>
+    JSON.parse(JSON.stringify(draft?.feesColumnsEdits || data?.feesColumns || FEES_DEFAULT_COLUMN_LABELS))
+  );
   const [irrProjEdits, setIrrProjEdits] = useState(() => draft?.irrProjEdits || JSON.parse(JSON.stringify(data?.irrProj || [])));
   // Per Willyanne 2026-05-26 #19/#20: Revenue tab gets a Regular sub-tab with
   // a stacked "Regular Revenue from Other Sources" section under Fees, and an
@@ -197,13 +214,13 @@ export default function GuidedWizard({ country, data, onSave }) {
       step, currencyCode: currency.code, inputMode, unit, budgetYear,
       hasRisks, hasOpps, riskText, oppText,
       activityRows, stepSources, stepNotes,
-      erRowsEdits, feesEdits, irrProjEdits,
+      erRowsEdits, feesEdits, feesColumnsEdits, irrProjEdits,
       revRegOtherEdits, revIrrEdits,
       ikRegRowsEdits, ikIrrRowsEdits,
       expVisitedIrregular, revVisitedIrregular, inkVisitedIrregular,
     });
     setDraftSavedAt(new Date().toISOString());
-  }, [country, submitted, step, currency.code, inputMode, unit, budgetYear, hasRisks, hasOpps, riskText, oppText, activityRows, stepSources, stepNotes, erRowsEdits, feesEdits, irrProjEdits, revRegOtherEdits, revIrrEdits, ikRegRowsEdits, ikIrrRowsEdits, expVisitedIrregular, revVisitedIrregular, inkVisitedIrregular]);
+  }, [country, submitted, step, currency.code, inputMode, unit, budgetYear, hasRisks, hasOpps, riskText, oppText, activityRows, stepSources, stepNotes, erRowsEdits, feesEdits, feesColumnsEdits, irrProjEdits, revRegOtherEdits, revIrrEdits, ikRegRowsEdits, ikIrrRowsEdits, expVisitedIrregular, revVisitedIrregular, inkVisitedIrregular]);
 
   // Static exchange rate — recomputed when currency changes. Rates source: CurrencyContext map.
   useEffect(() => {
@@ -358,6 +375,7 @@ export default function GuidedWizard({ country, data, onSave }) {
             <StepRevenue
               conv={conv}
               feesEdits={feesEdits} setFeesEdits={setFeesEdits}
+              feesColumnsEdits={feesColumnsEdits} setFeesColumnsEdits={setFeesColumnsEdits}
               revRegOtherEdits={revRegOtherEdits} setRevRegOtherEdits={setRevRegOtherEdits}
               revIrrEdits={revIrrEdits} setRevIrrEdits={setRevIrrEdits}
               onIrregularVisited={() => setRevVisitedIrregular(true)}
@@ -496,8 +514,12 @@ export default function GuidedWizard({ country, data, onSave }) {
                 ratesAsOf:    new Date().toISOString(),
                 er:      erFlat,
                 erRows:  erRowsEdits,
-                fees:    feesEdits,
-                revFees: feesEdits.reduce((s, f) => s + (f.ctPro || 0) * f.ind + (f.ctStu || 0) * f.ngo, 0),
+                // Tier 10: fees rows carry the new `cells` shape + derived
+                // legacy fields (`ctPro`, `ctStu`, `ind`, `ngo`, `rev`) so
+                // GapView.jsx and Revenue.jsx keep working without rewrites.
+                fees:        feesEdits.map((r) => ({ ...r, ...deriveLegacyFeeFields(r) })),
+                feesColumns: feesColumnsEdits,
+                revFees:     totalFeesRevenue(feesEdits),
                 revRegOther: revRegOtherEdits,
                 revOther: revOtherTotal,
                 revIrr:  revIrrEdits,
@@ -531,8 +553,6 @@ function StepSetup({ country, localCurrency, currency, inputMode, onInputModeCha
   const asOfDate = new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <p style={descStyle}>Confirm your unit and currency settings below. Country is set by your login.</p>
-
       {/* Unit selector — 4-button segmented control (workbook dropdown values) */}
       <div>
         <label style={labelStyle}>Unit <span style={{ color: C.red }}>*</span></label>
@@ -646,7 +666,6 @@ function StepRisks({ hasRisks, onHasRisks, hasOpps, onHasOpps, riskText, onRiskT
   const oppNeedsDesc  = hasOpps  === "yes" && !oppText.trim();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      <p style={descStyle}>Do you expect any major financial risks or opportunities in the next year? These may include political instability, currency changes, loss or gain of international funding, or changes in research activity volume.</p>
       <div>
         <label style={labelStyle}>Do you expect major financial risks in the next year? <span style={{ color: C.red }}>*</span></label>
         <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
@@ -832,10 +851,6 @@ function StepExpensesRegular({ conv, erRowsEdits, setErRowsEdits }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      <p style={descStyle}>
-        <em>Enter your unit's regular annual expenses below (inclusive of the Secretariat/mgmt. expenses and the Ethics Committee expenses). The categories and items are pre-populated from the TRACE Financial Workbook. <strong>All cells are editable</strong> — you can click the item to rename it and click the <strong>ⓘ</strong> to edit its description. If an item does not apply in your context, you can remove it by clicking on the red "x" at the right end of the row. You may also add an item under any expense category by clicking on <strong>+ Add item</strong> to input the item name and description. Please note, you can leave an amount blank if you don't know the cost yet for that item; enter 0 only if the actual amount is zero.</em>
-      </p>
-
       {EXPENSES_REGULAR_CATEGORIES.map((cat) => {
         const rowsInCat = rows
           .map((r, idx) => ({ row: r, idx }))
@@ -1088,18 +1103,6 @@ function StepExpensesIrregular({ conv, irrProjEdits, setIrrProjEdits }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      <p style={descStyle}>
-        Irregular expenses are one-time or infrequent large expenses that are usually large in size,
-        such as vehicles, building works, IT upgrades, or one-off projects. The categories and items
-        are pre-populated from the TRACE Financial Workbook. <strong>All cells are editable</strong> —
-        you can click the item to rename it and click the <strong>ⓘ</strong> to edit its description.
-        If an item does not apply in your context, you can remove it by clicking on the red "x" at the
-        right end of the row. You may also add an item under any expense category by clicking on{" "}
-        <strong>+ Add item</strong> to input the item name and description. Please note, you can leave
-        an amount blank if you don't know the cost yet for that item; enter 0 only if the actual amount
-        is zero.
-      </p>
-
       {IRREGULAR_CATEGORIES.map((cat) => {
         const rowsInCat = (irrProjEdits || [])
           .map((r, idx) => ({ row: r, idx }))
@@ -1237,7 +1240,7 @@ function StepExpensesIrregular({ conv, irrProjEdits, setIrrProjEdits }) {
 // rental/investment/other). Irregular has 4 categories (Grant, Contract,
 // Other 1-time payment, Deferred reserves) plus a Payment status dropdown
 // column unique to Irregular Revenue.
-function StepRevenue({ conv, feesEdits, setFeesEdits, revRegOtherEdits, setRevRegOtherEdits, revIrrEdits, setRevIrrEdits, onIrregularVisited, visitedIrregular }) {
+function StepRevenue({ conv, feesEdits, setFeesEdits, feesColumnsEdits, setFeesColumnsEdits, revRegOtherEdits, setRevRegOtherEdits, revIrrEdits, setRevIrrEdits, onIrregularVisited, visitedIrregular }) {
   const [sub, setSub] = useState("regular");
   const handleSub = (id) => {
     setSub(id);
@@ -1256,6 +1259,7 @@ function StepRevenue({ conv, feesEdits, setFeesEdits, revRegOtherEdits, setRevRe
         <StepRevenueRegular
           conv={conv}
           feesEdits={feesEdits} setFeesEdits={setFeesEdits}
+          feesColumnsEdits={feesColumnsEdits} setFeesColumnsEdits={setFeesColumnsEdits}
           revRegOtherEdits={revRegOtherEdits} setRevRegOtherEdits={setRevRegOtherEdits}
         />
       )}
@@ -1305,7 +1309,7 @@ function CollapsibleSection({ title, defaultOpen = true, children }) {
   );
 }
 
-function StepRevenueRegular({ conv, feesEdits, setFeesEdits, revRegOtherEdits, setRevRegOtherEdits }) {
+function StepRevenueRegular({ conv, feesEdits, setFeesEdits, feesColumnsEdits, setFeesColumnsEdits, revRegOtherEdits, setRevRegOtherEdits }) {
   // Safety net: if rows are missing or in a legacy shape, hydrate from defaults.
   // App.jsx's merge guard handles this on load too.
   useEffect(() => {
@@ -1316,28 +1320,17 @@ function StepRevenueRegular({ conv, feesEdits, setFeesEdits, revRegOtherEdits, s
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const feeTotal = feesEdits.reduce((s, f) => s + (f.ctPro || 0) * f.ind + (f.ctStu || 0) * f.ngo, 0);
+  const feeTotal = totalFeesRevenue(feesEdits);
   const otherTotal = (revRegOtherEdits || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <p style={descStyle}>
-        Regular revenue is revenue that is received in a regular, recurring way. It comes from two
-        sources: <strong>regular revenue from fees</strong> charged for ethics reviews (top), and{" "}
-        <strong>regular revenue from other sources</strong> such as government or institutional
-        subsidies, rental or investment income, etc. (bottom). Click a section header to collapse or
-        expand it. For the regular revenue from other sources, the categories and items are
-        pre-populated from the TRACE Financial Workbook. <strong>All cells in that section are
-        editable</strong> — you can click the item to rename it and click the <strong>ⓘ</strong> to
-        edit its description. If an item does not apply in your context, you can remove it by clicking
-        on the red "x" at the right end of the row. You may also add an item under any revenue
-        category by clicking on <strong>+ Add item</strong> to input the item name and description.
-        Please note, you can leave an amount blank if you don't know the revenue/income yet for that
-        item; enter 0 only if the actual amount is zero.
-      </p>
-
       <CollapsibleSection title="Regular Revenue from Fees" defaultOpen={true}>
-        <StepRevenueFees conv={conv} feesEdits={feesEdits} setFeesEdits={setFeesEdits} />
+        <StepRevenueFees
+          conv={conv}
+          feesEdits={feesEdits} setFeesEdits={setFeesEdits}
+          feesColumnsEdits={feesColumnsEdits} setFeesColumnsEdits={setFeesColumnsEdits}
+        />
       </CollapsibleSection>
 
       <CollapsibleSection title="Regular Revenue from Other Sources" defaultOpen={true}>
@@ -1374,17 +1367,6 @@ function StepRevenueIrregular({ conv, revIrrEdits, setRevIrrEdits }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <p style={descStyle}>
-        Irregular revenue is one-time, time-limited, or otherwise non-recurring funding, such as
-        grants, contracts, other one-time payments. Each row captures the funder, amount, start/end
-        dates, and <strong>payment status</strong> (whether and when the funds have been received).{" "}
-        <strong>All cells are editable</strong> — you can click the item to rename it and click the{" "}
-        <strong>ⓘ</strong> to edit its description. If an item does not apply in your context, you
-        can remove it by clicking on the red "x" at the right end of the row. You may also add an
-        item under any revenue category by clicking on <strong>+ Add item</strong> to input the item
-        name and description. Please note, you can leave an amount blank if you don't know the
-        revenue/income yet for that item; enter 0 only if the actual amount is zero.
-      </p>
       <RevenueCategoryCards
         conv={conv}
         rows={revIrrEdits}
@@ -1585,60 +1567,193 @@ function RevenueCategoryCards({ conv, rows, setRows, categories, withPaymentStat
   );
 }
 
-function StepRevenueFees({ conv, feesEdits, setFeesEdits }) {
-  function updateFee(i, field, raw) {
-    const val = parseFloat(raw) || 0;
-    setFeesEdits((rows) => rows.map((f, idx) => idx === i ? { ...f, [field]: field === "ctPro" || field === "ctStu" ? val : conv.fromDisplay(val) } : f));
-  }
+// Tier 10 (Willyanne 2026-05-28): Regular Revenue from Fees rebuild.
+// 15 review-type rows × 9 funder/student $/# column pairs (18 input cols).
+// Column headers + row labels are editable; rows can be added or removed.
+// Revenue auto-calculated per row (Σ amount × count across 9 cells) and
+// summed for grand total. Table is horizontally scrollable via minWidth.
+function StepRevenueFees({ conv, feesEdits, setFeesEdits, feesColumnsEdits, setFeesColumnsEdits }) {
+  // Cell update: amount inputs go through conv.fromDisplay for currency
+  // conversion (stored in USD internally); count inputs are integers.
+  const updateCell = (rowIdx, colKey, field, raw) => {
+    setFeesEdits((rows) => rows.map((r, i) => {
+      if (i !== rowIdx) return r;
+      const isAmount = field === "amount";
+      let value;
+      if (raw === "" || raw === null || raw === undefined) {
+        value = null;
+      } else {
+        const parsed = parseFloat(raw);
+        if (Number.isNaN(parsed)) { value = null; }
+        else { value = isAmount ? conv.fromDisplay(parsed) : Math.max(0, Math.round(parsed)); }
+      }
+      const existingCell = r.cells?.[colKey] || { amount: null, count: null };
+      return {
+        ...r,
+        cells: { ...r.cells, [colKey]: { ...existingCell, [field]: value } },
+      };
+    }));
+  };
+
+  const updateRowType = (rowIdx, value) => {
+    setFeesEdits((rows) => rows.map((r, i) => i === rowIdx ? { ...r, type: value } : r));
+  };
+
+  const updateColumnLabel = (colKey, field, value) => {
+    setFeesColumnsEdits((cols) => ({ ...cols, [colKey]: { ...cols[colKey], [field]: value } }));
+  };
+
+  const addRow = () => {
+    setFeesEdits((rows) => [...rows, makeBlankFeeRow("")]);
+  };
+
+  const deleteRow = (rowIdx) => {
+    setFeesEdits((rows) => rows.filter((_, i) => i !== rowIdx));
+  };
+
+  const grandTotal = totalFeesRevenue(feesEdits);
+
+  // Cell-width constants — tuned so the table reliably exceeds the wizard's
+  // ~960px content area on common viewports, forcing horizontal scroll.
+  const W_TYPE = 220, W_DOLLAR = 100, W_COUNT = 80, W_REV = 130, W_DEL = 32;
+  const minWidth = W_TYPE + 9 * (W_DOLLAR + W_COUNT) + W_REV + W_DEL;
+
+  const cellInputStyle = {
+    width: "100%", border: "1px solid #ccc", borderRadius: 4,
+    padding: "5px 7px", fontSize: 12, textAlign: "right", fontFamily: "monospace",
+  };
+  const headerInputStyle = {
+    width: "100%", border: "1px solid #cdd5dc", borderRadius: 4,
+    padding: "4px 6px", fontSize: 11, fontWeight: 700, color: C.navy,
+    background: "#fff", textAlign: "left",
+  };
+  const rowLabelInputStyle = {
+    width: "100%", border: "1px solid #dde", borderRadius: 4,
+    padding: "5px 7px", fontSize: 12, color: C.navy, background: "#fff",
+  };
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <p style={descStyle}>Enter fee amounts and review counts for each fee type. Revenue is computed automatically.</p>
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 600 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ overflowX: "auto", border: "1px solid #dde", borderRadius: 8 }}>
+        <table style={{ borderCollapse: "collapse", fontSize: 12, minWidth, width: "100%" }}>
           <thead>
-            <tr style={{ background: C.lightBG }}>
-              <th style={thStyle}>Review type</th>
-              <th style={{ ...thStyle, textAlign: "right" }}>Pro fee ({conv.displaySym})</th>
-              <th style={{ ...thStyle, textAlign: "right" }}>Pro count</th>
-              <th style={{ ...thStyle, textAlign: "right" }}>Stu fee ({conv.displaySym})</th>
-              <th style={{ ...thStyle, textAlign: "right" }}>Stu count</th>
-              <th style={{ ...thStyle, textAlign: "right" }}>Revenue (USD)</th>
+            <tr style={{ background: C.lightBG, borderBottom: "1px solid #dde" }}>
+              <th style={{ ...thStyle, width: W_TYPE, minWidth: W_TYPE, position: "sticky", left: 0, background: C.lightBG, zIndex: 2, borderRight: "1px solid #dde" }}>
+                Review type
+              </th>
+              {FEES_COLUMN_KEYS.map((k) => {
+                const labels = feesColumnsEdits[k] || FEES_DEFAULT_COLUMN_LABELS[k];
+                return [
+                  <th key={`${k}-d`} style={{ ...thStyle, width: W_DOLLAR, minWidth: W_DOLLAR, padding: "6px 6px" }}>
+                    <input
+                      type="text"
+                      value={labels.dollar}
+                      onChange={(e) => updateColumnLabel(k, "dollar", e.target.value)}
+                      style={headerInputStyle}
+                      title="Editable column header"
+                    />
+                  </th>,
+                  <th key={`${k}-c`} style={{ ...thStyle, width: W_COUNT, minWidth: W_COUNT, padding: "6px 6px" }}>
+                    <input
+                      type="text"
+                      value={labels.count}
+                      onChange={(e) => updateColumnLabel(k, "count", e.target.value)}
+                      style={headerInputStyle}
+                      title="Editable column header"
+                    />
+                  </th>,
+                ];
+              })}
+              <th style={{ ...thStyle, width: W_REV, minWidth: W_REV, textAlign: "right" }}>Revenue (USD)</th>
+              <th style={{ ...thStyle, width: W_DEL, minWidth: W_DEL }}></th>
             </tr>
           </thead>
           <tbody>
-            {feesEdits.map((f, i) => {
-              const rev = (f.ctPro || 0) * f.ind + (f.ctStu || 0) * f.ngo;
+            {feesEdits.map((row, ri) => {
+              const rev = rowRevenue(row);
               return (
-                <tr key={i} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                  <td style={{ padding: "8px 10px" }}>{f.type}</td>
-                  <td style={{ padding: "4px 10px" }}>
-                    <NumInput val={Math.round(conv.toDisplay(f.ind))} onChange={(v) => updateFee(i, "ind", v)} />
+                <tr key={ri} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                  <td style={{ padding: "6px 8px", position: "sticky", left: 0, background: "#fff", zIndex: 1, borderRight: "1px solid #dde" }}>
+                    <input
+                      type="text"
+                      value={row.type || ""}
+                      onChange={(e) => updateRowType(ri, e.target.value)}
+                      placeholder="Review type"
+                      style={rowLabelInputStyle}
+                    />
                   </td>
-                  <td style={{ padding: "4px 10px" }}>
-                    <NumInput val={f.ctPro || 0} onChange={(v) => updateFee(i, "ctPro", v)} isCount />
-                  </td>
-                  <td style={{ padding: "4px 10px" }}>
-                    <NumInput val={Math.round(conv.toDisplay(f.ngo))} onChange={(v) => updateFee(i, "ngo", v)} />
-                  </td>
-                  <td style={{ padding: "4px 10px" }}>
-                    <NumInput val={f.ctStu || 0} onChange={(v) => updateFee(i, "ctStu", v)} isCount />
-                  </td>
-                  <td style={{ padding: "8px 10px", textAlign: "right", fontFamily: "monospace", fontWeight: 600 }}>
+                  {FEES_COLUMN_KEYS.map((k) => {
+                    const cell = row.cells?.[k] || { amount: null, count: null };
+                    const amtBlank = cell.amount === null || cell.amount === undefined || cell.amount === "";
+                    const cntBlank = cell.count === null || cell.count === undefined || cell.count === "";
+                    return [
+                      <td key={`${ri}-${k}-d`} style={{ padding: "4px 6px" }}>
+                        <input
+                          type="number" min="0"
+                          value={amtBlank ? "" : Math.round(conv.toDisplay(cell.amount))}
+                          onChange={(e) => updateCell(ri, k, "amount", e.target.value)}
+                          style={cellInputStyle}
+                        />
+                      </td>,
+                      <td key={`${ri}-${k}-c`} style={{ padding: "4px 6px" }}>
+                        <input
+                          type="number" min="0"
+                          value={cntBlank ? "" : cell.count}
+                          onChange={(e) => updateCell(ri, k, "count", e.target.value)}
+                          style={cellInputStyle}
+                        />
+                      </td>,
+                    ];
+                  })}
+                  <td style={{ padding: "6px 8px", textAlign: "right", fontFamily: "monospace", fontWeight: 600, color: C.navy }}>
                     ${rev.toLocaleString()}
+                  </td>
+                  <td style={{ padding: "4px 2px", textAlign: "center" }}>
+                    <button
+                      onClick={() => deleteRow(ri)}
+                      title="Delete this row"
+                      style={{ background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: 15, padding: "2px 4px", lineHeight: 1 }}
+                    >
+                      ×
+                    </button>
                   </td>
                 </tr>
               );
             })}
-            <tr style={{ fontWeight: 700, background: "#f8f8f8" }}>
-              <td colSpan={5} style={{ padding: "9px 12px" }}>Total Revenue</td>
-              <td style={{ padding: "9px 12px", textAlign: "right", fontFamily: "monospace" }}>
-                ${feesEdits.reduce((s, f) => s + (f.ctPro || 0) * f.ind + (f.ctStu || 0) * f.ngo, 0).toLocaleString()}
+            <tr style={{ background: "#fafbfc" }}>
+              <td colSpan={2 + 2 * FEES_COLUMN_KEYS.length + 2} style={{ padding: "8px 10px" }}>
+                <button
+                  onClick={addRow}
+                  style={{
+                    background: "transparent",
+                    border: `1px dashed ${C.teal}`,
+                    color: C.teal,
+                    borderRadius: 5,
+                    padding: "5px 12px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  + Add row
+                </button>
               </td>
+            </tr>
+            <tr style={{ fontWeight: 700, background: "#f8f8f8", borderTop: "1px solid #dde" }}>
+              <td colSpan={1 + 2 * FEES_COLUMN_KEYS.length} style={{ padding: "9px 12px", color: C.navy }}>
+                Total Revenue
+              </td>
+              <td style={{ padding: "9px 12px", textAlign: "right", fontFamily: "monospace", color: C.navy }}>
+                ${grandTotal.toLocaleString()}
+              </td>
+              <td></td>
             </tr>
           </tbody>
         </table>
       </div>
-      <div style={{ fontSize: 12, color: C.blueGrey, fontStyle: "italic" }}>Revenue is always shown in USD. Fee amounts convert based on your currency selection above.</div>
+      <div style={{ fontSize: 11, color: C.blueGrey, fontStyle: "italic" }}>
+        Revenue is always shown in USD. Fee amounts (the $-columns) convert based on your currency selection in Setup; counts (the #-columns) are integers. Scroll horizontally to see all columns. Column headers and row labels are editable.
+      </div>
     </div>
   );
 }
@@ -1784,10 +1899,6 @@ function StepInKindRegular({ conv, ikRegRowsEdits, setIkRegRowsEdits }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      <p style={descStyle}>
-        <em>On this page, please enter the regular annual in-kind contributions received by your unit — non-cash support such as donated staff time, office space, equipment, or services from federal, institutional, or other sources. The categories and items below are pre-populated from the TRACE Financial Workbook (in-kind contributions regular tab) and mirror the regular expense items. <strong>All cells are editable</strong> — you can click the item to rename it and click the <strong>ⓘ</strong> to edit its description. If an item does not apply, remove it by clicking the red "x." You may also add an item under any category with <strong>+ Add item</strong>. Select a funding source (federal / institutional / other) for each row. Please note, you can leave an amount blank if you don't know the value yet; enter 0 only if the actual amount is zero.</em>
-      </p>
-
       {IN_KIND_REGULAR_CATEGORIES.map((cat) => {
         const rowsInCat = rows
           .map((r, idx) => ({ row: r, idx }))
@@ -1936,10 +2047,6 @@ function StepInKindIrregular({ conv, ikIrrRowsEdits, setIkIrrRowsEdits }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      <p style={descStyle}>
-        <em>Irregular in-kind contributions are one-time or infrequent non-cash support — for example, a vehicle donated by a federal entity, a one-time training delivered free by an institution, or capital equipment given for a specific project. Categories and pre-filled items below are drawn from the TRACE Financial Workbook (in-kind contributions irregular tab). <strong>All cells are editable</strong> — including the item description. Click <em>See more</em> on long items to read and edit the full text. Use <strong>+ Add item</strong> under any category to add new rows; use the red "x" to remove a row.</em>
-      </p>
-
       {IN_KIND_IRREGULAR_CATEGORIES.map((cat) => {
         const rowsInCat = rows
           .map((r, idx) => ({ row: r, idx }))
@@ -2093,9 +2200,6 @@ function StepActivities({ rows, setRows }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      <p style={descStyle}>
-        <em>For each activity, select whether you expect effort to <strong>remain the same</strong>, <strong>increase</strong>, or <strong>decrease</strong> in the near term (next year) and the long term (3–5 years). Activity names and descriptions are editable — you can click the name to rename it and click the <strong>ⓘ</strong> to rewrite its description. If any of the pre-populated activities in the activities list does not apply in your context, you can remove it by clicking the red "x" at the right end of the row; if you would like to add an activity, use <strong>+ Add activity</strong> at the end of the list to name that activity and enter in a description.</em>
-      </p>
       <div style={{ background: "#fff", border: "1px solid #dde", borderRadius: 8, overflow: "hidden" }}>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 720 }}>
@@ -2283,7 +2387,7 @@ function ExpensesStep({ conv, erRowsEdits, setErRowsEdits, irrProjEdits, setIrrP
 function StepReview({ country, activityRows, currency, erRowsEdits, feesEdits }) {
   const filledActivities = activityRows.filter((r) => r.nearTerm && r.longTerm);
   const totalExpenses = (erRowsEdits || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
-  const totalRevenue  = feesEdits.reduce((s, f) => s + (f.ctPro || 0) * f.ind + (f.ctStu || 0) * f.ngo, 0);
+  const totalRevenue  = totalFeesRevenue(feesEdits);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <p style={descStyle}>Review your responses before submitting. Submitting will save all changes to the TRACE database.</p>

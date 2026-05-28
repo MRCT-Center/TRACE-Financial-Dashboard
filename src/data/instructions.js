@@ -71,24 +71,25 @@ export const EXPENSES_IRREGULAR = [
   'Step 5: List any notes that will help others (e.g., other staff in your unit) understand more about your choices in this section. IF you will be documenting in-kind contributions, you will need to document the distinction between what is captured on this Expenses Regular page and what is captured on the In-kind contributions Regular page.',
 ];
 
+// Regular Revenue from Fees — Willyanne 2026-05-28 evening rewrite (in
+// plane-to-London email). Replaces the prior 17-step workbook-verbatim block.
+// Maps to the new Tier 10 Fees panel (15 review-type rows, 9 funder/student
+// $/# column pairs, editable headers, auto-calc). Silent typo fixes:
+// her two consecutive "Step 3" lines split to "Step 3a" / "Step 3b" (her own
+// numbering pattern from other panels); "the numb of review" → "the number
+// of reviews"; "in the ear you designated" → "in the year you designated".
 export const FEES_MODEL_FORM = [
-  'Step 1: Select your country from the drop-down list in each "Country" cell below.',
-  'Step 2: Select the unit that you are planning/budgeting for from the drop down list in the cells for "Unit."',
-  'Step 3: Review the fee types listed below. These have been pre-populated in line with the options in the draft fee model. The same review type will be listed multiple times even if the fee charged is the same, because the fee charged could be (and in some countries is) different for the same fee type depending on whether the type of fee is for a professional or student, or how the study is funded. See the fee model PowerPoint for more information about fee type, and definitions of initial review, minimal risk vs more than minimal risk review, and major vs minor amendments.',
-  'Step 4: Review the timeframe selections below. Use the drop-down list in each cell to correct any errors. Please note that the MRCT Center input the selection "regular" if the country fee structure did not specify a timeframe. The MRCT Center also disaggregated timeframe into regular and accelerated, even if the fee charged is the same, because the fee charged could be (and in some countries is) different for different timeframes.',
-  'Step 5: Review the investigator type selections below. Use the drop-down list in each cell to correct any errors. Please note that the MRCT Center input the selection "professional" if the country fee structure did not specify an investigator type. The MRCT Center also disaggregated students into International students, PhD, MA, and BA students, because the fee charged could be (and in some countries is) different for different types of students.',
-  'Step 6: Review the funder type selections below. Use the drop-down list in each cell to correct any errors. Please note that the MRCT Center input the selection "industry" if the country fee structure stated the funding was pharma, industry, or for a clinical trial. The MRCT Center also disaggregated funders into industry and institution/NGO/philanthropy, because the fee charged could be (and in some countries is) different for different types of funders.',
-  'Step 7a: Enter the fee in local currency if your country primarily uses local currency in its fee structure/budget reports.',
-  'Step 7b: Enter the currency the fee is charged in.',
-  'Step 7c: Enter the exchange rate for the currency that your country primarily charges fees in.',
-  'Step 7d: Enter the fee in USD if your country primarily uses USD in its budget reports.',
-  'Step 8ai: Review the total number of [non-student] initial reviews (for both more than minimal risk and minimal risk) conducted last year. If the cell is blank, please contact the MRCT Center to share the country estimate of total reviews for the year.',
-  'Step 8aii: Review the total number of all types of reviews conducted last year.',
-  'Step 8bi: Review the total revenue (for all fee types together) collected last year in local currency.',
-  'Step 8bii: Review the total revenue (for all fee types together) collected last year in USD.',
-  'Step 8c: Review the number of reviews by fee type. If the country does not disaggregate a fee type (e.g., does not disaggregate initial review into more than minimal risk and minimal risk), the MRCT Center has created multiple rows for that fee type to disaggregate according to the draft fee model — using the same fee for each. If the country gave an estimate of 20 initial reviews conducted in the last year, the MRCT Center put "20" only on one of the disaggregated initial review lines so that we do not artificially inflate the number of reviews.',
-  'Step 9: Review the data source/s below. These have been listed by the MRCT Center based on the documents that countries have shared with the MRCT Center.',
-  'Step 10: Add any comments that will be helpful to others looking at this worksheet. For example, if you feel that data is not correct for a cell, explain why in the notes cell for that row.',
+  'Step 1a: Review the Review types below. The list is pre-populated by the MRCT Center, based on review of country fee structures and discussion with country staff. Please note that when the term "(any)" is used, that means that the country does not disaggregate that category. For example, for review type, "Initial (any)" means that the country does not disaggregate initial review into subtypes of initial review (e.g., minimal risk vs >minimal risk; or non-clinical trial vs. clinical trial, which we assume to be the same as minimal risk vs >minimal risk).',
+  'Step 1b: Please note that by "reg." we mean regular timeframe for the review. By "Accel." we mean an accelerated, or fast track (sometimes called expedited) timeframe for review where the entity submitting the proposal pays a higher charge for the "Accel." Review.',
+  'Step 1c: If your country does not disaggregate initial review by "risk level" of the study, you can remove the rows for "Initial (>min risk) Reg.", "Initial (>min risk) Accel.", "Initial (min risk) Reg.", and "Initial (min risk) Accel." by clicking on the red "x" at the far right of the row for those review types. If your country does not disaggregate by Amendment type (and thus you would be filling in the "Amendment (any)" rows), you can remove the rows for "Amendment (minor) Reg.", "Amendment (minor) Accel.", "Amendment (major) Reg." and "Amendment (major) Accel." by clicking on the red "x" at the far right of the row for those review types.',
+  'Step 1d: Please note that if your country does not have an option for accelerated review, you would only fill in the rows for "Reg." review. We only list the option for "Accel." for initial review and amendments because countries do not often have accelerated review for "Continuing review".',
+  'Step 2a: Review the column headers to the right of Review type. These are different ways that countries disaggregate review fees, that are in addition to the review type. Please note that when the term "(any)" is used, that means that the country does not disaggregate that category. For example, "Pro (any) $" means that the country does not disaggregate professional (i.e., non-student) studies by type of funder (e.g., industry, institutional, govt.) for the fee charged. A country that charges the same fee no matter the student type would use the column for "Stud. (any) $".',
+  'Step 2b: Please note that by "Pro" we mean professional (i.e., non-student) studies, and by "Stud." we mean student studies.',
+  'Step 2c: Please note that by "$" we mean the financial fee amount charged by the country for that fee type. For example, "Pro Industry $" means the fee charge for Professional studies funded by industry. By "#" we mean the number of reviews conducted in the year you listed on the Setup page for that review type. For example, "Pro Industry #" means the number of professional studies funded by industry that were reviewed by the Ethics Committee in the year you designated on the Setup page.',
+  'Step 3a: Enter in the fee amounts ($) for each row/column "box" combination that is appropriate for your country\'s fee table. For example, if your country does disaggregate initial review by risk level, does allow for accelerated review for an upcharge, and does separate fees by type of funder, you could put in the row for Initial review (min risk) Accel. and the column for Pro Industry a fee of $1000 that is in line with what you have in your country\'s fee table.',
+  'Step 3b: Enter in the number of reviews (#) for each row/column "box" combination that is appropriate for your country\'s fee table.',
+  'Step 4: List the data sources (i.e., document name and date, weblink and specific place on the webpage) you used. For the regular revenue from fees, make sure to list in the data sources box the sources for BOTH the fee ($) estimates and the number of review (#) estimates.',
+  'Step 5: List any notes that will help others (e.g., other staff in your unit) understand more about your choices in this section.',
 ];
 
 // Revenue Regular (other) — Willyanne 2026-05-27 evening rewrite. UI-aligned
@@ -103,53 +104,51 @@ export const REVENUE_REGULAR_OTHER = [
   'Step 6: List any notes that will help others (e.g., other staff in your unit) understand more about your choices in this section. Please be careful to list any calculations that you have made when you listed your revenue amounts.',
 ];
 
+// Irregular Revenue — Willyanne 2026-05-28 evening rewrite (in plane-to-London
+// email). Replaces the prior 14-line workbook-verbatim block. UI-aligned and
+// matches the new Revenue Irregular sub-tab structure. NOTE: Step 5 says
+// "expense item estimate" in a Revenue context — flagged for her review.
 export const REVENUE_IRREGULAR = [
-  'Step 1: Select your country from the drop-down list in each "Country" cell below.',
-  'Step 2: Select the unit that you are planning/budgeting for from the drop down list in the cells for "Unit."',
-  'Step 3: Review the irregular revenue categories below. The list is pre-populated by the MRCT Center.',
-  'Step 4: If the country has the irregular revenue category listed in the adjacent cell in step 3, enter in the purpose of the revenue (funding) and the activities that will be supported by the funding.',
-  'Step 5: If the country has the irregular revenue category listed in this row in step 3, enter in the irregular revenue source. If the irregular revenue source is a federal or institutional source, please list the department within the government or institution that provides the irregular revenue (funding).',
-  'Step 6a: Enter the revenue in local currency if your country primarily uses local currency in its budget reports.',
-  'Step 6b: Select the currency that the irregular revenue is received in.',
-  'Step 6c: List the exchange rate for local currency to USD.',
-  'Step 6d: Enter the revenue in USD if your country primarily uses USD in its budget reports.',
-  'Step 7a: List the expected or actual start date of the irregular revenue (funding).',
-  'Step 7b: List the expected or actual end date of the irregular revenue (funding).',
-  'Step 8: Select the payment status from the drop-down list in each cell.',
-  'Step 9: List the data source (i.e., document name and date, weblink and specific place on the webpage) that documents each listed revenue (funding) source.',
-  'Step 10: Add any comments that will be helpful to others looking at this worksheet.',
+  'Step 1: Review the irregular revenue categories below. The list is pre-populated by the MRCT Center, based on review of country budget structures and discussion with country staff. Irregular revenues are those that are not regularly obtained by the unit through mechanisms such as grants or contracts, and are generally large one-time (or long term, such as every 3-5 years) revenues.',
+  'Step 2: Review the irregular revenue items listed below. These have been pre-populated by the MRCT Center, based on review of country budget structures and discussion with country staff. (Note that these are currently blank and we have left room for two items under each category). Please make any edits that reflect the revenue items in your country. You may also remove any item from the pre-populated list that doesn\'t apply by clicking on the red "x" at the far right in each row, and/or you may add an item that is not in the pre-populated list by clicking on "add item" and then writing in the item name and description.',
+  'Step 3: Enter the irregular revenue amount for each item. You will have selected the currency that you want to use for the dashboard on the Setup tab. Once you enter in the irregular revenue amount the program will automatically carry out a currency conversion. You can leave an amount blank if you don\'t know the cost yet for that item; enter 0 only if the actual amount is zero.',
+  'Step 4a: Write in the expected or actual start date of the irregular revenue (funding).',
+  'Step 4b: Write in the expected or actual end date of the irregular revenue (funding).',
+  'Step 5: List the data sources (i.e., document name and date, weblink and specific place on the webpage) for the expense item estimate.',
+  'Step 6: List any notes that will help others (e.g., other staff in your unit) understand more about your choices in this section. Please be careful to list any calculations that you have made when you listed your revenue amounts.',
 ];
 
+// Regular In-Kind Contributions — Willyanne 2026-05-28 evening rewrite (in
+// plane-to-London email). Replaces the prior workbook-verbatim block.
+// UI-aligned (mirrors EXPENSES_REGULAR row structure). Silent typo fixes
+// per the approved go-forward policy: "One you enter" → "Once you enter";
+// "In-Kknd" → "In-Kind"; "Select the select" → "Select"; "but it generally"
+// → "but it is generally"; "for each item.." → "for each item.";
+// "expensive item" → "expense item"; "may up" → "make up"; "apge" → "page".
 export const IN_KIND_REGULAR = [
-  'Step 1: Select your country from the drop-down list in each "Country" cell below.',
-  'Step 2: Select the unit that receives the in-kind contributions from the drop-down list in each "Unit" cell below.',
-  'Step 3: IF you want to track in-kind contributions from specific sources, select the entity/s that gives the in-kind contributions for the items in the adjacent cells in Step 4 from the drop-down list in the "Category" cells. An in-kind contribution is where an entity (the federal government, an institution such as a University, or another source — e.g., Secretariat staff giving overtime hours they are not paid for, or staff using their personal vehicle for Secretariat work) "gives" the Secretariat/NEC/IRB personnel time, an office, office supplies, or other items that they do not have to pay for from their regular or irregular budget.',
-  'Step 4: The MRCT Center has pre-populated the items for all in-kind contributions, which mirror what you see on the expenses_regular worksheet. You can add rows if you have multiple in-kind contributions for the same item. For example, if there are in-kind contributions to salaries from both the federal government and other sources, add an additional row for salaries for each additional source. You will need to make sure to check against the expenses_regular page. The in-kind contribution you list may only partially cover the full annual expense for that item — see the rent and annual conference examples in the workbook. IMPORTANT: PLEASE WRITE NOTES in the notes column explaining the division in funding between expenses_regular and in-kind contributions_regular.',
-  'Step 5: If the in-kind revenue source is a federal or institutional source, please list the department within the government or institution that provides the in-kind contribution.',
-  'Step 6a: Enter the in-kind contribution in local currency if your country primarily uses local currency.',
-  'Step 6b: Select the currency that the in-kind contribution is valued in.',
-  'Step 6c: List the exchange rate for local currency to USD.',
-  'Step 6d: Enter the in-kind contribution in USD if your country primarily uses USD.',
-  'Step 7: Review the in-kind item descriptions listed below. These have been pre-populated by the MRCT Center based on the expense item descriptions in the expense_regular worksheet. If you believe the item description should be more detailed or changed, please edit and describe how you edited in the notes/comments column.',
-  'Step 8: List the data source (i.e., document name and date, weblink and specific place on the webpage) that documents each listed in-kind contribution.',
-  'Step 9: PLEASE add any notes/comments that will be helpful to others looking at this worksheet. It is especially important to document the distinction between what is captured on the in-kind contributions_regular worksheet and what is captured on the expenses_regular worksheet, and to describe any calculations (e.g., if a Secretariat staff member is working 20% overtime unpaid, multiply their annual salary by 0.2 and explain in the notes).',
+  'Step 1: Review the regular expense categories listed below, which we are using to show in-kind contributions toward regular expenses (you will notice that for in-kind contributions we have mirrored the same categories and items that you see on the Expense Regular page). These have been pre-populated by the MRCT Center, based on review of country budget structures and discussion with country staff. You will notice that for in-kind contributions, we have mirrored the same categories and items that you see on the Regular Expenses page.',
+  'Step 2: Review the regular expense items listed below, which we are using to show in-kind contributions toward regular expenses (you will notice that for in-kind contributions we have mirrored the same categories and items that you see on the Expense Regular page). These have been pre-populated by the MRCT Center, based on review of country budget structures and discussion with country staff. Please review this list in tandem with the item descriptions in the "i" circle in the same row as the item name. Both the pre-populated item names and descriptions are editable. Please make any edits that reflect the expense items in your country. You may also remove any item from the pre-populated list that doesn\'t apply by clicking on the red "x" at the far right in each row, and/or you may add an item that is not in the pre-populated list by clicking on "add item" and then writing in the activity name and description.',
+  'Step 3a: Enter the in-kind contribution amount for each item. You will have selected the currency that you want to use for the dashboard on the Setup tab. Once you enter in the expense amount the program will automatically carry out a currency conversion. You can leave an amount blank if you don\'t know the cost yet for that item; enter 0 only if the actual amount is zero.',
+  'Step 3b: Please note, IF you will be documenting in-kind contributions that are "off-budget," you will list the portion of the full regular expense that is "donated" on this In-Kind Contributions Regular page. An in-kind contribution is where an entity (the federal government, an institution such as a University, or another source) "gives" the Secretariat/NEC/IRB personnel time, an office, office supplies, or other items the Secretariat/mgmt. unit does not have to pay for from their regular or irregular budget. For example, if the government gives the Secretariat office space valued at $20,000/year, list $0 on this Expenses Regular page in the row for rent AND then put $20,000 in the row for rent on this In-kind Contributions Regular page.',
+  'Step 4: Select the entity/s that gives the in-kind contributions in the box for Funding source, for each item where you have listed an in-kind contribution. Federal indicates a government source, institution indicates a University source or other institutional source (such as an NGO), and other can be anything else but it is generally used for in-kind contributions by staff such as the "cost" for use of their personal vehicle for site visits or the "cost" for their unpaid overtime.',
+  'Step 5: List the data sources (i.e., document name and date, weblink and specific place on the webpage) for the in-kind contribution estimate for each item.',
+  'Step 6: List any notes that will help others (e.g., other staff in your unit) understand more about your choices in this section. This is especially important to describe each expense item (e.g., it is helpful to list the number and type of staff that make up the "salaries" expense), and any calculations you make to derive an expense. For example, "Assuming 5 regular employees, at about $30,000 per employee (listed on the Expenses Regular page). Assuming 2 part-time (50% time) government staff supporting the Secretariat (listed on this In-kind Contribution page- so the calculation for the first salaries item of $30,000 on this page comes from 2 government staff x 30,000 salary x 0.5 (i.e., 50% time). Also assuming that 2 personnel are working 20% overtime, and if they were to be paid for that overtime, it would be at their regular hourly rate and not an overtime rate (so the calculation for the second salaries item is 2 unit staff x 30000 salary x 0.2= 12,000)(listed on this In-kind Contributions Regular page).',
 ];
 
+// Irregular In-Kind Contributions — Willyanne 2026-05-28 evening rewrite (in
+// plane-to-London email). Replaces the prior workbook-verbatim block.
+// UI-aligned (mirrors EXPENSES_IRREGULAR row structure). Silent typo fixes:
+// added missing ")" after "Expense Irregular page" in Step 1 and Step 2.
+// NOTE: Step 4 says "expense item estimate" in an In-Kind context —
+// flagged for her review.
 export const IN_KIND_IRREGULAR = [
-  'Step 1: Select your country from the drop-down list in each "Country" cell below.',
-  'Step 2: Select the unit that receives the in-kind contributions from the drop-down list in each "Unit" cell below.',
-  'Step 3: IF you want to track in-kind contributions from specific sources, select the entity/s that gives the in-kind contributions for the items in the adjacent cells in Step 4 from the drop-down list in the "Category" cells. An in-kind contribution is where an entity "gives" the Secretariat/NEC/IRB some form of one-time large cost item that they do not have to pay for from their regular or irregular budget.',
-  'Step 4: The MRCT Center has pre-populated the items for all in-kind contributions, which mirror what you see on the expenses_irregular worksheet. You can add rows if you have multiple in-kind contributions for the same item. You will need to check against the expenses_irregular page. The in-kind contribution you list may only partially cover the full expense for that item — see the IT upgrade and consultant example in the workbook. In-kind contributions for the irregular budget should only be contributions that are not covered by any irregular funding source (e.g., grants, federal subsidies). IMPORTANT: PLEASE WRITE NOTES explaining the division in funding for each purpose/activity between the expenses_irregular and in-kind contributions_irregular worksheets.',
-  'Step 5: If the in-kind revenue source is a federal or institutional source, please list the department within the government or institution that provides the in-kind contribution.',
-  'Step 6a: Enter the in-kind contribution in local currency if your country primarily uses local currency.',
-  'Step 6b: Select the currency that the in-kind contribution is valued in.',
-  'Step 6c: List the exchange rate for local currency to USD.',
-  'Step 6d: If the in-kind contribution is valued in USD, list the amount in this column.',
-  'Step 7a: List the expected or actual start date of the in-kind contribution. For a vehicle or large renovation list the start date as the date received/completed, and the end date as the end of the life of that vehicle or other capital good.',
-  'Step 7b: List the expected or actual end date of the in-kind contribution.',
-  'Step 8: Review carefully the in-kind item descriptions listed below. If you believe the item description should be more detailed or changed, please edit and describe how you edited in the notes/comments column.',
-  'Step 9: List the data source (i.e., document name and date, weblink and specific place on the webpage) that documents each listed in-kind contribution.',
-  'Step 10: PLEASE add any notes/comments that will be helpful to others looking at this worksheet. It is especially important to document the distinction between in-kind contributions_irregular and expenses_irregular, and to describe any calculations.',
+  'Step 1: Review the irregular expense categories below, which we are using to show in-kind contributions toward irregular expenses (you will notice that for in-kind contributions we have mirrored the same categories and items that you see on the Expense Irregular page). The list is pre-populated by the MRCT Center, based on review of country budget structures and discussion with country staff. Irregular expenses are those that are not regularly charged on an annual, or less than annual, basis. Irregular expenses are generally large one-time (or long term, such as every 5 years) expenses.',
+  'Step 2: Review the irregular expense items listed below, which we are using to show in-kind contributions toward irregular expenses (you will notice that for in-kind contributions we have mirrored the same categories and items that you see on the Expense Irregular page). These have been pre-populated by the MRCT Center, based on review of country budget structures and discussion with country staff. Please review this list in tandem with the item descriptions in the "i" circle in the same row as the item name. Both the pre-populated item names and descriptions are editable. Please make any edits that reflect the expense items in your country. You may also remove any item from the pre-populated list that doesn\'t apply by clicking on the red "x" at the far right in each row, and/or you may add an item that is not in the pre-populated list by clicking on "add item" and then writing in the item name and description.',
+  'Step 3a: Enter the in-kind contribution amount for each item. You will have selected the currency that you want to use for the dashboard on the Setup tab. Once you enter in the irregular expense amount the program will automatically carry out a currency conversion. You can leave an amount blank if you don\'t know the cost yet for that item; enter 0 only if the actual amount is zero.',
+  'Step 3b: Please note, IF you will be documenting in-kind irregular contributions that are "off-budget," you will list the portion of the full irregular expense that is "donated" on this In-kind Contribution Irregular page. An in-kind contribution for an irregular expense is where an entity (the federal government, an institution such as a University, or another source) "gives" the Secretariat/NEC/IRB irregularly purchased items the Secretariat/mgmt. unit does not have to pay for from their irregular budget. You can add rows if you have multiple in-kind contributions for the same item. For example, if there are in-kind contributions to capital costs (durable goods) from both the federal government (e.g., the government donates a vehicle for permanent use by the Secretariat) and from other sources (e.g., an NGO donates a vehicle for permanent use), you would add an additional row for capital costs (durable goods) for each additional source. You will need to make sure to check against the Expenses Irregular page. If you do not receive in-kind contributions of the type listed in that row, or you do not want to track that type of in-kind contribution, leave the cell in the "Category" column blank for that item purpose/activity.',
+  'Step 3c: Please note that the in-kind contribution you list may only partially cover the full irregular expense for that item. For example, it may be that the one-time IT upgrade is made possible not only by a grant to the Secretariat that pays for an IT consultant that costs $100,000, but also by the "donated" work of a consultant that gives one-time support for the IT upgrade (valued at $20,000). You would then list on this In-kind Contributions Irregular page the value of the consultant\'s time for the duration of the IT upgrade in the row for the item "Capital costs (one-time IT upgrade)" and list on the Expenses Irregular page the $100,000 that the Secretariat pays out of their budget for the IT consultant. You will need to be careful because in-kind contributions for the irregular budget should only be contributions that are not covered by any irregular funding source (e.g., grants, federal subsidies) that the Secretariat/NEC/local IRB uses to pay for that one-time capital cost.',
+  'Step 4: List the data sources (i.e., document name and date, weblink and specific place on the webpage) for the expense item estimate.',
+  'Step 5: List any notes that will help others (e.g., other staff in your unit) understand more about your choices in this section. IF you will be documenting in-kind contributions, you will need to document the distinction between what is captured on this Expenses Irregular page and what is captured on the In-kind Contributions Irregular page.',
 ];
 
 export const SUMMARY_REGULAR = [
@@ -201,14 +200,15 @@ export const WIZARD_STEP_INSTRUCTIONS = {
   },
   revenue: {
     sheets: [
-      { name: "Regular revenue from fees.", lines: FEES_MODEL_FORM },
-      { name: "Regular revenue from other sources.", lines: REVENUE_REGULAR_OTHER },
+      { name: "Regular revenue from fees", lines: FEES_MODEL_FORM },
+      { name: "Regular revenue from other sources", lines: REVENUE_REGULAR_OTHER },
+      { name: "Irregular revenue", lines: REVENUE_IRREGULAR },
     ],
   },
   inKind: {
     sheets: [
-      { name: "From In-kind contributions_regular sheet", lines: IN_KIND_REGULAR },
-      { name: "From In-kind contributions_irregular sheet", lines: IN_KIND_IRREGULAR },
+      { name: "Regular In-Kind Contributions", lines: IN_KIND_REGULAR },
+      { name: "Irregular In-Kind Contributions", lines: IN_KIND_IRREGULAR },
     ],
   },
   review: {

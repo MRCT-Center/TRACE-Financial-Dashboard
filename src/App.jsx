@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { COUNTRY_FLAGS, COLORS as C } from "./utils/metrics";
 import { COUNTRIES } from "./data/countries";
 import { EXPENSES_REGULAR_ROW_DEFAULTS } from "./data/expensesRegular";
+import { FEES_DEFAULT_ROWS, FEES_DEFAULT_COLUMN_LABELS, isLegacyFeesArray } from "./data/feesModel";
 import { CurrencyProvider, COUNTRY_CURRENCIES, CURRENCIES, useCurrency } from "./utils/CurrencyContext";
 import { supabase } from "./supabaseClient";
 import LoginPage from "./components/LoginPage";
@@ -181,6 +182,18 @@ export default function App() {
             }
             if (isLegacyRevRows(d?.revIrr)) {
               merged.revIrr = updated[country].revIrr;
+            }
+            // Tier 10 (Willyanne 2026-05-28): Regular Revenue from Fees row
+            // shape changed from `{ type, ind, ngo, ctPro, ctStu, rev }` to
+            // `{ type, cells: { proAny:{amount,count}, ... × 9 } }`. If any
+            // saved fee row lacks `cells`, substitute fresh defaults and seed
+            // default column labels. Saved fees with the new shape are
+            // preserved as-is.
+            if (isLegacyFeesArray(d?.fees)) {
+              merged.fees = JSON.parse(JSON.stringify(FEES_DEFAULT_ROWS));
+              merged.feesColumns = JSON.parse(JSON.stringify(FEES_DEFAULT_COLUMN_LABELS));
+            } else if (!d?.feesColumns) {
+              merged.feesColumns = JSON.parse(JSON.stringify(FEES_DEFAULT_COLUMN_LABELS));
             }
             // Category prefix migration (Willyanne 2026-05-27 #1/#2)
             merged.erRows = renameCategories(merged.erRows);
