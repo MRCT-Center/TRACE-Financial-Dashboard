@@ -207,7 +207,17 @@ export default function App() {
             if (isLegacyRevRows(d?.revRegOther)) {
               merged.revRegOther = updated[country].revRegOther;
             }
-            if (isLegacyRevRows(d?.revIrr)) {
+            // Tier 12 (Willyanne 2026-05-29): the Irregular Revenue defaults now
+            // seed the first Grant row from the workbook (Gates Foundation,
+            // $300,000). Pre-Tier-12 Supabase rows carry the Tier-5 all-blank
+            // revIrr rows (correct shape, so not "legacy"), which would hide the
+            // new seed. Re-seed when the saved rows are legacy OR entirely blank
+            // so the Gates row surfaces; any country that entered real irregular
+            // revenue (a row with amount > 0) is preserved.
+            const isAllBlankRevIrr = (rows) =>
+              Array.isArray(rows) && rows.length > 0 &&
+              rows.every((r) => !(Number(r?.amount) > 0));
+            if (isLegacyRevRows(d?.revIrr) || isAllBlankRevIrr(d?.revIrr)) {
               merged.revIrr = updated[country].revIrr;
             }
             // Tier 10 (Willyanne 2026-05-28): Regular Revenue from Fees row
