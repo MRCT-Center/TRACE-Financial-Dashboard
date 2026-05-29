@@ -170,7 +170,14 @@ export default function App() {
             });
             return agg;
           };
-          const ikIsStale = (agg) => !agg || !(Number(agg.total) > 0);
+          // Stale when: missing, zero/blank total, OR carrying a total but no
+          // federal/institutional/other breakdown (e.g. Kenya's pre-Tier-12
+          // ikIrr = { total: 20000 } with no funder buckets, which left the
+          // Overview bottom-right "Other" understated and inconsistent with the
+          // Total). In all these cases re-derive the full { federal, institutional,
+          // other, total } shape from the rows or the countries.js defaults.
+          const ikIsStale = (agg) => !agg || !(Number(agg.total) > 0) ||
+            (agg.federal === undefined && agg.institutional === undefined && agg.other === undefined);
           const updated = { ...COUNTRIES };
           data.forEach(({ country, data: d }) => {
             if (!updated[country]) return;
