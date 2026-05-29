@@ -4,11 +4,50 @@ import { ACTIVITY_DEFAULT_ROWS } from "./activities";
 import { REVENUE_REGULAR_OTHER_DEFAULTS } from "./revenueRegularOther";
 import { REVENUE_IRREGULAR_DEFAULTS } from "./revenueIrregular";
 import { FEES_DEFAULT_ROWS, FEES_DEFAULT_COLUMN_LABELS } from "./feesModel";
+import { IN_KIND_REGULAR_DEFAULTS } from "./inKindRegular";
+import { IN_KIND_IRREGULAR_DEFAULTS } from "./inKindIrregular";
 
 // Per Willyanne 2026-05-22: irrProj seed mirrors workbook Expenses_irregular
 // (D4–D15). All 5 testing countries get identical defaults; country teams edit
 // freely and can add rows beyond the 12.
 const cloneIrregularDefaults = () => JSON.parse(JSON.stringify(EXPENSES_IRREGULAR_DEFAULTS));
+
+// `ei.proj` is the aggregate irregular-expense figure that gm()/Overview sum
+// into the Irregular Budget "Expenses" total. It MUST match the sum of the
+// irregular rows the wizard shows on the Step 3 Irregular tab (and writes back
+// on submit: ei.proj = Σ irrProjEdits.amount). Earlier each country carried a
+// hand-set placeholder that drifted from the now-identical irrProj seed, so
+// the Overview showed a different number than the wizard. Derive it from the
+// same defaults so the two always agree (currently $300,000). Per Willyanne
+// 2026-05-29 (in-person).
+const irrProjDefaultTotal = EXPENSES_IRREGULAR_DEFAULTS.reduce(
+  (s, r) => s + (r.amount || 0),
+  0,
+);
+
+// In-Kind aggregates (ikReg / ikIrr) feed the Results → Overview In-Kind box
+// (gm() reads d.ikReg.total + d.ikIrr.total) and the editable In-Kind card.
+// They MUST match the totals at the bottom of the wizard Step 5 In-Kind tabs
+// (which sum IN_KIND_REGULAR_DEFAULTS / IN_KIND_IRREGULAR_DEFAULTS, and which
+// the wizard writes back on submit). Earlier these were hand-set per country
+// (Kenya matched; the other four were zeros), so the Overview disagreed with
+// the tab. Derive them from the same defaults so the two always agree
+// (regular $93,750 split federal/institutional/other; irregular $20,000).
+// Per Willyanne 2026-05-29 (in-person).
+const ikSumByFunder = (rows, funder) =>
+  rows.reduce((s, r) => (r.funder === funder ? s + (Number(r.amount) || 0) : s), 0);
+const ikRegDefaults = () => ({
+  federal:       ikSumByFunder(IN_KIND_REGULAR_DEFAULTS, "In-kind contribution (federal)"),
+  institutional: ikSumByFunder(IN_KIND_REGULAR_DEFAULTS, "In-kind contribution (institutional)"),
+  other:         ikSumByFunder(IN_KIND_REGULAR_DEFAULTS, "In-kind contribution (other source)"),
+  total:         IN_KIND_REGULAR_DEFAULTS.reduce((s, r) => s + (Number(r.amount) || 0), 0),
+});
+const ikIrrDefaults = () => ({
+  federal:       ikSumByFunder(IN_KIND_IRREGULAR_DEFAULTS, "In-kind contribution (federal)"),
+  institutional: ikSumByFunder(IN_KIND_IRREGULAR_DEFAULTS, "In-kind contribution (institutional)"),
+  other:         ikSumByFunder(IN_KIND_IRREGULAR_DEFAULTS, "In-kind contribution (other source)"),
+  total:         IN_KIND_IRREGULAR_DEFAULTS.reduce((s, r) => s + (Number(r.amount) || 0), 0),
+});
 
 // Per Willyanne 2026-05-26 #9: all 5 testing countries seed identical
 // activity rows from workbook col I (near-term) + col J (long-term), with
@@ -55,12 +94,12 @@ export const COUNTRIES = {
     // Revenue tab deep-dive with Willyanne).
     _legacyEr: { recG: 42000, recGov: 57500 },
     // Irregular expenses (summed by gm() for ti total)
-    ei: { proj: 350000 },
+    ei: { proj: irrProjDefaultTotal },
     revFees: 331375, revOther: 0,
     ri: { grants: 300000, contracts: 0, other: 25000, reserves: 0 },
     grantEnd: "Dec 2026",
-    ikReg: { federal: 58250, institutional: 21000, other: 14500, total: 93750 },
-    ikIrr: { total: 20000 },
+    ikReg: ikRegDefaults(),
+    ikIrr: ikIrrDefaults(),
     necDetail: { reviewPay: 30000, reviewTrain: 5000, travelTime: 5000, travelCost: 5000, meetings: 5000 },
     fees: cloneFeesDefaults(),
     feesColumns: cloneFeesColumns(),
@@ -73,12 +112,12 @@ export const COUNTRIES = {
   Nigeria: {
     er: { ...EXPENSES_REGULAR_USD_DEFAULTS },
     _legacyEr: { recG: 72000, recGov: 45000 },
-    ei: { proj: 248000 },
+    ei: { proj: irrProjDefaultTotal },
     revFees: 380000, revOther: 20000,
     ri: { grants: 250000, contracts: 0, other: 0, reserves: 10000 },
     grantEnd: "Dec 2026",
-    ikReg: { federal: 0, institutional: 0, other: 0, total: 0 },
-    ikIrr: { total: 0 },
+    ikReg: ikRegDefaults(),
+    ikIrr: ikIrrDefaults(),
     necDetail: { reviewPay: 28000, reviewTrain: 5000, travelTime: 4000, travelCost: 4000, meetings: 7000 },
     fees: cloneFeesDefaults(),
     feesColumns: cloneFeesColumns(),
@@ -91,12 +130,12 @@ export const COUNTRIES = {
   Rwanda: {
     er: { ...EXPENSES_REGULAR_USD_DEFAULTS },
     _legacyEr: { recG: 35000, recGov: 25000 },
-    ei: { proj: 150000 },
+    ei: { proj: irrProjDefaultTotal },
     revFees: 195000, revOther: 15000,
     ri: { grants: 180000, contracts: 0, other: 0, reserves: 5000 },
     grantEnd: "Dec 2026",
-    ikReg: { federal: 0, institutional: 0, other: 0, total: 0 },
-    ikIrr: { total: 0 },
+    ikReg: ikRegDefaults(),
+    ikIrr: ikIrrDefaults(),
     necDetail: { reviewPay: 14000, reviewTrain: 2000, travelTime: 2000, travelCost: 2000, meetings: 4000 },
     fees: cloneFeesDefaults(),
     feesColumns: cloneFeesColumns(),
@@ -109,12 +148,12 @@ export const COUNTRIES = {
   Tanzania: {
     er: { ...EXPENSES_REGULAR_USD_DEFAULTS },
     _legacyEr: { recG: 48000, recGov: 35000 },
-    ei: { proj: 200000 },
+    ei: { proj: irrProjDefaultTotal },
     revFees: 270000, revOther: 10000,
     ri: { grants: 220000, contracts: 0, other: 0, reserves: 8000 },
     grantEnd: "Dec 2026",
-    ikReg: { federal: 0, institutional: 0, other: 0, total: 0 },
-    ikIrr: { total: 0 },
+    ikReg: ikRegDefaults(),
+    ikIrr: ikIrrDefaults(),
     necDetail: { reviewPay: 19600, reviewTrain: 2800, travelTime: 2800, travelCost: 2800, meetings: 6000 },
     fees: cloneFeesDefaults(),
     feesColumns: cloneFeesColumns(),
@@ -127,12 +166,12 @@ export const COUNTRIES = {
   Zimbabwe: {
     er: { ...EXPENSES_REGULAR_USD_DEFAULTS },
     _legacyEr: { recG: 32000, recGov: 22000 },
-    ei: { proj: 135000 },
+    ei: { proj: irrProjDefaultTotal },
     revFees: 165000, revOther: 5000,
     ri: { grants: 140000, contracts: 0, other: 0, reserves: 3000 },
     grantEnd: "Dec 2026",
-    ikReg: { federal: 0, institutional: 0, other: 0, total: 0 },
-    ikIrr: { total: 0 },
+    ikReg: ikRegDefaults(),
+    ikIrr: ikIrrDefaults(),
     necDetail: { reviewPay: 12600, reviewTrain: 1800, travelTime: 1800, travelCost: 1800, meetings: 3500 },
     fees: cloneFeesDefaults(),
     feesColumns: cloneFeesColumns(),

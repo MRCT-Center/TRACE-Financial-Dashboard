@@ -1,8 +1,7 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { gm, fmtPct, COLORS as C } from "../utils/metrics";
 import { useCurrency } from "../utils/CurrencyContext";
-import { EXPENSES_REGULAR_ITEM_LOOKUP, NEC_KEYS } from "../data/expensesRegular";
-import EditableCell from "./EditableCell";
+import { EXPENSES_REGULAR, EXPENSES_REGULAR_ITEM_LOOKUP, NEC_KEYS } from "../data/expensesRegular";
 import InfoTip, { Def } from "./InfoTip";
 
 const EXP_COLORS = [C.navy, C.teal, C.steelblue, C.purple, C.blueGrey, C.darkTeal, C.orange];
@@ -21,7 +20,7 @@ export default function Overview({ country, data: d, flag, onEdit }) {
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 20 }}>
         <RevDependencyCard d={d} m={m} />
-        <InKindCard d={d} onEdit={onEdit} />
+        <InKindCard d={d} />
       </div>
     </div>
   );
@@ -120,9 +119,27 @@ function ExpensePieCard({ d }) {
   const { fmt } = useCurrency();
   const getLabel = (k) => EXPENSES_REGULAR_ITEM_LOOKUP[k]?.label || k;
 
-  const fullPie = Object.entries(d.er || {})
-    .filter(([, v]) => v > 0)
-    .map(([k, v], i) => ({ name: getLabel(k), value: v, color: EXP_COLORS[i % EXP_COLORS.length] }));
+  // Per Willyanne 2026-05-29 (in-person): the left pie previously drew one
+  // slice per expense item (up to 27 — too many). Reduce it to one slice per
+  // Secretariat/mgmt. category plus a single combined "Ethics Committee" slice.
+  // Iterate the canonical category structure so order + grouping are stable.
+  const groupedPie = (() => {
+    const out = [];
+    let ethicsSum = 0;
+    for (const cat of EXPENSES_REGULAR) {
+      const sum = cat.items.reduce((s, it) => s + (Number(d.er?.[it.key]) || 0), 0);
+      if (cat.categoryLabel.startsWith("Ethics Committee")) ethicsSum += sum;
+      // Strip the shared "Secretariat/mgmt." prefix for legend readability
+      // (Willyanne 2026-05-29, in-person) — revertible if a fuller label is
+      // wanted later. The combined Ethics slice keeps the "Ethics Committee"
+      // name since it represents the whole group.
+      else out.push({ name: cat.categoryLabel.replace(/^Secretariat\/mgmt\.\s*/, ""), value: sum });
+    }
+    out.push({ name: "Ethics Committee", value: ethicsSum });
+    return out
+      .filter((s) => s.value > 0)
+      .map((s, i) => ({ ...s, color: EXP_COLORS[i % EXP_COLORS.length] }));
+  })();
 
   const necPie = NEC_KEYS
     .filter((k) => (d.er?.[k] || 0) > 0)
@@ -133,20 +150,20 @@ function ExpensePieCard({ d }) {
   return (
     <Card title="Regular Expense Breakdown" style={{ flex: "1 1 360px" }}>
       <p style={narrativeStyle}>
-        The two circles show the full secretariat budget (left) and the ethics committee portion alone (right, {fmt(necTotal)}).
+        The left circle shows the regular budget grouped by category — each Secretariat/mgmt. category plus the combined Ethics Committee total. The right circle breaks out the Ethics Committee portion alone ({fmt(necTotal)}).
         Hover over each segment for details.
       </p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", marginTop: 8 }}>
         <div style={{ width: 200, height: 180 }}>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
-              <Pie data={fullPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80}>
-                {fullPie.map((e, i) => <Cell key={i} fill={e.color} />)}
+              <Pie data={groupedPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80}>
+                {groupedPie.map((e, i) => <Cell key={i} fill={e.color} />)}
               </Pie>
               <Tooltip formatter={(v) => fmt(v)} />
             </PieChart>
           </ResponsiveContainer>
-          <div style={{ textAlign: "center", fontSize: 11, color: C.blueGrey }}>Full budget</div>
+          <div style={{ textAlign: "center", fontSize: 11, color: C.blueGrey }}>By category</div>
         </div>
         {necPie.length > 0 && (
           <div style={{ width: 150, height: 180 }}>
@@ -162,7 +179,7 @@ function ExpensePieCard({ d }) {
           </div>
         )}
       </div>
-      <PieLegend items={fullPie} />
+      <PieLegend items={groupedPie} />
     </Card>
   );
 }
@@ -240,15 +257,22 @@ function DepBar({ label, pct, color }) {
   );
 }
 
-function InKindCard({ d, onEdit }) {
+function InKindCard({ d }) {
   const { fmt } = useCurrency();
-  const ik = d.ikReg || { federal: 0, institutional: 0, other: 0, total: 0 };
+  // Per Willyanne 2026-05-29 (in-person): show in-kind by funding source,
+  // combining the regular + irregular In-Kind tabs' subtotals. Values derive
+  // from the inputs (gm() feeds ikReg/ikIrr rollups), so they are read-only
+  // here — country teams edit on the Step 5 In-Kind tabs.
+  const reg = d.ikReg || { federal: 0, institutional: 0, other: 0, total: 0 };
+  const irr = d.ikIrr || { federal: 0, institutional: 0, other: 0, total: 0 };
+  const combined = (f) => (Number(reg[f]) || 0) + (Number(irr[f]) || 0);
+  const totalIk = (Number(reg.total) || 0) + (Number(irr.total) || 0);
 
   return (
     <Card title={<>In-Kind Contributions<InfoTip title="What are in-kind contributions?">Non-cash support that is usually considered "off-budget" or "off-book" — for example, government office space, university staff volunteering on the ethics committee, staff personal vehicle use for site visits, or staff unpaid overtime. In-kind contributions are not listed as either expenses or revenue because they are both; they can be regular/recurring or irregular/one-time.<br /><br /><strong style={{ color: "#a90533" }}>Advocacy note:</strong> Entities that give in-kind contributions — especially government entities — may view the estimates you generate as reason not to provide monetary funding, seeing them as indicative of having "given enough." You may wish to complete the in-kind tabs but share results only with specific audiences.</InfoTip></>} style={{ flex: "1 1 280px" }}>
       <p style={narrativeStyle}>
         In-kind contributions are non-cash support — staff time, office space, or equipment donated by
-        federal agencies, universities, or other institutions. Click any value to edit. Because in-kind is simultaneously both an expense and a revenue, it does not affect the cash gap; it is captured here as additional economic context.
+        federal agencies, universities, or other institutions. These totals are drawn from the In-Kind Contributions tabs (regular + irregular), grouped by funding source. Because in-kind is simultaneously both an expense and a revenue, it does not affect the cash gap; it is captured here as additional economic context.
       </p>
       <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
         {[
@@ -258,16 +282,12 @@ function InKindCard({ d, onEdit }) {
         ].map(({ label, field }) => (
           <div key={field} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "#f4f6f8", borderRadius: 6 }}>
             <span style={{ fontSize: 13, color: C.navy }}>{label}</span>
-            <strong style={{ fontSize: 13, color: C.steelblue }}>
-              <EditableCell value={ik[field] || 0} display={fmt(ik[field] || 0)} path={`ikReg.${field}`} onEdit={onEdit} />
-            </strong>
+            <strong style={{ fontSize: 13, color: C.steelblue }}>{fmt(combined(field))}</strong>
           </div>
         ))}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: C.navy, borderRadius: 6, marginTop: 2 }}>
           <span style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>Total in-kind</span>
-          <strong style={{ fontSize: 13, color: C.yellow }}>
-            <EditableCell value={ik.total || 0} display={fmt(ik.total || 0)} path="ikReg.total" onEdit={onEdit} />
-          </strong>
+          <strong style={{ fontSize: 13, color: C.yellow }}>{fmt(totalIk)}</strong>
         </div>
       </div>
     </Card>

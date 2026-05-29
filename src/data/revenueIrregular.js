@@ -43,8 +43,24 @@ const blankRow = (category) => ({
   paymentStatus: "",
 });
 
+// Per Willyanne 2026-05-29 (in-person): seed the first Grant row from the
+// 2026_05_27 workbook "Revenue_irregular" tab, row 4 — funder = E4, amount =
+// I4 ($300,000), payment status = L4. Purpose/activities (D4) is blank in the
+// workbook, so item/description stay blank. All other rows remain blank for
+// country teams to fill. All 5 countries inherit this via cloneRevIrrDefaults().
+const grantSeedRow = {
+  category: "Grant",
+  item: "",
+  description: "",
+  funder: "Gates Foundation: Trial Regulation and Clinical Ethics Optimization.",
+  amount: 300000,
+  startDate: "",
+  endDate: "",
+  paymentStatus: "partially paid (work ongoing)",
+};
+
 export const REVENUE_IRREGULAR_DEFAULTS = REVENUE_IRREGULAR_CATEGORIES.flatMap(
-  (cat) => [blankRow(cat), blankRow(cat)],
+  (cat) => (cat === "Grant" ? [grantSeedRow, blankRow(cat)] : [blankRow(cat), blankRow(cat)]),
 );
 
 export function isLegacyRevIrrRow(row) {

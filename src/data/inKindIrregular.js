@@ -46,7 +46,7 @@ export const IN_KIND_IRREGULAR_DEFAULTS = [
   {
     category: IN_KIND_IRREGULAR_CATEGORIES[1],
     item: "Digitalization: Develop and implement a nationally hosted digital ethics platform to improve submission, tracking, and integration with regulatory systems.",
-    funder: "", amount: 20000, startDate: "", endDate: "",
+    funder: "In-kind contribution (other source)", amount: 20000, startDate: "", endDate: "",
     description: "e.g., One-time IT upgrade investment, or partial cost of the one-time IT upgrade paid for in-kind. Please note, in-kind does NOT include federal subsidies or grants. In-kind is for something \"off-book\" like one-time federal/institutional/volunteer staff support, office space, or equipment (such as portable AV equipment) that is being used for the one-time event but is not charged.",
   },
   // R14 — Capacity building & accreditation

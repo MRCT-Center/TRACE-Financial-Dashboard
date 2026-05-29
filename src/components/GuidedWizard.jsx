@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { COLORS as C } from "../utils/metrics";
 import StepInstructions from "./StepInstructions";
 import { WIZARD_STEP_INSTRUCTIONS } from "../data/instructions";
@@ -42,7 +42,7 @@ const TREND_OPTIONS = ["Remain the same", "Increase", "Decrease"];
 // Before production deployment with real country teams, this MUST be replaced
 // with server-side persistence (Supabase) so drafts survive logout and follow
 // the user across devices. See plan velvety-seeking-marble.md.
-const DRAFT_VERSION = 11;
+const DRAFT_VERSION = 12;
 const draftKey = (country) => `trace-wizard-draft:${country}:v${DRAFT_VERSION}`;
 
 function loadDraft(country) {
@@ -482,8 +482,18 @@ export default function GuidedWizard({ country, data, onSave }) {
               }, { federal: 0, institutional: 0, other: 0 });
               const ikRegTotal = (ikRegRowsEdits || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
               const ikRegFinal = { ...ikRegRollup, total: ikRegTotal };
+              // Irregular in-kind: roll up by funding source too (per Willyanne
+              // 2026-05-29) so the Overview In-Kind box can show federal /
+              // institutional / other combined across both in-kind tabs.
+              const ikIrrRollup = (ikIrrRowsEdits || []).reduce((acc, r) => {
+                const v = Number(r?.amount) || 0;
+                if (r?.funder === "In-kind contribution (federal)")            acc.federal       += v;
+                else if (r?.funder === "In-kind contribution (institutional)") acc.institutional += v;
+                else if (r?.funder === "In-kind contribution (other source)")  acc.other         += v;
+                return acc;
+              }, { federal: 0, institutional: 0, other: 0 });
               const ikIrrTotal = (ikIrrRowsEdits || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
-              const ikIrrFinal = { total: ikIrrTotal };
+              const ikIrrFinal = { ...ikIrrRollup, total: ikIrrTotal };
               // Rebuild flat `er` from the new row-shape for backward
               // compatibility with Overview/Expenses display. Only rows whose
               // `key` matches a workbook-canonical key are included; user-added
@@ -849,16 +859,42 @@ function StepExpensesRegular({ conv, erRowsEdits, setErRowsEdits }) {
     return s + (Number(v) || 0);
   }, 0);
 
+  // Per Willyanne 2026-05-29 (in-person): two group subtotals on the Regular
+  // Expenses page — one summing every "Secretariat/mgmt." category, one summing
+  // every "Ethics Committee" category. Classified by the category label prefix
+  // (robust to row edits/additions, which inherit an existing category label).
+  // The banner renders after the last category in each group; categories seed
+  // in order (6 Secretariat, then 3 Ethics Committee), so the two subtotals
+  // read as running group totals above the overall "Total regular expenses."
+  const isSecretariatCat = (cat) => (cat || "").startsWith("Secretariat");
+  const isEthicsCat      = (cat) => (cat || "").startsWith("Ethics Committee");
+  const groupTotal = (pred) =>
+    rows.reduce((s, r) => (pred(r?.category) ? s + (Number(r?.amount) || 0) : s), 0);
+  const secretariatTotal = groupTotal(isSecretariatCat);
+  const ethicsTotal      = groupTotal(isEthicsCat);
+  const lastSecretariatIdx = EXPENSES_REGULAR_CATEGORIES.map(isSecretariatCat).lastIndexOf(true);
+  const lastEthicsIdx      = EXPENSES_REGULAR_CATEGORIES.map(isEthicsCat).lastIndexOf(true);
+
+  const SubtotalBanner = ({ label, value }) => (
+    <div style={{ background: C.teal, color: "#fff", padding: "9px 16px", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }}>{label}</span>
+      <span style={{ fontSize: 15, fontWeight: 700, fontFamily: "monospace" }}>
+        {conv.displaySym}{conv.toDisplay(value).toLocaleString()}
+      </span>
+    </div>
+  );
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      {EXPENSES_REGULAR_CATEGORIES.map((cat) => {
+      {EXPENSES_REGULAR_CATEGORIES.map((cat, ci) => {
         const rowsInCat = rows
           .map((r, idx) => ({ row: r, idx }))
           .filter(({ row }) => row?.category === cat);
         const catTotal = rowsInCat.reduce((s, { row }) => s + (Number(row?.amount) || 0), 0);
 
         return (
-          <div key={cat} style={{ background: "#fff", border: "1px solid #dde", borderRadius: 8, overflow: "hidden" }}>
+          <Fragment key={cat}>
+          <div style={{ background: "#fff", border: "1px solid #dde", borderRadius: 8, overflow: "hidden" }}>
             <div style={{ background: C.lightBG, padding: "10px 14px", fontSize: 13, fontWeight: 700, color: C.navy, borderBottom: "1px solid #dde" }}>
               {cat}
             </div>
@@ -952,6 +988,13 @@ function StepExpensesRegular({ conv, erRowsEdits, setErRowsEdits }) {
               </table>
             </div>
           </div>
+          {ci === lastSecretariatIdx && (
+            <SubtotalBanner label="Secretariat/mgmt. subtotal" value={secretariatTotal} />
+          )}
+          {ci === lastEthicsIdx && (
+            <SubtotalBanner label="Ethics Committee subtotal" value={ethicsTotal} />
+          )}
+          </Fragment>
         );
       })}
 
@@ -1878,6 +1921,37 @@ function InKindStep({ conv, ikRegRowsEdits, setIkRegRowsEdits, ikIrrRowsEdits, s
   );
 }
 
+// Per Willyanne 2026-05-29 (in-person): subtotals by funding source on both
+// In-Kind pages. Sums each row's amount grouped by its `funder` dropdown value
+// (the 3 IN_KIND_FUNDING_SOURCE_OPTIONS). Amounts on rows with no funder
+// selected are not attributed to any source but still count in the grand total.
+function InKindFunderSubtotals({ rows, conv }) {
+  const shortLabel = (opt) => {
+    const m = opt.match(/\(([^)]+)\)/);
+    const inner = m ? m[1] : opt;
+    return inner.charAt(0).toUpperCase() + inner.slice(1);
+  };
+  const subtotal = (opt) =>
+    (rows || []).reduce((s, r) => (r?.funder === opt ? s + (Number(r?.amount) || 0) : s), 0);
+  return (
+    <div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: C.blueGrey, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 6 }}>
+        Subtotals by funding source
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+        {IN_KIND_FUNDING_SOURCE_OPTIONS.map((opt) => (
+          <div key={opt} style={{ flex: "1 1 150px", background: C.steelblue, color: "#fff", padding: "9px 14px", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 12, fontWeight: 700 }}>{shortLabel(opt)}</span>
+            <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "monospace" }}>
+              {conv.displaySym}{conv.toDisplay(subtotal(opt)).toLocaleString()}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function StepInKindRegular({ conv, ikRegRowsEdits, setIkRegRowsEdits }) {
   useEffect(() => {
     if (!Array.isArray(ikRegRowsEdits) || ikRegRowsEdits.length === 0) {
@@ -2015,6 +2089,8 @@ function StepInKindRegular({ conv, ikRegRowsEdits, setIkRegRowsEdits }) {
           </div>
         );
       })}
+
+      <InKindFunderSubtotals rows={rows} conv={conv} />
 
       <div style={{ background: C.navy, color: "#fff", padding: "12px 18px", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontSize: 13, fontWeight: 600 }}>Total regular in-kind ({conv.displayCode})</span>
@@ -2177,6 +2253,8 @@ function StepInKindIrregular({ conv, ikIrrRowsEdits, setIkIrrRowsEdits }) {
           </div>
         );
       })}
+
+      <InKindFunderSubtotals rows={rows} conv={conv} />
 
       <div style={{ background: C.navy, color: "#fff", padding: "12px 18px", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontSize: 13, fontWeight: 600 }}>Total irregular in-kind (USD)</span>

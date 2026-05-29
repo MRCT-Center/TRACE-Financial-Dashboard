@@ -41,65 +41,65 @@ export const IN_KIND_REGULAR_DEFAULTS = [
   {
     category: IN_KIND_REGULAR_CATEGORIES[0],
     item: "Salaries",
-    funder: "", amount: 30000,
+    funder: "In-kind contribution (federal)", amount: 30000,
     description: "Wages for research, administrative, communication, and technical staff.",
   },
   // R13 — Secretariat Personnel salaries → Salaries (duplicate kept per T8-A)
   {
     category: IN_KIND_REGULAR_CATEGORIES[0],
     item: "Salaries",
-    funder: "", amount: 12000,
+    funder: "In-kind contribution (other source)", amount: 12000,
     description: "Wages for research, administrative, communication, and technical staff.",
   },
   // R11 — Personnel benefits insurance → Health Insurance
   {
     category: IN_KIND_REGULAR_CATEGORIES[1],
     item: "Health Insurance",
-    funder: "", amount: 5000,
+    funder: "In-kind contribution (federal)", amount: 5000,
     description: "Employer health insurance contributions.",
   },
   // R12 — Personnel benefits pension → Pensions
   {
     category: IN_KIND_REGULAR_CATEGORIES[2],
     item: "Pensions",
-    funder: "", amount: 5000,
+    funder: "In-kind contribution (federal)", amount: 5000,
     description: "Employer pension contributions to retirement plans.",
   },
   // R14-R27 — Recurrent costs (general) — 14 items
   {
     category: IN_KIND_REGULAR_CATEGORIES[3],
     item: "Rent",
-    funder: "", amount: 10000,
+    funder: "In-kind contribution (federal)", amount: 10000,
     description: "Office rent.",
   },
   {
     category: IN_KIND_REGULAR_CATEGORIES[3],
     item: "Cleaning service/materials",
-    funder: "", amount: 2500,
+    funder: "In-kind contribution (federal)", amount: 2500,
     description: "Cleaning service and cleaning supplies.",
   },
   {
     category: IN_KIND_REGULAR_CATEGORIES[3],
     item: "Security services",
-    funder: "", amount: 2500,
+    funder: "In-kind contribution (federal)", amount: 2500,
     description: "Security and alarm monitoring for premises and equipment.",
   },
   {
     category: IN_KIND_REGULAR_CATEGORIES[3],
     item: "Vehicle fuel and maintenance",
-    funder: "", amount: 2500,
+    funder: "In-kind contribution (other source)", amount: 2500,
     description: "Vehicle fuel and maintenance.",
   },
   {
     category: IN_KIND_REGULAR_CATEGORIES[3],
     item: "Vehicle \"rental\"",
-    funder: "", amount: 0,
+    funder: "In-kind contribution (other source)", amount: 0,
     description: "Vehicle \"rental.\" This is for annual rental of a vehicle by the Secretariat, if the vehicle is rented. (Note that vehicle purchase is on the irregular budget.) If the vehicle is a government, institutional, or personal vehicle used for Secretariat purposes on an annual basis, but the Secretariat does not pay for use of that vehicle, list it on the in-kind contributions worksheet.",
   },
   {
     category: IN_KIND_REGULAR_CATEGORIES[3],
     item: "Office expenses",
-    funder: "", amount: 1000,
+    funder: "In-kind contribution (federal)", amount: 1000,
     description: "Electricity, water, software subscriptions (Microsoft Office, Adobe, Zoom), stationery, small office supplies.",
   },
   {
@@ -129,13 +129,13 @@ export const IN_KIND_REGULAR_DEFAULTS = [
   {
     category: IN_KIND_REGULAR_CATEGORIES[3],
     item: "Annual conference hosting",
-    funder: "", amount: 2000,
+    funder: "In-kind contribution (institutional)", amount: 2000,
     description: "Organisation's annual dissemination and stakeholder engagement event, or conference to bring employees together to review/plan/train.",
   },
   {
     category: IN_KIND_REGULAR_CATEGORIES[3],
     item: "Other conference/meeting travel",
-    funder: "", amount: 1500,
+    funder: "In-kind contribution (federal)", amount: 1500,
     description: "Travel costs for regular personnel to attend conferences or meetings. Note, travel for site visits is not included here (please list under \"site visits and monitoring\").",
   },
   {
@@ -179,20 +179,20 @@ export const IN_KIND_REGULAR_DEFAULTS = [
   {
     category: IN_KIND_REGULAR_CATEGORIES[5],
     item: "Furniture",
-    funder: "", amount: 750,
+    funder: "In-kind contribution (federal)", amount: 750,
     description: "Desks, chairs, tables, lighting, filing cabinets, etc.",
   },
   // R38-R39 — Ethics Committee personnel salaries (IRB reviewers) — 2 items
   {
     category: IN_KIND_REGULAR_CATEGORIES[6],
     item: "[salary] Payments to reviewers (review time)",
-    funder: "", amount: 15000,
+    funder: "In-kind contribution (institutional)", amount: 15000,
     description: "Payment to reviewers for their time to assess research quality and ethics.",
   },
   {
     category: IN_KIND_REGULAR_CATEGORIES[6],
     item: "[salary] Payments to reviewers (training time)",
-    funder: "", amount: 2500,
+    funder: "In-kind contribution (institutional)", amount: 2500,
     description: "Payment to reviewers for their time spent in training to be able to assess research quality and ethics.",
   },
   // R40-R41 — Ethics Committee personnel benefits — 2 items
@@ -212,7 +212,7 @@ export const IN_KIND_REGULAR_DEFAULTS = [
   {
     category: IN_KIND_REGULAR_CATEGORIES[8],
     item: "Review meeting hosting (e.g., venue, catering)",
-    funder: "", amount: 1500,
+    funder: "In-kind contribution (institutional)", amount: 1500,
     description: "Review board meeting or training meeting hosting costs such as venue rental, food, stationery, etc.",
   },
 ];

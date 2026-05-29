@@ -1,18 +1,39 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { gm, COLORS as C } from "../utils/metrics";
 import { useCurrency } from "../utils/CurrencyContext";
-import { EXPENSES_REGULAR_ITEM_LOOKUP, NEC_KEYS } from "../data/expensesRegular";
+import { EXPENSES_REGULAR_ITEM_LOOKUP, EXPENSES_REGULAR_KEYS, NEC_KEYS } from "../data/expensesRegular";
 import EditableCell from "./EditableCell";
 import InfoTip, { Def } from "./InfoTip";
 
 export default function Expenses({ country, data: d, flag, onEdit }) {
   const { fmt, displayCode } = useCurrency();
   const m = gm(d);
-  const regRows = Object.entries(d.er || {}).map(([k, v]) => ({
-    key: k,
-    category: EXPENSES_REGULAR_ITEM_LOOKUP[k]?.label || k,
-    amount: v,
+  // Per Willyanne 2026-05-29 (in-person): order the breakdown chart + table to
+  // match the Expenses Regular wizard tab (canonical workbook order via
+  // EXPENSES_REGULAR_KEYS). Items not in the canonical list (user-added) sort
+  // to the end, preserving their relative order.
+  const orderIdx = (k) => {
+    const i = EXPENSES_REGULAR_KEYS.indexOf(k);
+    return i === -1 ? EXPENSES_REGULAR_KEYS.length : i;
+  };
+  const regRows = Object.entries(d.er || {})
+    .map(([k, v]) => ({
+      key: k,
+      category: EXPENSES_REGULAR_ITEM_LOOKUP[k]?.label || k,
+      amount: v,
+    }))
+    .sort((a, b) => orderIdx(a.key) - orderIdx(b.key));
+  // Per Willyanne 2026-05-29 (in-person): show each item as a % of total
+  // regular expenses on the breakdown bar chart (X axis 0–100%), and expand
+  // the chart vertically so every Y-axis label is visible. The chart is fed a
+  // reversed copy so it reads top-to-bottom in the same order as the table.
+  const regTotal = regRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const regRowsPct = regRows.map((r) => ({
+    ...r,
+    pct: regTotal > 0 ? ((Number(r.amount) || 0) / regTotal) * 100 : 0,
   }));
+  const chartRows = [...regRowsPct].reverse();
+  const chartHeight = Math.max(240, regRows.length * 24);
   const necTotal = NEC_KEYS.reduce((s, k) => s + (d.er?.[k] || 0), 0);
   const secTotal = m.te - necTotal;
 
@@ -32,14 +53,14 @@ export default function Expenses({ country, data: d, flag, onEdit }) {
           Regular expenses are the recurring annual costs of running your secretariat and ethics committee.
           Salaries and benefits make up the bulk of these costs for most committees. Click any amount to edit.
         </p>
-        <div style={{ height: 240, marginTop: 14 }}>
+        <div style={{ height: chartHeight, marginTop: 14 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={regRows} layout="vertical" margin={{ left: 14, right: 20, top: 4, bottom: 4 }}>
+            <BarChart data={chartRows} layout="vertical" margin={{ left: 14, right: 20, top: 4, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} fontSize={11} />
-              <YAxis dataKey="category" type="category" fontSize={11} width={170} />
-              <Tooltip formatter={(v) => fmt(v)} />
-              <Bar dataKey="amount" fill={C.navy} radius={[0, 4, 4, 0]} />
+              <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} fontSize={11} />
+              <YAxis dataKey="category" type="category" fontSize={11} width={170} interval={0} />
+              <Tooltip formatter={(v, n, p) => [`${v.toFixed(1)}% (${fmt(p?.payload?.amount || 0)})`, "Share of total"]} />
+              <Bar dataKey="pct" fill={C.navy} radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

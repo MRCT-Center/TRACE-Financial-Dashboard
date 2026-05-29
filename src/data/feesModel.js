@@ -48,13 +48,18 @@ export const FEES_DEFAULT_ROW_TYPES = [
   "Initial review (min risk) Reg.",
   "Initial review (min risk) Accel.",
   "Non-human subjects/Exempt",
-  "Continuing review",
+  "Continuing Rev.",
+  "Continuing Rev. Accel.",
   "Amendment (any) Reg.",
   "Amendment (any) Accel.",
   "Amendment (minor) Reg.",
   "Amendment (minor) Accel.",
   "Amendment (major) Reg.",
   "Amendment (major) Accel.",
+  "Extension Reg.",
+  "Extension Accel.",
+  "Penalty (e.g., late submission, protocol deviations)",
+  "Appeal or resubmission",
   "Other",
 ];
 
@@ -76,23 +81,36 @@ function blankCells() {
 //   E "Professional" + F "Institution/NGO/Phil./Gov" → proInstitution
 //   E "Student (Intl/PhD/MA/BA)" (F "Any funder")     → studIntl/studPhD/studMA/studBA
 // The workbook has no Professional+govt rows (proGovt stays blank), no
-// "Pro (any)" / "Stud. (any)" rows, no "any"-risk / "any"-amendment rows
-// (those four rows stay blank), and no Student Accelerated rows (Accel. rows
-// carry Professional values only). Workbook rows with no matching dashboard
-// row — Accelerated Continuing review, and Extension / Penalty / Appeal — are
-// NOT represented here (flagged for review). All 5 countries seed from this
-// same data via countries.js cloneFeesDefaults().  [amount, count]
+// "Stud. (any)" rows, no "any"-risk / "any"-amendment rows (those rows stay
+// blank), and no Student Accelerated rows (Accel. rows carry Professional
+// values only). Tier 12 (Willyanne 2026-05-29, in-person) closes the last
+// gaps from the Tier 11 reconciliation:
+//   - Accelerated Continuing review (workbook rows 18-19, Industry $200×40 +
+//     Institution $200×40 = $16,000) → new row "Continuing Rev. Accel.",
+//     directly below the renamed regular row ("Continuing review" →
+//     "Continuing Rev.").
+//   - Extension / Penalty / Appeal (workbook rows 52-55 = $17,000) → four new
+//     rows. These are Professional + "Any funder", so they populate the
+//     previously-empty "Pro (any)" (proAny) column.
+// With these, the 19-row dashboard total = $331,375, matching workbook P3
+// exactly — every workbook row is now represented. All 5 countries seed from
+// this same data via countries.js cloneFeesDefaults().  [amount, count]
 const FEES_SEED = {
   "Initial review (>min risk) Reg.":   { proIndustry: [1500, 10], proInstitution: [750, 30], studIntl: [500, 5],  studPhD: [100, 3],   studMA: [25, 1],  studBA: [10, 0] },
   "Initial review (>min risk) Accel.": { proIndustry: [3000, 20], proInstitution: [1500, 10] },
   "Initial review (min risk) Reg.":    { proIndustry: [750, 30],  proInstitution: [300, 50], studIntl: [500, 60], studPhD: [100, 100], studMA: [25, 50], studBA: [10, 10] },
   "Initial review (min risk) Accel.":  { proIndustry: [1500, 50], proInstitution: [600, 20] },
   "Non-human subjects/Exempt":         { proIndustry: [200, 0],   proInstitution: [100, 2],  studIntl: [0, 5],    studPhD: [0, 2],     studMA: [0, 0],   studBA: [0, 0] },
-  "Continuing review":                 { proIndustry: [100, 40],  proInstitution: [100, 40], studIntl: [0, 50],   studPhD: [0, 80],    studMA: [0, 20],  studBA: [0, 5] },
+  "Continuing Rev.":                   { proIndustry: [100, 40],  proInstitution: [100, 40], studIntl: [0, 50],   studPhD: [0, 80],    studMA: [0, 20],  studBA: [0, 5] },
+  "Continuing Rev. Accel.":            { proIndustry: [200, 40],  proInstitution: [200, 40] },
   "Amendment (minor) Reg.":            { proIndustry: [100, 10],  proInstitution: [50, 10],  studIntl: [0, 2],    studPhD: [0, 2],     studMA: [0, 0],   studBA: [0, 0] },
   "Amendment (minor) Accel.":          { proIndustry: [200, 10],  proInstitution: [100, 10] },
   "Amendment (major) Reg.":            { proIndustry: [200, 5],   proInstitution: [100, 5],  studIntl: [0, 1],    studPhD: [0, 1],     studMA: [0, 0],   studBA: [0, 0] },
   "Amendment (major) Accel.":          { proIndustry: [400, 5],   proInstitution: [200, 5] },
+  "Extension Reg.":                    { proAny: [100, 10] },
+  "Extension Accel.":                  { proAny: [200, 20] },
+  "Penalty (e.g., late submission, protocol deviations)": { proAny: [200, 50] },
+  "Appeal or resubmission":            { proAny: [400, 5] },
 };
 
 function seededCells(type) {
