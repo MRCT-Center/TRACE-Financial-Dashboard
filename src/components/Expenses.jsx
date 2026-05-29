@@ -25,14 +25,17 @@ export default function Expenses({ country, data: d, flag, onEdit }) {
     .sort((a, b) => orderIdx(a.key) - orderIdx(b.key));
   // Per Willyanne 2026-05-29 (in-person): show each item as a % of total
   // regular expenses on the breakdown bar chart (X axis 0–100%), and expand
-  // the chart vertically so every Y-axis label is visible. The chart is fed a
-  // reversed copy so it reads top-to-bottom in the same order as the table.
+  // the chart vertically so every Y-axis label is visible. Recharts renders
+  // data[0] at the TOP of a vertical bar chart, so the chart is fed the rows in
+  // the same (canonical wizard-tab) order as the table — NOT reversed — so the
+  // chart reads top-to-bottom identically to the table and the Expenses Regular
+  // tab (Salaries first). (A prior reverse() flipped it upside-down.)
   const regTotal = regRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
   const regRowsPct = regRows.map((r) => ({
     ...r,
     pct: regTotal > 0 ? ((Number(r.amount) || 0) / regTotal) * 100 : 0,
   }));
-  const chartRows = [...regRowsPct].reverse();
+  const chartRows = regRowsPct;
   const chartHeight = Math.max(240, regRows.length * 24);
   const necTotal = NEC_KEYS.reduce((s, k) => s + (d.er?.[k] || 0), 0);
   const secTotal = m.te - necTotal;
