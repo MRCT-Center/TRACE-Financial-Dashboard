@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { COUNTRY_FLAGS, COLORS as C } from "./utils/metrics";
 import { COUNTRIES } from "./data/countries";
 import { EXPENSES_REGULAR_ROW_DEFAULTS } from "./data/expensesRegular";
-import { FEES_DEFAULT_ROWS, FEES_DEFAULT_COLUMN_LABELS, isLegacyFeesArray } from "./data/feesModel";
+import { FEES_DEFAULT_ROWS, FEES_DEFAULT_COLUMN_LABELS, isLegacyFeesArray, isAllBlankFees } from "./data/feesModel";
 import { CurrencyProvider, COUNTRY_CURRENCIES, CURRENCIES, useCurrency } from "./utils/CurrencyContext";
 import { supabase } from "./supabaseClient";
 import LoginPage from "./components/LoginPage";
@@ -189,7 +189,11 @@ export default function App() {
             // saved fee row lacks `cells`, substitute fresh defaults and seed
             // default column labels. Saved fees with the new shape are
             // preserved as-is.
-            if (isLegacyFeesArray(d?.fees)) {
+            // Tier 11 (Willyanne 2026-05-28B): the fees defaults are now seeded
+            // with the workbook fee schedule. Re-seed when saved fees are
+            // legacy-shape OR new-shape-but-all-blank (an untouched Tier 10
+            // submit) so the seeded data surfaces; real entered fees are kept.
+            if (isLegacyFeesArray(d?.fees) || isAllBlankFees(d?.fees)) {
               merged.fees = JSON.parse(JSON.stringify(FEES_DEFAULT_ROWS));
               merged.feesColumns = JSON.parse(JSON.stringify(FEES_DEFAULT_COLUMN_LABELS));
             } else if (!d?.feesColumns) {

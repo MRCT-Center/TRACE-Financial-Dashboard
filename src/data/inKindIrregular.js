@@ -20,7 +20,7 @@
 export const IN_KIND_IRREGULAR_CATEGORIES = [
   "Secretariat/mgmt. Capital costs (durable goods)",
   "Secretariat/mgmt. Capital costs (one-time/irregular activities)",
-  "Ethics Committee capital costs (one-time/irregular activities)",
+  "Ethics Committee Capital costs (one-time/irregular activities)",
 ];
 
 export const IN_KIND_IRREGULAR_DEFAULTS = [

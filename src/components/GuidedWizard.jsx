@@ -42,7 +42,7 @@ const TREND_OPTIONS = ["Remain the same", "Increase", "Decrease"];
 // Before production deployment with real country teams, this MUST be replaced
 // with server-side persistence (Supabase) so drafts survive logout and follow
 // the user across devices. See plan velvety-seeking-marble.md.
-const DRAFT_VERSION = 10;
+const DRAFT_VERSION = 11;
 const draftKey = (country) => `trace-wizard-draft:${country}:v${DRAFT_VERSION}`;
 
 function loadDraft(country) {
@@ -1622,10 +1622,16 @@ function StepRevenueFees({ conv, feesEdits, setFeesEdits, feesColumnsEdits, setF
     width: "100%", border: "1px solid #ccc", borderRadius: 4,
     padding: "5px 7px", fontSize: 12, textAlign: "right", fontFamily: "monospace",
   };
+  // Tier 11 (Willyanne 2026-05-28B item #10): headers are 2-line wrapping
+  // fields so the full column label is visible and the header row sits ~2×
+  // as tall as the single-line cell inputs below it.
   const headerInputStyle = {
     width: "100%", border: "1px solid #cdd5dc", borderRadius: 4,
     padding: "4px 6px", fontSize: 11, fontWeight: 700, color: C.navy,
     background: "#fff", textAlign: "left",
+    fontFamily: "inherit", lineHeight: 1.3, resize: "none",
+    whiteSpace: "normal", overflow: "hidden", boxSizing: "border-box",
+    display: "block",
   };
   const rowLabelInputStyle = {
     width: "100%", border: "1px solid #dde", borderRadius: 4,
@@ -1638,24 +1644,24 @@ function StepRevenueFees({ conv, feesEdits, setFeesEdits, feesColumnsEdits, setF
         <table style={{ borderCollapse: "collapse", fontSize: 12, minWidth, width: "100%" }}>
           <thead>
             <tr style={{ background: C.lightBG, borderBottom: "1px solid #dde" }}>
-              <th style={{ ...thStyle, width: W_TYPE, minWidth: W_TYPE, position: "sticky", left: 0, background: C.lightBG, zIndex: 2, borderRight: "1px solid #dde" }}>
+              <th style={{ ...thStyle, width: W_TYPE, minWidth: W_TYPE, position: "sticky", left: 0, background: C.lightBG, zIndex: 2, borderRight: "1px solid #dde", verticalAlign: "top" }}>
                 Review type
               </th>
               {FEES_COLUMN_KEYS.map((k) => {
                 const labels = feesColumnsEdits[k] || FEES_DEFAULT_COLUMN_LABELS[k];
                 return [
-                  <th key={`${k}-d`} style={{ ...thStyle, width: W_DOLLAR, minWidth: W_DOLLAR, padding: "6px 6px" }}>
-                    <input
-                      type="text"
+                  <th key={`${k}-d`} style={{ ...thStyle, width: W_DOLLAR, minWidth: W_DOLLAR, padding: "6px 6px", verticalAlign: "top" }}>
+                    <textarea
+                      rows={2}
                       value={labels.dollar}
                       onChange={(e) => updateColumnLabel(k, "dollar", e.target.value)}
                       style={headerInputStyle}
                       title="Editable column header"
                     />
                   </th>,
-                  <th key={`${k}-c`} style={{ ...thStyle, width: W_COUNT, minWidth: W_COUNT, padding: "6px 6px" }}>
-                    <input
-                      type="text"
+                  <th key={`${k}-c`} style={{ ...thStyle, width: W_COUNT, minWidth: W_COUNT, padding: "6px 6px", verticalAlign: "top" }}>
+                    <textarea
+                      rows={2}
                       value={labels.count}
                       onChange={(e) => updateColumnLabel(k, "count", e.target.value)}
                       style={headerInputStyle}
@@ -1664,8 +1670,8 @@ function StepRevenueFees({ conv, feesEdits, setFeesEdits, feesColumnsEdits, setF
                   </th>,
                 ];
               })}
-              <th style={{ ...thStyle, width: W_REV, minWidth: W_REV, textAlign: "right" }}>Revenue (USD)</th>
-              <th style={{ ...thStyle, width: W_DEL, minWidth: W_DEL }}></th>
+              <th style={{ ...thStyle, width: W_REV, minWidth: W_REV, textAlign: "right", verticalAlign: "top" }}>Revenue (USD)</th>
+              <th style={{ ...thStyle, width: W_DEL, minWidth: W_DEL, verticalAlign: "top" }}></th>
             </tr>
           </thead>
           <tbody>

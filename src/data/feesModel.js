@@ -19,12 +19,13 @@ export const FEES_COLUMN_KEYS = [
 export const PRO_KEYS  = ["proAny", "proIndustry", "proInstitution", "proGovt"];
 export const STUD_KEYS = ["studAny", "studIntl", "studPhD", "studMA", "studBA"];
 
-// Default editable column headers. "Pro funder (any) $" is slightly asymmetric
-// vs. the other three Pro headers; preserved verbatim from Willyanne's email.
-// "#" added to "Pro (any)" and "$" added to "Pro Govt." where her literal text
-// dropped them (silent fixes, flagged in the Tier 10 .docx).
+// Default editable column headers. Tier 11 (Willyanne 2026-05-28B item #11):
+// first dollar header renamed "Pro funder (any) $" → "Pro (any) $" (resolves
+// the Tier 10 T10-B flag — she confirmed the shorter, symmetric form).
+// "#" added to "Pro (any)" and "$" added to "Pro Govt." where her Tier 10
+// literal text dropped them (silent fixes).
 export const FEES_DEFAULT_COLUMN_LABELS = {
-  proAny:         { dollar: "Pro funder (any) $", count: "Pro (any) #" },
+  proAny:         { dollar: "Pro (any) $",        count: "Pro (any) #" },
   proIndustry:    { dollar: "Pro Industry $",     count: "Pro Industry #" },
   proInstitution: { dollar: "Pro Institution $",  count: "Pro Institution #" },
   proGovt:        { dollar: "Pro Govt. $",        count: "Pro Govt. #" },
@@ -35,18 +36,17 @@ export const FEES_DEFAULT_COLUMN_LABELS = {
   studBA:         { dollar: "Stud. BA $",         count: "Stud. BA #" },
 };
 
-// 15 review-type rows per Willyanne's item #1. Non-human subjects/Exempt
-// placed below all four Initial sub-rows and above Continuing review — her
-// literal placement constraint ("above Continuing review and below Initial
-// (min risk) Reg.") allows either position relative to the Accel. variants;
-// chosen position is flagged in the Tier 10 .docx for her review.
+// 15 review-type rows. Non-human subjects/Exempt placed below all four Initial
+// sub-rows and above Continuing review. Tier 11 (Willyanne 2026-05-28B item
+// #12): the word "review" added after "Initial" in each of the six Initial
+// row labels ("Initial" → "Initial review").
 export const FEES_DEFAULT_ROW_TYPES = [
-  "Initial (any) Reg.",
-  "Initial (any) Accel.",
-  "Initial (>min risk) Reg.",
-  "Initial (>min risk) Accel.",
-  "Initial (min risk) Reg.",
-  "Initial (min risk) Accel.",
+  "Initial review (any) Reg.",
+  "Initial review (any) Accel.",
+  "Initial review (>min risk) Reg.",
+  "Initial review (>min risk) Accel.",
+  "Initial review (min risk) Reg.",
+  "Initial review (min risk) Accel.",
   "Non-human subjects/Exempt",
   "Continuing review",
   "Amendment (any) Reg.",
@@ -64,9 +64,50 @@ function blankCells() {
   );
 }
 
+// Tier 11 (Willyanne 2026-05-28B item #13): seed the fee schedule from the
+// 2026_05_27 financial workbook, "Rev_regular(fees)model form" tab.
+// $ = column J (Fee in USD); # = column Q (# of reviews by fee type).
+// Mapping: workbook C (type) + D (timeframe) → dashboard row;
+// E (investigator) + F (funder) → column.
+//   "Initial review (more than minimal risk study)" → "(>min risk)"
+//   "Initial review (minimal risk study)"           → "(min risk)"
+//   D "Regular" / "Accelerated"                      → "Reg." / "Accel."
+//   E "Professional" + F "Industry"                  → proIndustry
+//   E "Professional" + F "Institution/NGO/Phil./Gov" → proInstitution
+//   E "Student (Intl/PhD/MA/BA)" (F "Any funder")     → studIntl/studPhD/studMA/studBA
+// The workbook has no Professional+govt rows (proGovt stays blank), no
+// "Pro (any)" / "Stud. (any)" rows, no "any"-risk / "any"-amendment rows
+// (those four rows stay blank), and no Student Accelerated rows (Accel. rows
+// carry Professional values only). Workbook rows with no matching dashboard
+// row — Accelerated Continuing review, and Extension / Penalty / Appeal — are
+// NOT represented here (flagged for review). All 5 countries seed from this
+// same data via countries.js cloneFeesDefaults().  [amount, count]
+const FEES_SEED = {
+  "Initial review (>min risk) Reg.":   { proIndustry: [1500, 10], proInstitution: [750, 30], studIntl: [500, 5],  studPhD: [100, 3],   studMA: [25, 1],  studBA: [10, 0] },
+  "Initial review (>min risk) Accel.": { proIndustry: [3000, 20], proInstitution: [1500, 10] },
+  "Initial review (min risk) Reg.":    { proIndustry: [750, 30],  proInstitution: [300, 50], studIntl: [500, 60], studPhD: [100, 100], studMA: [25, 50], studBA: [10, 10] },
+  "Initial review (min risk) Accel.":  { proIndustry: [1500, 50], proInstitution: [600, 20] },
+  "Non-human subjects/Exempt":         { proIndustry: [200, 0],   proInstitution: [100, 2],  studIntl: [0, 5],    studPhD: [0, 2],     studMA: [0, 0],   studBA: [0, 0] },
+  "Continuing review":                 { proIndustry: [100, 40],  proInstitution: [100, 40], studIntl: [0, 50],   studPhD: [0, 80],    studMA: [0, 20],  studBA: [0, 5] },
+  "Amendment (minor) Reg.":            { proIndustry: [100, 10],  proInstitution: [50, 10],  studIntl: [0, 2],    studPhD: [0, 2],     studMA: [0, 0],   studBA: [0, 0] },
+  "Amendment (minor) Accel.":          { proIndustry: [200, 10],  proInstitution: [100, 10] },
+  "Amendment (major) Reg.":            { proIndustry: [200, 5],   proInstitution: [100, 5],  studIntl: [0, 1],    studPhD: [0, 1],     studMA: [0, 0],   studBA: [0, 0] },
+  "Amendment (major) Accel.":          { proIndustry: [400, 5],   proInstitution: [200, 5] },
+};
+
+function seededCells(type) {
+  const seed = FEES_SEED[type] || {};
+  return Object.fromEntries(
+    FEES_COLUMN_KEYS.map((k) => {
+      const v = seed[k];
+      return [k, v ? { amount: v[0], count: v[1] } : { amount: null, count: null }];
+    }),
+  );
+}
+
 export const FEES_DEFAULT_ROWS = FEES_DEFAULT_ROW_TYPES.map((type) => ({
   type,
-  cells: blankCells(),
+  cells: seededCells(type),
 }));
 
 export function makeBlankFeeRow(type = "") {
@@ -120,4 +161,19 @@ export function isLegacyFeeRow(row) {
 
 export function isLegacyFeesArray(rows) {
   return !Array.isArray(rows) || rows.length === 0 || rows.some(isLegacyFeeRow);
+}
+
+// True when every cell in every row has no amount and no count entered.
+// Tier 11: used by the App.jsx merge guard so the workbook-seeded fee data
+// surfaces for any country whose saved fees are new-shape but still untouched
+// (e.g. a Tier 10 submit that left the table blank). Never clobbers real entry.
+export function isAllBlankFees(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) return false;
+  return rows.every((r) =>
+    FEES_COLUMN_KEYS.every((k) => {
+      const c = r?.cells?.[k] || {};
+      const blank = (v) => v === null || v === undefined || v === "";
+      return blank(c.amount) && blank(c.count);
+    }),
+  );
 }
