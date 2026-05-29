@@ -235,6 +235,17 @@ export default function App() {
               const fromRows = deriveIkAgg(merged.ikIrrRows);
               merged.ikIrr = fromRows.total > 0 ? fromRows : { ...updated[country].ikIrr };
             }
+            // Irregular-expense aggregate guard (Willyanne 2026-05-29, Tier 12):
+            // the Overview/metrics irregular-expense KPI reads the flat ei.proj.
+            // Pre-Tier-12 Supabase rows carry drifted per-country placeholders
+            // (Kenya 350k / Nigeria 248k / Rwanda 150k / Tanzania 200k /
+            // Zimbabwe 135k) that disagree with the irrProj rows (all $300,000).
+            // ei.proj is by definition Σ irrProj (the wizard writes it that way
+            // on submit), so recompute it from the rows whenever they carry a
+            // total, making the KPI match the Step 3 Irregular tab for all five.
+            const irrProjSum = (Array.isArray(merged.irrProj) ? merged.irrProj : [])
+              .reduce((s, r) => s + (Number(r?.amount) || 0), 0);
+            if (irrProjSum > 0) merged.ei = { ...merged.ei, proj: irrProjSum };
             // Category prefix migration (Willyanne 2026-05-27 #1/#2)
             merged.erRows = renameCategories(merged.erRows);
             merged.irrProj = renameCategories(merged.irrProj);
