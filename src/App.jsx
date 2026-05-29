@@ -144,6 +144,33 @@ export default function App() {
                     : r,
                 )
               : rows;
+          // In-Kind aggregate guard (Willyanne 2026-05-29, Tier 12): the
+          // Results → Overview In-Kind boxes read the flat ikReg/ikIrr
+          // aggregates ({ federal, institutional, other, total }). Pre-Tier-12
+          // Supabase rows stored these as zeros for every country except Kenya,
+          // so the Overview showed 0 even though the Step 5 In-Kind tab (which
+          // falls back to the row defaults) shows the real totals ($93,750
+          // regular / $20,000 irregular). When the stored aggregate is missing
+          // or zero, re-derive it from the saved In-Kind rows, or from the
+          // countries.js workbook defaults when no rows were entered, so the
+          // Overview always matches the tab. A real entered aggregate (total > 0,
+          // e.g. Kenya or any country that has submitted the wizard) is left as-is.
+          const IK_FUNDER_BUCKET = {
+            "In-kind contribution (federal)":       "federal",
+            "In-kind contribution (institutional)": "institutional",
+            "In-kind contribution (other source)":  "other",
+          };
+          const deriveIkAgg = (rows) => {
+            const agg = { federal: 0, institutional: 0, other: 0, total: 0 };
+            (Array.isArray(rows) ? rows : []).forEach((r) => {
+              const v = Number(r?.amount) || 0;
+              agg.total += v;
+              const bucket = IK_FUNDER_BUCKET[r?.funder];
+              if (bucket) agg[bucket] += v;
+            });
+            return agg;
+          };
+          const ikIsStale = (agg) => !agg || !(Number(agg.total) > 0);
           const updated = { ...COUNTRIES };
           data.forEach(({ country, data: d }) => {
             if (!updated[country]) return;
@@ -198,6 +225,15 @@ export default function App() {
               merged.feesColumns = JSON.parse(JSON.stringify(FEES_DEFAULT_COLUMN_LABELS));
             } else if (!d?.feesColumns) {
               merged.feesColumns = JSON.parse(JSON.stringify(FEES_DEFAULT_COLUMN_LABELS));
+            }
+            // In-Kind aggregate guard (Willyanne 2026-05-29, Tier 12)
+            if (ikIsStale(merged.ikReg)) {
+              const fromRows = deriveIkAgg(merged.ikRegRows);
+              merged.ikReg = fromRows.total > 0 ? fromRows : { ...updated[country].ikReg };
+            }
+            if (ikIsStale(merged.ikIrr)) {
+              const fromRows = deriveIkAgg(merged.ikIrrRows);
+              merged.ikIrr = fromRows.total > 0 ? fromRows : { ...updated[country].ikIrr };
             }
             // Category prefix migration (Willyanne 2026-05-27 #1/#2)
             merged.erRows = renameCategories(merged.erRows);
