@@ -76,20 +76,13 @@ export default function Revenue({ country, data: d, flag, onEdit }) {
                 <XAxis dataKey="type" fontSize={10} angle={-40} textAnchor="end" interval={0} height={120} />
                 <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} fontSize={11} />
                 <Tooltip formatter={(v) => [fmt(v), "Total fee revenue"]} />
-                <Bar dataKey="revenue" fill={C.navy} radius={[4, 4, 0, 0]} name="revenue">
-                  <LabelList dataKey="revenue" content={(props) => {
-                  // Custom renderer (Willyanne 2026-05-31): a zero-revenue review
-                  // type has a zero-height bar, and the default LabelList does not
-                  // paint a label on it. Place the text just above the baseline
-                  // (the x-axis hatch mark) so "$0" shows like the non-zero bars.
-                  const { x, y, width, value } = props;
-                  if (x == null || y == null || width == null) return null;
-                  return (
-                    <text x={Number(x) + Number(width) / 2} y={Number(y) - 5} fill={C.navy} fontSize={9} textAnchor="middle">
-                      {Number(value) > 0 ? fmt(value) : fmt(0)}
-                    </text>
-                  );
-                }} />
+                <Bar dataKey="revenue" fill={C.navy} radius={[4, 4, 0, 0]} name="revenue" minPointSize={1}>
+                  {/* minPointSize={1} forces a 1px sliver for zero-revenue review
+                      types so Recharts still renders a LabelList label above them
+                      (a true zero-height bar gets no label layer at all). The
+                      formatter then prints "$0"/"KSh0" for those rows, per
+                      Willyanne 2026-05-31. */}
+                  <LabelList dataKey="revenue" position="top" fontSize={9} fill={C.navy} formatter={(v) => fmt(Number(v) || 0)} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
