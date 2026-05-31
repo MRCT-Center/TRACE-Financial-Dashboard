@@ -35,7 +35,9 @@ export default function AdminFeedback() {
 
   const surveyRows = rows.filter((r) => hasSurveyAnswers(r.responses));
   const messageRows = rows.filter((r) => r.message && r.message.trim());
-  const contactRows = rows.filter((r) => r.contact_ok);
+  // A participant can now submit the Survey and Questions sections separately
+  // (two rows), so de-dupe the follow-up list by email (falling back to name).
+  const contactRows = dedupeContacts(rows.filter((r) => r.contact_ok));
 
   // Per-scale-question average across all responses that answered it.
   const averages = SCALE_Q.map((q) => {
@@ -241,6 +243,19 @@ export default function AdminFeedback() {
 }
 
 // ───────────────────────── helpers ─────────────────────────
+
+function dedupeContacts(contactRows) {
+  const seen = new Set();
+  const out = [];
+  for (const r of contactRows) {
+    const key = (r.contact_email || "").trim().toLowerCase()
+      || (r.respondent_name || "").trim().toLowerCase();
+    if (key && seen.has(key)) continue;
+    if (key) seen.add(key);
+    out.push(r);
+  }
+  return out;
+}
 
 function hasSurveyAnswers(responses) {
   if (!responses || typeof responses !== "object") return false;

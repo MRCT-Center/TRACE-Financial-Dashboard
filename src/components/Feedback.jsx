@@ -3,26 +3,37 @@ import { COLORS as C } from "../utils/metrics";
 import { supabase } from "../supabaseClient";
 import { SURVEY_INTRO, QUESTIONS_INTRO, SURVEY_QUESTIONS } from "../data/feedbackSurvey";
 
-// The Feedback tab — designed as the final step participants complete live in the
-// room. Everything is on one page with a single Submit, every field is optional,
-// and it ALWAYS persists to Supabase (the `feedback` table), independent of
-// DEMO_MODE — DEMO_MODE only protects the seeded country data, not real feedback.
+// The Feedback tab. Per Willyanne (2026-05-31 afternoon) it's split into two grey
+// sub-sections — like the Results tab's Overview/Expenses/etc. — each with its own
+// Submit button: "Survey" and "Questions & Other Feedback". The two sections submit
+// independently (one Supabase row each), so completing one doesn't disturb the other.
+// Feedback ALWAYS persists, independent of DEMO_MODE (that only protects seeded data).
+
+const SUB_TABS = [
+  { id: "survey",    label: "Survey" },
+  { id: "questions", label: "Questions & Other Feedback" },
+];
 
 export default function Feedback({ country, email }) {
-  const [responses, setResponses] = useState({}); // { q1: 4, q5: "text", ... }
-  const [message, setMessage] = useState("");
+  const [activeSub, setActiveSub] = useState("survey");
+
+  // Shared identity — used by whichever section the participant submits.
   const [name, setName] = useState("");
   const [contactOk, setContactOk] = useState(false);
   const [contactEmail, setContactEmail] = useState("");
-  const [status, setStatus] = useState("idle");   // idle | saving | done | error
-  const [errorMsg, setErrorMsg] = useState("");
+
+  // Survey section state
+  const [responses, setResponses] = useState({}); // { q1: 4, q5: "text", ... }
+  const [surveyStatus, setSurveyStatus] = useState("idle"); // idle | saving | done | error
+  const [surveyErr, setSurveyErr] = useState("");
+
+  // Questions section state
+  const [message, setMessage] = useState("");
+  const [qStatus, setQStatus] = useState("idle");
+  const [qErr, setQErr] = useState("");
 
   const setAnswer = (id, value) =>
     setResponses((prev) => ({ ...prev, [id]: value }));
-
-  const hasAnyInput =
-    Object.values(responses).some((v) => v !== "" && v !== undefined && v !== null) ||
-    message.trim() !== "" || name.trim() !== "" || contactEmail.trim() !== "";
 
   // Completion progress — to encourage finishing without ever requiring it.
   const answeredCount = SURVEY_QUESTIONS.filter((q) => {
@@ -33,62 +44,72 @@ export default function Feedback({ country, email }) {
   const allAnswered = answeredCount === totalCount;
   const pct = Math.round((answeredCount / totalCount) * 100);
 
-  async function handleSubmit() {
-    if (status === "saving") return;
-    setStatus("saving");
-    setErrorMsg("");
+  const surveyHasInput = answeredCount > 0 || name.trim() !== "" || contactEmail.trim() !== "";
+  const qHasInput = message.trim() !== "";
+
+  // Common identity payload attached to either submission.
+  const identityFields = () => ({
+    respondent_name: name.trim() || null,
+    contact_ok: contactOk,
+    contact_email: contactOk ? (contactEmail.trim() || null) : null,
+    user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+  });
+
+  async function handleSurveySubmit() {
+    if (surveyStatus === "saving") return;
+    setSurveyStatus("saving");
+    setSurveyErr("");
     try {
       const { error } = await supabase.from("feedback").insert({
         country: country || null,
         user_email: email || null,
         responses,
-        message: message.trim() || null,
-        respondent_name: name.trim() || null,
-        contact_ok: contactOk,
-        // only keep an explicit contact email if they opted in
-        contact_email: contactOk ? (contactEmail.trim() || null) : null,
-        user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+        message: null,
+        ...identityFields(),
       });
       if (error) throw error;
-      setStatus("done");
+      setSurveyStatus("done");
     } catch (err) {
-      console.warn("Feedback submit failed:", err.message);
-      setErrorMsg(err.message || "Something went wrong.");
-      setStatus("error");
+      console.warn("Survey submit failed:", err.message);
+      setSurveyErr(err.message || "Something went wrong.");
+      setSurveyStatus("error");
     }
   }
 
-  function resetForm() {
-    setResponses({});
-    setMessage("");
-    setName("");
-    setContactOk(false);
-    setContactEmail("");
-    setStatus("idle");
-    setErrorMsg("");
+  async function handleQuestionsSubmit() {
+    if (qStatus === "saving") return;
+    setQStatus("saving");
+    setQErr("");
+    try {
+      const { error } = await supabase.from("feedback").insert({
+        country: country || null,
+        user_email: email || null,
+        responses: {},
+        message: message.trim() || null,
+        ...identityFields(),
+      });
+      if (error) throw error;
+      setQStatus("done");
+    } catch (err) {
+      console.warn("Questions submit failed:", err.message);
+      setQErr(err.message || "Something went wrong.");
+      setQStatus("error");
+    }
   }
 
-  if (status === "done") {
-    return (
-      <div style={{ maxWidth: 760, margin: "0 auto" }}>
-        <div style={{
-          background: "#fff", border: `1px solid ${C.teal}`, borderRadius: 12,
-          padding: "40px 28px", textAlign: "center",
-        }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>✅</div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: C.navy }}>Thank you!</div>
-          <p style={{ fontSize: 14, color: "#555", lineHeight: 1.6, marginTop: 8 }}>
-            Your feedback has been recorded. We truly appreciate you taking the time
-            to share your experience with the Financial Dashboard.
-          </p>
-          <button onClick={resetForm} style={secondaryBtn}>Submit another response</button>
-        </div>
-      </div>
-    );
+  function resetSurvey() {
+    setResponses({});
+    setSurveyStatus("idle");
+    setSurveyErr("");
+  }
+  function resetQuestions() {
+    setMessage("");
+    setQStatus("idle");
+    setQErr("");
   }
 
   return (
-    <div style={{ maxWidth: 820, margin: "0 auto", display: "flex", flexDirection: "column", gap: 22 }}>
+    <div style={{ maxWidth: 820, margin: "0 auto", display: "flex", flexDirection: "column", gap: 18 }}>
       <div>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: C.navy, margin: 0 }}>Feedback</h1>
         <p style={{ fontSize: 13, color: "#666", marginTop: 4 }}>
@@ -96,133 +117,173 @@ export default function Feedback({ country, email }) {
         </p>
       </div>
 
-      {/* ───────── Survey ───────── */}
-      <SectionHeading>Survey</SectionHeading>
-      <p style={blurbStyle}>{SURVEY_INTRO}</p>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {SURVEY_QUESTIONS.map((q, i) => (
-          <QuestionCard key={q.id} number={i + 1}>
-            <div style={questionTextStyle}>{q.text}</div>
-            {q.type === "scale" ? (
-              <ScaleInput
-                value={responses[q.id]}
-                onChange={(v) => setAnswer(q.id, v)}
-                low={q.low}
-                high={q.high}
-              />
-            ) : (
-              <textarea
-                value={responses[q.id] || ""}
-                onChange={(e) => setAnswer(q.id, e.target.value)}
-                rows={2}
-                placeholder="Type your answer (optional)…"
-                style={textareaStyle}
-              />
-            )}
-          </QuestionCard>
-        ))}
+      {/* ───────── Grey sub-tabs (mirrors the Results tab) ───────── */}
+      <div style={{ display: "flex", gap: 4, overflowX: "auto", borderBottom: `1px solid #dde`, paddingBottom: 0 }}>
+        {SUB_TABS.map((t) => {
+          const isActive = activeSub === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setActiveSub(t.id)}
+              style={{
+                padding: "10px 18px",
+                fontSize: 13,
+                fontWeight: isActive ? 700 : 500,
+                color: isActive ? C.teal : C.blueGrey,
+                background: "transparent",
+                border: "none",
+                borderBottom: `3px solid ${isActive ? C.teal : "transparent"}`,
+                marginBottom: -1,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                minHeight: 44,
+              }}
+            >
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* ───────── Questions or Other Feedback ───────── */}
-      <SectionHeading>Questions or Other Feedback</SectionHeading>
-      <p style={blurbStyle}>{QUESTIONS_INTRO}</p>
-      <textarea
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        rows={4}
-        placeholder="Enter your questions or feedback here…"
-        style={{ ...textareaStyle, minHeight: 96 }}
-      />
-
-      {/* ───────── About you (optional) ───────── */}
-      <SectionHeading>About You (optional)</SectionHeading>
-      <p style={blurbStyle}>
-        Sharing your name is optional. Let us know if we may follow up with you
-        directly about your feedback.
-      </p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <div>
-          <label style={fieldLabel}>Your name</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Optional"
-            style={inputStyle}
+      {/* ═════════════════════ SURVEY ═════════════════════ */}
+      {activeSub === "survey" && (
+        surveyStatus === "done" ? (
+          <ThankYou
+            onAgain={resetSurvey}
+            againLabel="Submit another survey response"
           />
-        </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <p style={blurbStyle}>{SURVEY_INTRO}</p>
 
-        <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
-          <input
-            type="checkbox"
-            checked={contactOk}
-            onChange={(e) => setContactOk(e.target.checked)}
-            style={{ width: 18, height: 18, marginTop: 2, flexShrink: 0, cursor: "pointer" }}
-          />
-          <span style={{ fontSize: 14, color: C.navy, lineHeight: 1.4 }}>
-            Yes, the MRCT Center may contact me directly with any follow-up
-            questions about my feedback.
-          </span>
-        </label>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {SURVEY_QUESTIONS.map((q, i) => (
+                <QuestionCard key={q.id} number={i + 1}>
+                  <div style={questionTextStyle}>{q.text}</div>
+                  {q.type === "scale" ? (
+                    <ScaleInput
+                      value={responses[q.id]}
+                      onChange={(v) => setAnswer(q.id, v)}
+                      low={q.low}
+                      high={q.high}
+                    />
+                  ) : (
+                    <textarea
+                      value={responses[q.id] || ""}
+                      onChange={(e) => setAnswer(q.id, e.target.value)}
+                      rows={2}
+                      placeholder="Type your answer (optional)…"
+                      style={textareaStyle}
+                    />
+                  )}
+                </QuestionCard>
+              ))}
+            </div>
 
-        {contactOk && (
-          <div>
-            <label style={fieldLabel}>Best email to reach you</label>
-            <input
-              type="email"
-              value={contactEmail}
-              onChange={(e) => setContactEmail(e.target.value)}
-              placeholder="you@example.org"
-              style={inputStyle}
+            {/* About you (optional) */}
+            <AboutYou
+              name={name} setName={setName}
+              contactOk={contactOk} setContactOk={setContactOk}
+              contactEmail={contactEmail} setContactEmail={setContactEmail}
             />
+
+            {/* Completion nudge + Submit */}
+            <div style={{ background: "#f4f8fa", border: "1px solid #e3e8ec", borderRadius: 10, padding: "14px 16px", marginTop: 4 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>
+                  {allAnswered
+                    ? "All 10 questions answered. Thank you!"
+                    : `You've answered ${answeredCount} of ${totalCount} survey questions.`}
+                </span>
+                {!allAnswered && (
+                  <span style={{ fontSize: 12, color: "#7a8690" }}>
+                    Completing them all helps us most, but you can submit whenever you're ready.
+                  </span>
+                )}
+              </div>
+              <div style={{ height: 8, background: "#dde6ec", borderRadius: 5, marginTop: 10, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${pct}%`, background: allAnswered ? C.green : C.teal, transition: "width 0.2s" }} />
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 14 }}>
+                <button
+                  onClick={handleSurveySubmit}
+                  disabled={surveyStatus === "saving" || !surveyHasInput}
+                  style={{
+                    ...primaryBtn,
+                    opacity: surveyStatus === "saving" || !surveyHasInput ? 0.55 : 1,
+                    cursor: surveyStatus === "saving" || !surveyHasInput ? "default" : "pointer",
+                  }}
+                >
+                  {surveyStatus === "saving" ? "Submitting…" : "Submit survey"}
+                </button>
+                {!surveyHasInput && (
+                  <span style={{ fontSize: 12, color: "#888" }}>
+                    Answer at least one question to submit.
+                  </span>
+                )}
+                {surveyStatus === "error" && (
+                  <span style={{ fontSize: 12, color: C.red }}>
+                    Could not submit: {surveyErr} Please try again.
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-        )}
-      </div>
+        )
+      )}
 
-      {/* ───────── Completion nudge + Submit ───────── */}
-      <div style={{ background: "#f4f8fa", border: "1px solid #e3e8ec", borderRadius: 10, padding: "14px 16px", marginTop: 4 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>
-            {allAnswered
-              ? "All 10 questions answered. Thank you!"
-              : `You've answered ${answeredCount} of ${totalCount} survey questions.`}
-          </span>
-          {!allAnswered && (
-            <span style={{ fontSize: 12, color: "#7a8690" }}>
-              Completing them all helps us most, but you can submit whenever you're ready.
-            </span>
-          )}
-        </div>
-        {/* progress bar */}
-        <div style={{ height: 8, background: "#dde6ec", borderRadius: 5, marginTop: 10, overflow: "hidden" }}>
-          <div style={{ height: "100%", width: `${pct}%`, background: allAnswered ? C.green : C.teal, transition: "width 0.2s" }} />
-        </div>
+      {/* ═════════════ QUESTIONS & OTHER FEEDBACK ═════════════ */}
+      {activeSub === "questions" && (
+        qStatus === "done" ? (
+          <ThankYou
+            onAgain={resetQuestions}
+            againLabel="Submit more feedback"
+          />
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <p style={blurbStyle}>{QUESTIONS_INTRO}</p>
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={6}
+              placeholder="Enter your questions or feedback here…"
+              style={{ ...textareaStyle, minHeight: 140 }}
+            />
 
-        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 14 }}>
-          <button
-            onClick={handleSubmit}
-            disabled={status === "saving" || !hasAnyInput}
-            style={{
-              ...primaryBtn,
-              opacity: status === "saving" || !hasAnyInput ? 0.55 : 1,
-              cursor: status === "saving" || !hasAnyInput ? "default" : "pointer",
-            }}
-          >
-            {status === "saving" ? "Submitting…" : "Submit"}
-          </button>
-          {!hasAnyInput && (
-            <span style={{ fontSize: 12, color: "#888" }}>
-              Answer at least one question to submit.
-            </span>
-          )}
-          {status === "error" && (
-            <span style={{ fontSize: 12, color: C.red }}>
-              Could not submit: {errorMsg} Please try again.
-            </span>
-          )}
-        </div>
-      </div>
+            {/* About you (optional) — shared with the survey section */}
+            <AboutYou
+              name={name} setName={setName}
+              contactOk={contactOk} setContactOk={setContactOk}
+              contactEmail={contactEmail} setContactEmail={setContactEmail}
+            />
+
+            <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 4 }}>
+              <button
+                onClick={handleQuestionsSubmit}
+                disabled={qStatus === "saving" || !qHasInput}
+                style={{
+                  ...primaryBtn,
+                  opacity: qStatus === "saving" || !qHasInput ? 0.55 : 1,
+                  cursor: qStatus === "saving" || !qHasInput ? "default" : "pointer",
+                }}
+              >
+                {qStatus === "saving" ? "Submitting…" : "Submit feedback"}
+              </button>
+              {!qHasInput && (
+                <span style={{ fontSize: 12, color: "#888" }}>
+                  Enter a question or comment to submit.
+                </span>
+              )}
+              {qStatus === "error" && (
+                <span style={{ fontSize: 12, color: C.red }}>
+                  Could not submit: {qErr} Please try again.
+                </span>
+              )}
+            </div>
+          </div>
+        )
+      )}
 
       <div style={{ height: 12 }} />
     </div>
@@ -230,6 +291,71 @@ export default function Feedback({ country, email }) {
 }
 
 // ───────────────────────── pieces ─────────────────────────
+
+function ThankYou({ onAgain, againLabel }) {
+  return (
+    <div style={{
+      background: "#fff", border: `1px solid ${C.teal}`, borderRadius: 12,
+      padding: "40px 28px", textAlign: "center",
+    }}>
+      <div style={{ fontSize: 40, marginBottom: 8 }}>✅</div>
+      <div style={{ fontSize: 20, fontWeight: 800, color: C.navy }}>Thank you!</div>
+      <p style={{ fontSize: 14, color: "#555", lineHeight: 1.6, marginTop: 8 }}>
+        Your feedback has been recorded. We truly appreciate you taking the time
+        to share your experience with the Financial Dashboard.
+      </p>
+      <button onClick={onAgain} style={secondaryBtn}>{againLabel}</button>
+    </div>
+  );
+}
+
+function AboutYou({ name, setName, contactOk, setContactOk, contactEmail, setContactEmail }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <SectionHeading>About You (optional)</SectionHeading>
+      <p style={blurbStyle}>
+        Sharing your name is optional. Let us know if we may follow up with you
+        directly about your feedback.
+      </p>
+      <div>
+        <label style={fieldLabel}>Your name</label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Optional"
+          style={inputStyle}
+        />
+      </div>
+
+      <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+        <input
+          type="checkbox"
+          checked={contactOk}
+          onChange={(e) => setContactOk(e.target.checked)}
+          style={{ width: 18, height: 18, marginTop: 2, flexShrink: 0, cursor: "pointer" }}
+        />
+        <span style={{ fontSize: 14, color: C.navy, lineHeight: 1.4 }}>
+          Yes, the MRCT Center may contact me directly with any follow-up
+          questions about my feedback.
+        </span>
+      </label>
+
+      {contactOk && (
+        <div>
+          <label style={fieldLabel}>Best email to reach you</label>
+          <input
+            type="email"
+            value={contactEmail}
+            onChange={(e) => setContactEmail(e.target.value)}
+            placeholder="you@example.org"
+            style={inputStyle}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
 
 function SectionHeading({ children }) {
   // "in grey font" per Willyanne's note.
