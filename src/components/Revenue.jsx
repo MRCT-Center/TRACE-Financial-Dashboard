@@ -3,29 +3,51 @@ import { gm, fmtPct, COLORS as C } from "../utils/metrics";
 import { useCurrency } from "../utils/CurrencyContext";
 import EditableCell from "./EditableCell";
 import InfoTip, { Def } from "./InfoTip";
+import { PRO_KEYS, STUD_KEYS, rowRevenue } from "../data/feesModel";
+
+// Sum review count and revenue across the given fee rows, for the given set of
+// column keys (PRO_KEYS or STUD_KEYS). Revenue = Σ(amount × count) per cell.
+function sumPair(rows, keys) {
+  let count = 0, revenue = 0;
+  for (const r of rows || []) {
+    for (const k of keys) {
+      const c = r?.cells?.[k] || {};
+      const amt = Number(c.amount) || 0;
+      const cnt = Number(c.count) || 0;
+      count += cnt;
+      revenue += amt * cnt;
+    }
+  }
+  return { count, revenue };
+}
 
 export default function Revenue({ country, data: d, flag, onEdit }) {
   const { fmt } = useCurrency();
   const m = gm(d);
 
-  // Build stacked fee chart data — use authoritative `rev` field, split by count ratio
   const feeRows = d.fees || [];
-  const stackedData = feeRows.map((f) => {
-    const total = (f.ctPro || 0) + (f.ctStu || 0);
-    const proShare = total > 0 ? (f.ctPro || 0) / total : 1;
-    return {
-      type: f.type,
-      professional: Math.round((f.rev || 0) * proShare),
-      student: Math.round((f.rev || 0) * (1 - proShare)),
-    };
-  });
 
-  // Revenue by funder — proportional from rev
-  const indRev = stackedData.reduce((s, f) => s + f.professional, 0);
-  const ngoRev = stackedData.reduce((s, f) => s + f.student, 0);
+  // Per-review-type total fee revenue (Willyanne 2026-05-31 #5): each x-axis
+  // label maps to its total fee revenue — the "Revenue (USD)" column — drawn
+  // from cells (Σ amount × count), falling back to the legacy `rev` field.
+  const feeChartData = feeRows.map((f) => ({
+    type: f.type,
+    revenue: f?.cells ? rowRevenue(f) : (f.rev || 0),
+  }));
+
+  // Professional vs. student review totals (Willyanne 2026-05-31 #6/#7).
+  const proAll  = sumPair(feeRows, PRO_KEYS);
+  const studAll = sumPair(feeRows, STUD_KEYS);
+  const initialRows = feeRows.filter((f) => (f.type || "").toLowerCase().includes("initial review"));
+  const proInit  = sumPair(initialRows, PRO_KEYS);
+  const studInit = sumPair(initialRows, STUD_KEYS);
+
+  // Revenue by funder — professional vs. student split
+  const indRev = proAll.revenue;
+  const ngoRev = studAll.revenue;
   const funderData = [
-    { name: "Industry / Sponsor", value: indRev, color: C.navy },
-    { name: "Institution / NGO", value: ngoRev, color: C.teal },
+    { name: "Professional", value: indRev, color: C.navy },
+    { name: "Student", value: ngoRev, color: C.teal },
   ].filter((x) => x.value > 0);
 
   const feePct = m.tr > 0 ? (d.revFees / m.tr) * 100 : 0;
@@ -41,30 +63,20 @@ export default function Revenue({ country, data: d, flag, onEdit }) {
         <KPI label="Total Irregular Revenue" val={fmt(m.tri)} color={C.purple} />
       </div>
 
-      <Card title="Revenue from Fees — Professional vs. Student Reviews">
+      <Card title="Revenue from Fees">
         <p style={narrativeStyle}>
-          Each bar shows total fee revenue for a review type, split between professional (sponsor-funded) and student reviews.
-          Professional reviews typically generate more revenue per review.
+          Each bar shows the total fee revenue for a review type, drawn from the "Revenue (USD)" column of the
+          Inputs &rsaquo; Revenue &rsaquo; Revenue from fees table (fee amount &times; number of reviews, summed across all funder and student columns for that row).
         </p>
-        {/* Custom legend above the chart so it never overlaps */}
-        <div style={{ display: "flex", gap: 16, marginTop: 10, marginBottom: 4 }}>
-          {[{ label: "Professional", color: C.navy }, { label: "Student", color: C.teal }].map(({ label, color }) => (
-            <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#444" }}>
-              <div style={{ width: 12, height: 12, borderRadius: 3, background: color, flexShrink: 0 }} />
-              {label}
-            </div>
-          ))}
-        </div>
-        {stackedData.length > 0 ? (
-          <div style={{ height: 240 }}>
+        {feeChartData.length > 0 ? (
+          <div style={{ height: 300 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stackedData} margin={{ top: 4, right: 20, left: 4, bottom: 24 }}>
+              <BarChart data={feeChartData} margin={{ top: 4, right: 20, left: 4, bottom: 90 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="type" fontSize={11} angle={-20} textAnchor="end" interval={0} />
+                <XAxis dataKey="type" fontSize={10} angle={-40} textAnchor="end" interval={0} height={120} />
                 <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} fontSize={11} />
-                <Tooltip formatter={(v, name) => [fmt(v), name === "professional" ? "Professional" : "Student"]} />
-                <Bar dataKey="professional" stackId="a" fill={C.navy} name="professional" />
-                <Bar dataKey="student" stackId="a" fill={C.teal} name="student" radius={[4, 4, 0, 0]} />
+                <Tooltip formatter={(v) => [fmt(v), "Total fee revenue"]} />
+                <Bar dataKey="revenue" fill={C.navy} radius={[4, 4, 0, 0]} name="revenue" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -73,11 +85,29 @@ export default function Revenue({ country, data: d, flag, onEdit }) {
         )}
       </Card>
 
+      {/* Professional vs. Student review totals (Willyanne 2026-05-31 #6/#7). */}
+      <Card title="Reviews by Submitter Type — Count &amp; Revenue">
+        <p style={narrativeStyle}>
+          Professional ("Pro.") and student ("Stud.") totals, summed across the fee table. Count is the total number of
+          reviews; revenue is fee amount &times; count, summed across the matching columns.
+        </p>
+        <div style={{ fontSize: 12, fontWeight: 700, color: C.blueGrey, textTransform: "uppercase", letterSpacing: 0.5, marginTop: 12, marginBottom: 8 }}>All review types</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
+          <ReviewBox label="All professional reviews" count={proAll.count} revenue={proAll.revenue} color={C.navy} fmt={fmt} />
+          <ReviewBox label="All student reviews" count={studAll.count} revenue={studAll.revenue} color={C.teal} fmt={fmt} />
+        </div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: C.blueGrey, textTransform: "uppercase", letterSpacing: 0.5, marginTop: 18, marginBottom: 8 }}>Initial review rows only</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
+          <ReviewBox label="Professional — initial review" count={proInit.count} revenue={proInit.revenue} color={C.navy} fmt={fmt} />
+          <ReviewBox label="Student — initial review" count={studInit.count} revenue={studInit.revenue} color={C.teal} fmt={fmt} />
+        </div>
+      </Card>
+
       <div style={{ display: "flex", flexWrap: "wrap", gap: 20 }}>
         {funderData.length > 0 && (
-          <Card title={<>Revenue from Fees by Funder Type<InfoTip title="Funder types"><Def term="Industry / Sponsor">Industry-sponsored professional (non-student) research — e.g., pharmaceutical companies or other commercial sponsors conducting clinical trials.</Def><Def term="Institution / NGO / Philanthropy">Research funded by universities, NGOs, or philanthropic organizations, for professional non-student studies.</Def>In the TRACE fee model, funder type is used as a proxy for the origin of the study (e.g., international or domestic), as it is often difficult to identify the study origin directly.</InfoTip></>} style={{ flex: "1 1 260px" }}>
+          <Card title={<>Revenue from Fees — Professional vs. Student<InfoTip title="Professional vs. student"><Def term={'Professional ("Pro.")'}>Non-student (professional) studies — e.g., industry-, institution-, NGO-, or government-funded research. These are summed across all "Pro." columns of the fee table.</Def><Def term={'Student ("Stud.")'}>Student studies — e.g., international, PhD, MA, or BA student research. These are summed across all "Stud." columns of the fee table.</Def>Professional studies typically pay higher fees; student studies often qualify for reduced rates.</InfoTip></>} style={{ flex: "1 1 260px" }}>
             <p style={narrativeStyle}>
-              Industry-sponsored trials typically pay higher fees. Institution and NGO studies often qualify for reduced rates.
+              Professional (non-student) studies typically pay higher fees. Student studies often qualify for reduced rates.
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 14, alignItems: "center", marginTop: 10 }}>
               <div style={{ width: 140, height: 140 }}>
@@ -126,9 +156,21 @@ export default function Revenue({ country, data: d, flag, onEdit }) {
         </Card>
       </div>
 
+      {/* Fee Schedule — condensed read-only reflection of the fee `cells`
+          (source of truth, edited on the Inputs → Revenue → Revenue from fees
+          page). Values (Professional/Student fee = weighted-avg, counts, total
+          revenue) are derived from cells in App.jsx on load, so this table is
+          display-only — the EditableCells were removed 2026-05-31 because their
+          edits could not persist against the cells model.
+          FLAGGED FOR WILLYANNE (2026-05-31): open decision — keep this as a
+          read-only summary, or remove it as duplicative of the new "Revenue
+          from Fees" bars + "Reviews by Submitter Type" boxes? See the
+          2026-05-31 status .docx. */}
       <Card title={<>Fee Schedule<InfoTip title="Review types and fees"><Def term="Initial review">The review process required to give ethics approval (or disapproval) for human subjects research study proposals when first submitted to an ethics committee. This review is designed to protect the rights, safety, and welfare of human participants. Conducted for studies that are either "minimal risk" or "more than minimal risk."</Def><Def term="Minimal risk">Studies where the risk of harm or discomfort is not greater than that ordinarily encountered in daily life or during routine physical or psychological examinations or tests.</Def><Def term="More than minimal risk">Includes any study greater than minimal risk.</Def><Def term="Accelerated review">A higher fee charged to complete a specific review process more quickly than the regular timeframe for that review process.</Def><Def term="Continuing review">Ethical re-evaluation that takes place at regular intervals (at least annually) during studies to ensure participant safety and ethical compliance.</Def><Def term="Major amendment">A major amendment is when there is a major change likely to affect the rights, safety, and/or well-being of the research participants or the conduct of the study, which must be reviewed — such as a change in the study protocol like the dosing of the tested medication.</Def><Def term="Minor amendment">A minor amendment is when there is a simple paperwork update, such as when a new research assistant is added to the team.</Def></InfoTip></>}>
         <p style={narrativeStyle}>
-          Full fee schedule for all review types. Counts shown separately for professional and student submissions. Click any value to edit.
+          Full fee schedule for all review types, with counts shown separately for professional and student submissions.
+          This table reflects the fee data entered on the Inputs &rsaquo; Revenue &rsaquo; Revenue from fees page and is shown here for reference;
+          to change a fee amount or count, edit it on that Inputs page.
         </p>
         <div style={{ overflowX: "auto", marginTop: 12 }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -143,21 +185,11 @@ export default function Revenue({ country, data: d, flag, onEdit }) {
               {feeRows.map((f, i) => (
                 <tr key={i} style={{ borderBottom: "1px solid #f0f0f0" }}>
                   <td style={{ padding: "9px 10px" }}>{f.type}</td>
-                  <td style={{ padding: "9px 10px" }}>
-                    <EditableCell value={f.ind} display={fmt(f.ind)} path={`fees.${i}.ind`} onEdit={onEdit} />
-                  </td>
-                  <td style={{ padding: "9px 10px", color: C.blueGrey }}>
-                    <EditableCell value={f.ctPro || 0} path={`fees.${i}.ctPro`} onEdit={onEdit} />
-                  </td>
-                  <td style={{ padding: "9px 10px" }}>
-                    <EditableCell value={f.ngo} display={fmt(f.ngo)} path={`fees.${i}.ngo`} onEdit={onEdit} />
-                  </td>
-                  <td style={{ padding: "9px 10px", color: C.blueGrey }}>
-                    <EditableCell value={f.ctStu || 0} path={`fees.${i}.ctStu`} onEdit={onEdit} />
-                  </td>
-                  <td style={{ padding: "9px 10px", fontWeight: 600, color: C.navy }}>
-                    <EditableCell value={f.rev || 0} display={fmt(f.rev || 0)} path={`fees.${i}.rev`} onEdit={onEdit} />
-                  </td>
+                  <td style={{ padding: "9px 10px" }}>{fmt(f.ind || 0)}</td>
+                  <td style={{ padding: "9px 10px", color: C.blueGrey }}>{(f.ctPro || 0).toLocaleString()}</td>
+                  <td style={{ padding: "9px 10px" }}>{fmt(f.ngo || 0)}</td>
+                  <td style={{ padding: "9px 10px", color: C.blueGrey }}>{(f.ctStu || 0).toLocaleString()}</td>
+                  <td style={{ padding: "9px 10px", fontWeight: 600, color: C.navy }}>{fmt(f.rev || 0)}</td>
                 </tr>
               ))}
             </tbody>
@@ -203,6 +235,24 @@ function KPI({ label, val, color }) {
     <div style={{ flex: "1 1 150px", background: "#fff", border: "1px solid #dde", borderRadius: 9, padding: "14px 16px", borderTop: `3px solid ${color}` }}>
       <div style={{ fontSize: 11, color: C.blueGrey, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</div>
       <div style={{ fontSize: 22, fontWeight: 700, color, marginTop: 4 }}>{val}</div>
+    </div>
+  );
+}
+
+function ReviewBox({ label, count, revenue, color, fmt }) {
+  return (
+    <div style={{ flex: "1 1 220px", background: "#fff", border: "1px solid #dde", borderRadius: 9, padding: "14px 16px", borderTop: `3px solid ${color}` }}>
+      <div style={{ fontSize: 12, color: C.navy, fontWeight: 600 }}>{label}</div>
+      <div style={{ display: "flex", gap: 22, marginTop: 8 }}>
+        <div>
+          <div style={{ fontSize: 10, color: C.blueGrey, textTransform: "uppercase", letterSpacing: 0.5 }}>Count</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color, marginTop: 2 }}>{count.toLocaleString()}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: C.blueGrey, textTransform: "uppercase", letterSpacing: 0.5 }}>Revenue</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color, marginTop: 2 }}>{fmt(revenue)}</div>
+        </div>
+      </div>
     </div>
   );
 }

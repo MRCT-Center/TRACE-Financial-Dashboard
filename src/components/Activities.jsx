@@ -14,11 +14,39 @@ const TREND_LABELS = {
   "remain the same": "→ Same",
 };
 
+// Effort-direction classifiers — case-insensitive so they match both the
+// wizard dropdown values ("Increase"/"Decrease"/"Remain the same") and any
+// lower-case legacy data.
+const isIncrease = (v) => (v || "").toLowerCase().includes("increas");
+const isDecrease = (v) => (v || "").toLowerCase().includes("decreas");
+const isSame     = (v) => { const s = (v || "").toLowerCase(); return s.includes("same") || s.includes("remain"); };
+const hasValue   = (v) => (v || "").trim().length > 0;
+
 export default function Activities({ country, data: d, flag }) {
   const activities = d.activities || [];
 
-  const increasingNear = activities.filter((a) => a.nearTerm === "increase").length;
-  const increasingLong = activities.filter((a) => a.longTerm === "increase").length;
+  // Fractions of activities by expected effort direction (Willyanne 2026-05-31
+  // #4). Numerator = count with that direction in the column; denominator =
+  // number of activities that have any value in that column.
+  const nearDen = activities.filter((a) => hasValue(a.nearTerm)).length;
+  const longDen = activities.filter((a) => hasValue(a.longTerm)).length;
+  const effortStats = {
+    near: {
+      inc:  activities.filter((a) => isIncrease(a.nearTerm)).length,
+      same: activities.filter((a) => isSame(a.nearTerm)).length,
+      dec:  activities.filter((a) => isDecrease(a.nearTerm)).length,
+      den:  nearDen,
+    },
+    long: {
+      inc:  activities.filter((a) => isIncrease(a.longTerm)).length,
+      same: activities.filter((a) => isSame(a.longTerm)).length,
+      dec:  activities.filter((a) => isDecrease(a.longTerm)).length,
+      den:  longDen,
+    },
+  };
+
+  const increasingNear = effortStats.near.inc;
+  const increasingLong = effortStats.long.inc;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -29,6 +57,29 @@ export default function Activities({ country, data: d, flag }) {
         <KPI label="Expected to increase (near-term)" val={increasingNear} color={C.teal} />
         <KPI label="Expected to increase (long-term)" val={increasingLong} color={C.purple} />
       </div>
+
+      {activities.length > 0 && (
+        <Card title="Effort Direction — Share of Activities">
+          <p style={narrativeStyle}>
+            Of the activities tracked, the fraction expected to increase, stay the same, or decrease in effort —
+            in the near term (next year) and the long term (3–5 years). Drawn from Inputs &rsaquo; 2. Key Considerations &rsaquo; Activities.
+          </p>
+          <div style={{ marginTop: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.blueGrey, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Near-term (next year)</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
+              <FractionBox label="Increasing effort" num={effortStats.near.inc} den={effortStats.near.den} tone="increase" />
+              <FractionBox label="Same effort" num={effortStats.near.same} den={effortStats.near.den} tone="remain the same" />
+              <FractionBox label="Decreasing effort" num={effortStats.near.dec} den={effortStats.near.den} tone="decrease" />
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.blueGrey, textTransform: "uppercase", letterSpacing: 0.5, margin: "18px 0 8px" }}>Long-term (3–5 years)</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
+              <FractionBox label="Increasing effort" num={effortStats.long.inc} den={effortStats.long.den} tone="increase" />
+              <FractionBox label="Same effort" num={effortStats.long.same} den={effortStats.long.den} tone="remain the same" />
+              <FractionBox label="Decreasing effort" num={effortStats.long.dec} den={effortStats.long.den} tone="decrease" />
+            </div>
+          </div>
+        </Card>
+      )}
 
       {activities.length === 0 ? (
         <div style={{ background: "#fff", borderRadius: 9, border: "1px solid #dde", padding: "28px 24px", textAlign: "center", color: C.blueGrey }}>
@@ -78,6 +129,18 @@ export default function Activities({ country, data: d, flag }) {
           </div>
         </Card>
       )}
+    </div>
+  );
+}
+
+function FractionBox({ label, num, den, tone }) {
+  const t = TREND_COLORS[tone] || TREND_COLORS["remain the same"];
+  const pct = den > 0 ? Math.round((num / den) * 100) : 0;
+  return (
+    <div style={{ flex: "1 1 150px", background: t.bg, border: `1px solid ${t.border}`, borderRadius: 9, padding: "14px 16px" }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>{label}</div>
+      <div style={{ fontSize: 30, fontWeight: 800, color: t.text, marginTop: 6 }}>{num}<span style={{ fontSize: 20, fontWeight: 600 }}> / {den}</span></div>
+      <div style={{ fontSize: 11, color: t.text, opacity: 0.85, marginTop: 2 }}>{den > 0 ? `${pct}% of activities` : "no data"}</div>
     </div>
   );
 }

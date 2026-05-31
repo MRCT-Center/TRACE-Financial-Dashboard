@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { COUNTRY_FLAGS, COLORS as C } from "./utils/metrics";
 import { COUNTRIES } from "./data/countries";
 import { EXPENSES_REGULAR_ROW_DEFAULTS } from "./data/expensesRegular";
-import { FEES_DEFAULT_ROWS, FEES_DEFAULT_COLUMN_LABELS, isLegacyFeesArray, isAllBlankFees, totalFeesRevenue } from "./data/feesModel";
+import { FEES_DEFAULT_ROWS, FEES_DEFAULT_COLUMN_LABELS, isLegacyFeesArray, isAllBlankFees, totalFeesRevenue, deriveLegacyFeeFields } from "./data/feesModel";
 import { CurrencyProvider, COUNTRY_CURRENCIES, CURRENCIES, useCurrency } from "./utils/CurrencyContext";
 import { supabase } from "./supabaseClient";
 import LoginPage from "./components/LoginPage";
@@ -276,6 +276,15 @@ export default function App() {
             // source of truth either way).
             if (Array.isArray(merged.fees)) {
               merged.revFees = totalFeesRevenue(merged.fees);
+              // Re-derive each row's legacy fields (ctPro/ctStu/ind/ngo/rev)
+              // from its cells. The Results-side consumers that still read these
+              // — the GapView advocacy review counts and the Revenue "Fee
+              // Schedule" table — otherwise show zeros for seeded/loaded data,
+              // because deriveLegacyFeeFields previously ran only on wizard
+              // submit. cells remain the source of truth (Willyanne 2026-05-31
+              // audit: Revenue + Gap pages must reconcile to the fee table).
+              merged.fees = merged.fees.map((r) =>
+                r && r.cells ? { ...r, ...deriveLegacyFeeFields(r) } : r);
             }
             if (Array.isArray(merged.revRegOther)) {
               merged.revOther = merged.revRegOther

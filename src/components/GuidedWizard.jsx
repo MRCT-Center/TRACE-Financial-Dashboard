@@ -72,6 +72,12 @@ export default function GuidedWizard({ country, data, onSave }) {
   const draft = loadDraft(country);
 
   const [step, setStep]           = useState(() => draft?.step ?? 0);
+  // Furthest step the user has reached. Once a step has been visited (advanced
+  // to via Next, which enforces the per-step validation gates), the user can
+  // freely jump back to it by clicking its tab — they no longer have to walk
+  // forward with the Next button (Willyanne 2026-05-31 #9).
+  const [maxStepReached, setMaxStepReached] = useState(() => draft?.maxStepReached ?? draft?.step ?? 0);
+  useEffect(() => { setMaxStepReached((m) => Math.max(m, step)); }, [step]);
   // Country's local currency from login — used to default the reporting currency
   // and to drive the static exchange-rate lookup.
   const localCurrencyCode = COUNTRY_CURRENCIES[country] || "USD";
@@ -211,7 +217,7 @@ export default function GuidedWizard({ country, data, onSave }) {
   useEffect(() => {
     if (submitted) return;
     saveDraft(country, {
-      step, currencyCode: currency.code, inputMode, unit, budgetYear,
+      step, maxStepReached, currencyCode: currency.code, inputMode, unit, budgetYear,
       hasRisks, hasOpps, riskText, oppText,
       activityRows, stepSources, stepNotes,
       erRowsEdits, feesEdits, feesColumnsEdits, irrProjEdits,
@@ -220,7 +226,7 @@ export default function GuidedWizard({ country, data, onSave }) {
       expVisitedIrregular, revVisitedIrregular, inkVisitedIrregular,
     });
     setDraftSavedAt(new Date().toISOString());
-  }, [country, submitted, step, currency.code, inputMode, unit, budgetYear, hasRisks, hasOpps, riskText, oppText, activityRows, stepSources, stepNotes, erRowsEdits, feesEdits, feesColumnsEdits, irrProjEdits, revRegOtherEdits, revIrrEdits, ikRegRowsEdits, ikIrrRowsEdits, expVisitedIrregular, revVisitedIrregular, inkVisitedIrregular]);
+  }, [country, submitted, step, maxStepReached, currency.code, inputMode, unit, budgetYear, hasRisks, hasOpps, riskText, oppText, activityRows, stepSources, stepNotes, erRowsEdits, feesEdits, feesColumnsEdits, irrProjEdits, revRegOtherEdits, revIrrEdits, ikRegRowsEdits, ikIrrRowsEdits, expVisitedIrregular, revVisitedIrregular, inkVisitedIrregular]);
 
   // Static exchange rate — recomputed when currency changes. Rates source: CurrencyContext map.
   useEffect(() => {
@@ -320,13 +326,13 @@ export default function GuidedWizard({ country, data, onSave }) {
         {STEPS.map((s, i) => (
           <button
             key={s.id}
-            onClick={() => i < step && setStep(i)}
+            onClick={() => i <= maxStepReached && setStep(i)}
             style={{
               flex: "1 1 auto", padding: "6px 4px", fontSize: 11, borderRadius: 5,
-              background: i === step ? C.teal : i < step ? C.darkNavy : "#dde",
-              color: i <= step ? "#fff" : C.blueGrey,
+              background: i === step ? C.teal : i <= maxStepReached ? C.darkNavy : "#dde",
+              color: i <= maxStepReached ? "#fff" : C.blueGrey,
               fontWeight: i === step ? 700 : 400,
-              whiteSpace: "nowrap", cursor: i < step ? "pointer" : "default", minHeight: 36,
+              whiteSpace: "nowrap", cursor: i <= maxStepReached && i !== step ? "pointer" : "default", minHeight: 36,
             }}
           >
             {s.label}
