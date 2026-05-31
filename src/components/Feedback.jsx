@@ -21,6 +21,15 @@ export default function Feedback({ country, email }) {
     Object.values(responses).some((v) => v !== "" && v !== undefined && v !== null) ||
     message.trim() !== "";
 
+  // Completion progress — to encourage finishing without ever requiring it.
+  const answeredCount = SURVEY_QUESTIONS.filter((q) => {
+    const v = responses[q.id];
+    return v !== undefined && v !== null && v !== "";
+  }).length;
+  const totalCount = SURVEY_QUESTIONS.length;
+  const allAnswered = answeredCount === totalCount;
+  const pct = Math.round((answeredCount / totalCount) * 100);
+
   async function handleSubmit() {
     if (status === "saving") return;
     setStatus("saving");
@@ -116,29 +125,48 @@ export default function Feedback({ country, email }) {
         style={{ ...textareaStyle, minHeight: 96 }}
       />
 
-      {/* ───────── Submit ───────── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 4 }}>
-        <button
-          onClick={handleSubmit}
-          disabled={status === "saving" || !hasAnyInput}
-          style={{
-            ...primaryBtn,
-            opacity: status === "saving" || !hasAnyInput ? 0.55 : 1,
-            cursor: status === "saving" || !hasAnyInput ? "default" : "pointer",
-          }}
-        >
-          {status === "saving" ? "Submitting…" : "Submit"}
-        </button>
-        {!hasAnyInput && (
-          <span style={{ fontSize: 12, color: "#888" }}>
-            Answer at least one question to submit.
+      {/* ───────── Completion nudge + Submit ───────── */}
+      <div style={{ background: "#f4f8fa", border: "1px solid #e3e8ec", borderRadius: 10, padding: "14px 16px", marginTop: 4 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>
+            {allAnswered
+              ? "All 10 questions answered. Thank you!"
+              : `You've answered ${answeredCount} of ${totalCount} survey questions.`}
           </span>
-        )}
-        {status === "error" && (
-          <span style={{ fontSize: 12, color: C.red }}>
-            Could not submit: {errorMsg} Please try again.
-          </span>
-        )}
+          {!allAnswered && (
+            <span style={{ fontSize: 12, color: "#7a8690" }}>
+              Completing them all helps us most, but you can submit whenever you're ready.
+            </span>
+          )}
+        </div>
+        {/* progress bar */}
+        <div style={{ height: 8, background: "#dde6ec", borderRadius: 5, marginTop: 10, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${pct}%`, background: allAnswered ? C.green : C.teal, transition: "width 0.2s" }} />
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 14 }}>
+          <button
+            onClick={handleSubmit}
+            disabled={status === "saving" || !hasAnyInput}
+            style={{
+              ...primaryBtn,
+              opacity: status === "saving" || !hasAnyInput ? 0.55 : 1,
+              cursor: status === "saving" || !hasAnyInput ? "default" : "pointer",
+            }}
+          >
+            {status === "saving" ? "Submitting…" : "Submit"}
+          </button>
+          {!hasAnyInput && (
+            <span style={{ fontSize: 12, color: "#888" }}>
+              Answer at least one question to submit.
+            </span>
+          )}
+          {status === "error" && (
+            <span style={{ fontSize: 12, color: C.red }}>
+              Could not submit: {errorMsg} Please try again.
+            </span>
+          )}
+        </div>
       </div>
 
       <div style={{ height: 12 }} />
