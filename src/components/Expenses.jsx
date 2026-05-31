@@ -59,13 +59,14 @@ export default function Expenses({ country, data: d, flag, onEdit }) {
         <div style={{ height: chartHeight, marginTop: 14 }}>
           <ResponsiveContainer width="100%" height="100%">
             {/* Per Willyanne 2026-05-30 (#6): widen the category labels 50%
-                (width 170 → 255) so they read in full, scale the X axis to
-                0–50% instead of 0–100% for better resolution (the largest single
-                category, salaries, is ~43%), and add a % data label to each bar.
-                Right margin widened to seat the labels. */}
+                (width 170 → 255) so they read in full and add a % data label
+                to each bar. Right margin widened to seat the labels.
+                Per Willyanne 2026-05-31 (later-morning): X axis auto-scales to
+                the data instead of a fixed 0–50% ceiling, so a country whose
+                largest category exceeds 50% still renders fully. */}
             <BarChart data={chartRows} layout="vertical" margin={{ left: 14, right: 56, top: 4, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" domain={[0, 50]} ticks={[0, 10, 20, 30, 40, 50]} tickFormatter={(v) => `${v}%`} fontSize={11} />
+              <XAxis type="number" domain={[0, "auto"]} tickFormatter={(v) => `${v}%`} fontSize={11} />
               <YAxis dataKey="category" type="category" fontSize={11} width={255} interval={0} />
               <Tooltip formatter={(v, n, p) => [`${v.toFixed(1)}% (${fmt(p?.payload?.amount || 0)})`, "Share of total"]} />
               <Bar dataKey="pct" fill={C.navy} radius={[0, 4, 4, 0]}>

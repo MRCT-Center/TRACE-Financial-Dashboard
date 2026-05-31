@@ -34,9 +34,9 @@ export default function GapView({ country, data: d, flag }) {
         <GapKPI label="Combined Gap" val={m.cg} large />
         {m.ik > 0 && (
           <div style={{ flex: "1 1 180px", background: "#fff", border: `1px solid #dde`, borderTop: `3px solid ${C.steelblue}`, borderRadius: 9, padding: "14px 16px" }}>
-            <div style={{ fontSize: 11, color: C.blueGrey, textTransform: "uppercase", letterSpacing: 0.5 }}>Total Economic Activity</div>
+            <div style={{ fontSize: 11, color: C.blueGrey, textTransform: "uppercase", letterSpacing: 0.5 }}>Total Expenses Budget</div>
             <div style={{ fontSize: 22, fontWeight: 800, color: C.steelblue, marginTop: 4 }}>{fmt(m.te + m.ti + m.ik)}</div>
-            <div style={{ fontSize: 12, color: C.blueGrey, marginTop: 2 }}>cash expenses + in-kind</div>
+            <div style={{ fontSize: 12, color: C.blueGrey, marginTop: 2 }}>Regular expenses + irregular expenses + in-kind contributions</div>
           </div>
         )}
       </div>

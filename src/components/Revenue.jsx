@@ -77,7 +77,7 @@ export default function Revenue({ country, data: d, flag, onEdit }) {
                 <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} fontSize={11} />
                 <Tooltip formatter={(v) => [fmt(v), "Total fee revenue"]} />
                 <Bar dataKey="revenue" fill={C.navy} radius={[4, 4, 0, 0]} name="revenue">
-                  <LabelList dataKey="revenue" position="top" fontSize={9} fill={C.navy} formatter={(v) => (v ? fmt(v) : "")} />
+                  <LabelList dataKey="revenue" position="top" fontSize={9} fill={C.navy} formatter={(v) => (Number(v) > 0 ? fmt(v) : fmt(0))} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>

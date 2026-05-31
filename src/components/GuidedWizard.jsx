@@ -397,7 +397,7 @@ export default function GuidedWizard({ country, data, onSave }) {
               visitedIrregular={inkVisitedIrregular}
             />
           )}
-          {step === 5 && <StepReview  country={country} activityRows={activityRows} currency={currency} erRowsEdits={erRowsEdits} feesEdits={feesEdits} />}
+          {step === 5 && <StepReview  country={country} activityRows={activityRows} currency={currency} budgetYear={budgetYear} erRowsEdits={erRowsEdits} irrProjEdits={irrProjEdits} feesEdits={feesEdits} revRegOtherEdits={revRegOtherEdits} revIrrEdits={revIrrEdits} ikRegRowsEdits={ikRegRowsEdits} ikIrrRowsEdits={ikIrrRowsEdits} />}
 
           {/* Sources & Notes — required on every step except Setup (per
               Willyanne 2026-05-27 mid-day item #4) and Review. */}
@@ -2502,10 +2502,20 @@ function ExpensesStep({ conv, erRowsEdits, setErRowsEdits, irrProjEdits, setIrrP
   );
 }
 
-function StepReview({ country, activityRows, currency, erRowsEdits, feesEdits }) {
+function StepReview({ country, activityRows, currency, budgetYear, erRowsEdits, irrProjEdits, feesEdits, revRegOtherEdits, revIrrEdits, ikRegRowsEdits, ikIrrRowsEdits }) {
   const filledActivities = activityRows.filter((r) => r.nearTerm && r.longTerm);
-  const totalExpenses = (erRowsEdits || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
-  const totalRevenue  = totalFeesRevenue(feesEdits);
+  const sumRows = (rows) => (rows || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
+  const totalRegExpenses = sumRows(erRowsEdits);
+  const totalIrrExpenses = sumRows(irrProjEdits);
+  const totalFeeRevenue  = totalFeesRevenue(feesEdits);
+  const totalRegRevenue  = totalFeeRevenue + sumRows(revRegOtherEdits);
+  const totalIrrRevenue  = sumRows(revIrrEdits);
+  const totalIkReg       = sumRows(ikRegRowsEdits);
+  const totalIkIrr       = sumRows(ikIrrRowsEdits);
+  const usd = (v) => `$${Math.round(v).toLocaleString()}`;
+  // Per Willyanne 2026-05-31 (later-morning #4): Review summary order is
+  // Country · Currency · Budget year, then the seven totals, then activities.
+  // All totals shown in USD (the dashboard's internal storage currency).
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <p style={descStyle}>Review your responses before submitting. Submitting will save all changes to the TRACE database.</p>
@@ -2514,8 +2524,16 @@ function StepReview({ country, activityRows, currency, erRowsEdits, feesEdits })
         <div style={{ fontSize: 13, color: "#444", lineHeight: 1.9 }}>
           <div>Country: <strong>{country}</strong></div>
           <div>Currency: <strong>{currency.code} ({currency.symbol})</strong></div>
-          <div>Total regular expenses: <strong>${totalExpenses.toLocaleString()}</strong></div>
-          <div>Total fee revenue: <strong>${totalRevenue.toLocaleString()}</strong></div>
+          <div>Budget year: <strong>{budgetYear || "—"}</strong></div>
+          <div style={{ borderTop: `1px solid ${C.lightBorder || "#dde"}`, margin: "8px 0 4px" }} />
+          <div>Total regular expenses: <strong>{usd(totalRegExpenses)}</strong></div>
+          <div>Total irregular expenses: <strong>{usd(totalIrrExpenses)}</strong></div>
+          <div>Total regular revenue: <strong>{usd(totalRegRevenue)}</strong></div>
+          <div style={{ paddingLeft: 14, color: "#666" }}>— of which total fee revenue: <strong>{usd(totalFeeRevenue)}</strong></div>
+          <div>Total irregular revenue: <strong>{usd(totalIrrRevenue)}</strong></div>
+          <div>Total in-kind contributions (regular): <strong>{usd(totalIkReg)}</strong></div>
+          <div>Total in-kind contributions (irregular): <strong>{usd(totalIkIrr)}</strong></div>
+          <div style={{ borderTop: `1px solid ${C.lightBorder || "#dde"}`, margin: "8px 0 4px" }} />
           <div>Activities filled in: <strong>{filledActivities.length} / {activityRows.length}</strong></div>
         </div>
       </div>
