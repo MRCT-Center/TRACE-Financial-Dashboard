@@ -5,6 +5,7 @@ import { EXPENSES_REGULAR_ROW_DEFAULTS } from "./data/expensesRegular";
 import { FEES_DEFAULT_ROWS, FEES_DEFAULT_COLUMN_LABELS, isLegacyFeesArray, isAllBlankFees, totalFeesRevenue, deriveLegacyFeeFields } from "./data/feesModel";
 import { CurrencyProvider, COUNTRY_CURRENCIES, CURRENCIES, useCurrency } from "./utils/CurrencyContext";
 import { supabase } from "./supabaseClient";
+import { DEMO_MODE } from "./demoConfig";
 import LoginPage from "./components/LoginPage";
 import IntroPage from "./components/IntroPage";
 import Results from "./components/Results";
@@ -67,8 +68,10 @@ export default function App() {
         if (error) throw error;
 
         if (!data || data.length === 0) {
-          // First run: seed Supabase with hardcoded data
-          await seedSupabase();
+          // First run: seed Supabase with hardcoded data. Skip in demo mode so a
+          // demo never writes to the database (it falls back to the in-code
+          // COUNTRIES dummy data instead). See src/demoConfig.js.
+          if (!DEMO_MODE) await seedSupabase();
         } else {
           // Merge Supabase data into cache (Supabase wins over hardcoded).
           // Phase 1 er.* rekey: if a Supabase row carries the legacy expense
@@ -344,6 +347,10 @@ export default function App() {
   async function saveCountryData(country, updates) {
     const merged = { ...countryCache[country], ...updates };
     setCountryCache((prev) => ({ ...prev, [country]: merged }));
+    // Demo mode: edits update the in-memory cache only (so the UI reflects them
+    // this session) but are NEVER persisted to Supabase, so the seeded dummy data
+    // stays pristine. A refresh reloads the clean data. See src/demoConfig.js.
+    if (DEMO_MODE) return;
     const { error } = await supabase.from("country_data").upsert({
       country,
       data: merged,
@@ -449,7 +456,8 @@ function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange,
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ fontSize: 11, opacity: 0.7 }}>MRCT Center</div>
             {dbStatus === "loading" && <span style={{ fontSize: 10, opacity: 0.6 }}>⟳ connecting…</span>}
-            {dbStatus === "ready"   && <span style={{ fontSize: 10, color: "#7ecf5a" }}>● live</span>}
+            {dbStatus === "ready"   && !DEMO_MODE && <span style={{ fontSize: 10, color: "#7ecf5a" }}>● live</span>}
+            {dbStatus === "ready"   &&  DEMO_MODE && <span style={{ fontSize: 10, color: "#f8df57" }}>● demo (edits not saved)</span>}
             {dbStatus === "error"   && <span style={{ fontSize: 10, color: C.yellow }}>● offline</span>}
           </div>
         </div>
