@@ -38,6 +38,9 @@ export default function LoginPage({ onLogin }) {
           <div style={{ fontSize: 13, color: C.blueGrey, marginTop: 4 }}>
             Financial Dashboard · MRCT Center at Harvard
           </div>
+          <div style={{ marginTop: 12, fontSize: 13, fontWeight: 800, color: C.red, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            Draft Version: Do Not Share
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>

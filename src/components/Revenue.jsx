@@ -1,4 +1,4 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell, LabelList } from "recharts";
 import { gm, fmtPct, COLORS as C } from "../utils/metrics";
 import { useCurrency } from "../utils/CurrencyContext";
 import EditableCell from "./EditableCell";
@@ -63,7 +63,7 @@ export default function Revenue({ country, data: d, flag, onEdit }) {
         <KPI label="Total Irregular Revenue" val={fmt(m.tri)} color={C.purple} />
       </div>
 
-      <Card title="Revenue from Fees">
+      <Card title="Revenue from Fees – By Review Type">
         <p style={narrativeStyle}>
           Each bar shows the total fee revenue for a review type, drawn from the "Revenue (USD)" column of the
           Inputs &rsaquo; Revenue &rsaquo; Revenue from fees table (fee amount &times; number of reviews, summed across all funder and student columns for that row).
@@ -71,12 +71,14 @@ export default function Revenue({ country, data: d, flag, onEdit }) {
         {feeChartData.length > 0 ? (
           <div style={{ height: 300 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={feeChartData} margin={{ top: 4, right: 20, left: 4, bottom: 90 }}>
+              <BarChart data={feeChartData} margin={{ top: 24, right: 20, left: 4, bottom: 90 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="type" fontSize={10} angle={-40} textAnchor="end" interval={0} height={120} />
                 <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} fontSize={11} />
                 <Tooltip formatter={(v) => [fmt(v), "Total fee revenue"]} />
-                <Bar dataKey="revenue" fill={C.navy} radius={[4, 4, 0, 0]} name="revenue" />
+                <Bar dataKey="revenue" fill={C.navy} radius={[4, 4, 0, 0]} name="revenue">
+                  <LabelList dataKey="revenue" position="top" fontSize={9} fill={C.navy} formatter={(v) => (v ? fmt(v) : "")} />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
