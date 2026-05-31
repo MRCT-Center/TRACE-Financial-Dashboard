@@ -453,6 +453,20 @@ function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange,
             {dbStatus === "error"   && <span style={{ fontSize: 10, color: C.yellow }}>● offline</span>}
           </div>
         </div>
+        <div style={{
+          alignSelf: "center",
+          background: C.red,
+          color: "#fff",
+          fontSize: 11,
+          fontWeight: 800,
+          letterSpacing: 0.5,
+          textTransform: "uppercase",
+          padding: "4px 10px",
+          borderRadius: 6,
+          whiteSpace: "nowrap",
+        }}>
+          Draft Version · Do Not Share
+        </div>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
