@@ -1144,16 +1144,37 @@ function StepExpensesIrregular({ conv, irrProjEdits, setIrrProjEdits }) {
     return s + (Number(v) || 0);
   }, 0);
 
+  // Per Willyanne 2026-05-30 (#1): mirror the Regular Expenses page with two
+  // group subtotals — one summing every "Secretariat/mgmt." category, one
+  // summing every "Ethics Committee" category. Classified by category-label
+  // prefix (robust to row edits/additions, which inherit a category label) and
+  // rendered as a banner after the last category in each group.
+  const isSecretariatCat = (cat) => (cat || "").startsWith("Secretariat");
+  const isEthicsCat      = (cat) => (cat || "").startsWith("Ethics Committee");
+  const groupTotal = (pred) =>
+    (irrProjEdits || []).reduce((s, r) => (pred(r?.category) ? s + (Number(r?.amount) || 0) : s), 0);
+  const secretariatTotal = groupTotal(isSecretariatCat);
+  const ethicsTotal      = groupTotal(isEthicsCat);
+  const lastSecretariatIdx = IRREGULAR_CATEGORIES.map(isSecretariatCat).lastIndexOf(true);
+  const lastEthicsIdx      = IRREGULAR_CATEGORIES.map(isEthicsCat).lastIndexOf(true);
+  const SubtotalBanner = ({ label, value }) => (
+    <div style={{ background: C.teal, color: "#fff", padding: "9px 16px", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }}>{label}</span>
+      <span style={{ fontSize: 15, fontWeight: 700, fontFamily: "monospace" }}>${value.toLocaleString()}</span>
+    </div>
+  );
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      {IRREGULAR_CATEGORIES.map((cat) => {
+      {IRREGULAR_CATEGORIES.map((cat, ci) => {
         const rowsInCat = (irrProjEdits || [])
           .map((r, idx) => ({ row: r, idx }))
           .filter(({ row }) => row?.category === cat);
         const catTotal = rowsInCat.reduce((s, { row }) => s + (Number(row?.amount) || 0), 0);
 
         return (
-          <div key={cat} style={{ background: "#fff", border: "1px solid #dde", borderRadius: 8, overflow: "hidden" }}>
+          <Fragment key={cat}>
+          <div style={{ background: "#fff", border: "1px solid #dde", borderRadius: 8, overflow: "hidden" }}>
             <div style={{ background: C.lightBG, padding: "10px 14px", fontSize: 13, fontWeight: 700, color: C.navy, borderBottom: "1px solid #dde" }}>
               {cat}
             </div>
@@ -1262,6 +1283,13 @@ function StepExpensesIrregular({ conv, irrProjEdits, setIrrProjEdits }) {
               </table>
             </div>
           </div>
+          {ci === lastSecretariatIdx && (
+            <SubtotalBanner label="Secretariat/mgmt. subtotal" value={secretariatTotal} />
+          )}
+          {ci === lastEthicsIdx && (
+            <SubtotalBanner label="Ethics Committee subtotal" value={ethicsTotal} />
+          )}
+          </Fragment>
         );
       })}
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { COUNTRY_FLAGS, COLORS as C } from "./utils/metrics";
 import { COUNTRIES } from "./data/countries";
 import { EXPENSES_REGULAR_ROW_DEFAULTS } from "./data/expensesRegular";
-import { FEES_DEFAULT_ROWS, FEES_DEFAULT_COLUMN_LABELS, isLegacyFeesArray, isAllBlankFees } from "./data/feesModel";
+import { FEES_DEFAULT_ROWS, FEES_DEFAULT_COLUMN_LABELS, isLegacyFeesArray, isAllBlankFees, totalFeesRevenue } from "./data/feesModel";
 import { CurrencyProvider, COUNTRY_CURRENCIES, CURRENCIES, useCurrency } from "./utils/CurrencyContext";
 import { supabase } from "./supabaseClient";
 import LoginPage from "./components/LoginPage";
@@ -263,6 +263,49 @@ export default function App() {
             const irrProjSum = (Array.isArray(merged.irrProj) ? merged.irrProj : [])
               .reduce((s, r) => s + (Number(r?.amount) || 0), 0);
             if (irrProjSum > 0) merged.ei = { ...merged.ei, proj: irrProjSum };
+            // Revenue aggregate guard (Willyanne 2026-05-30 #2/#3/#5/#8/#9): the
+            // Overview/Results read the flat revFees / revOther / ri rollups, but
+            // the wizard Inputs → Revenue pages total the row arrays (fees,
+            // revRegOther, revIrr). Pre-existing Supabase rows carry hand-set
+            // placeholders that drifted from those rows (e.g. Rwanda revFees
+            // $195k / revOther $15k / ri.grants $180k vs the $331,375 fee
+            // schedule, $0 other, and Gates $300,000 grant). Re-derive all three
+            // from the now-finalized rows — exactly as the wizard does on submit
+            // — so Results matches the Inputs totals for every country. A country
+            // that entered real fees/revenue keeps its values (the rows are the
+            // source of truth either way).
+            if (Array.isArray(merged.fees)) {
+              merged.revFees = totalFeesRevenue(merged.fees);
+            }
+            if (Array.isArray(merged.revRegOther)) {
+              merged.revOther = merged.revRegOther
+                .reduce((s, r) => s + (Number(r?.amount) || 0), 0);
+            }
+            if (Array.isArray(merged.revIrr)) {
+              merged.ri = merged.revIrr.reduce((acc, r) => {
+                const v = Number(r?.amount) || 0;
+                if (r?.category === "Grant") acc.grants += v;
+                else if (r?.category === "Contract") acc.contracts += v;
+                else if (r?.category === "Other 1-time payment") acc.other += v;
+                else if (r?.category === "Deferred reserves") acc.reserves += v;
+                return acc;
+              }, { grants: 0, contracts: 0, other: 0, reserves: 0 });
+            }
+            // Ethics Committee detail guard (Willyanne 2026-05-30 #7): the
+            // Results → Expenses "Ethics Committee — Detailed Breakdown" card
+            // reads the flat necDetail, but its source of truth is the er Ethics
+            // items on the Inputs → 3. Expenses page. Stale Supabase necDetail
+            // drifted (e.g. Rwanda reviewPay $14k vs the $30k workbook value).
+            // Re-derive from the er Ethics keys so the card mirrors the inputs.
+            if (merged.er) {
+              merged.necDetail = {
+                reviewPay:   Number(merged.er.necReviewerSalaryReview)   || 0,
+                reviewTrain: Number(merged.er.necReviewerSalaryTraining) || 0,
+                travelTime:  Number(merged.er.necTravelTimeStipend)      || 0,
+                travelCost:  Number(merged.er.necTravelCostStipend)      || 0,
+                meetings:    Number(merged.er.necReviewMeetingHosting)   || 0,
+              };
+            }
             // Category prefix migration (Willyanne 2026-05-27 #1/#2)
             merged.erRows = renameCategories(merged.erRows);
             merged.irrProj = renameCategories(merged.irrProj);

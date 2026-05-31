@@ -1,4 +1,4 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from "recharts";
 import { gm, COLORS as C } from "../utils/metrics";
 import { useCurrency } from "../utils/CurrencyContext";
 import { EXPENSES_REGULAR_ITEM_LOOKUP, EXPENSES_REGULAR_KEYS, NEC_KEYS } from "../data/expensesRegular";
@@ -58,12 +58,19 @@ export default function Expenses({ country, data: d, flag, onEdit }) {
         </p>
         <div style={{ height: chartHeight, marginTop: 14 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartRows} layout="vertical" margin={{ left: 14, right: 20, top: 4, bottom: 4 }}>
+            {/* Per Willyanne 2026-05-30 (#6): widen the category labels 50%
+                (width 170 → 255) so they read in full, scale the X axis to
+                0–50% instead of 0–100% for better resolution (the largest single
+                category, salaries, is ~43%), and add a % data label to each bar.
+                Right margin widened to seat the labels. */}
+            <BarChart data={chartRows} layout="vertical" margin={{ left: 14, right: 56, top: 4, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} fontSize={11} />
-              <YAxis dataKey="category" type="category" fontSize={11} width={170} interval={0} />
+              <XAxis type="number" domain={[0, 50]} ticks={[0, 10, 20, 30, 40, 50]} tickFormatter={(v) => `${v}%`} fontSize={11} />
+              <YAxis dataKey="category" type="category" fontSize={11} width={255} interval={0} />
               <Tooltip formatter={(v, n, p) => [`${v.toFixed(1)}% (${fmt(p?.payload?.amount || 0)})`, "Share of total"]} />
-              <Bar dataKey="pct" fill={C.navy} radius={[0, 4, 4, 0]} />
+              <Bar dataKey="pct" fill={C.navy} radius={[0, 4, 4, 0]}>
+                <LabelList dataKey="pct" position="right" formatter={(v) => `${Number(v).toFixed(1)}%`} fontSize={10} fill={C.navy} />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>

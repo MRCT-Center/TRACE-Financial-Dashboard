@@ -3,7 +3,7 @@ import { EXPENSES_IRREGULAR_DEFAULTS } from "./expensesIrregular";
 import { ACTIVITY_DEFAULT_ROWS } from "./activities";
 import { REVENUE_REGULAR_OTHER_DEFAULTS } from "./revenueRegularOther";
 import { REVENUE_IRREGULAR_DEFAULTS } from "./revenueIrregular";
-import { FEES_DEFAULT_ROWS, FEES_DEFAULT_COLUMN_LABELS } from "./feesModel";
+import { FEES_DEFAULT_ROWS, FEES_DEFAULT_COLUMN_LABELS, totalFeesRevenue } from "./feesModel";
 import { IN_KIND_REGULAR_DEFAULTS } from "./inKindRegular";
 import { IN_KIND_IRREGULAR_DEFAULTS } from "./inKindIrregular";
 
@@ -47,6 +47,48 @@ const ikIrrDefaults = () => ({
   institutional: ikSumByFunder(IN_KIND_IRREGULAR_DEFAULTS, "In-kind contribution (institutional)"),
   other:         ikSumByFunder(IN_KIND_IRREGULAR_DEFAULTS, "In-kind contribution (other source)"),
   total:         IN_KIND_IRREGULAR_DEFAULTS.reduce((s, r) => s + (Number(r.amount) || 0), 0),
+});
+
+// Revenue aggregates (revFees / revOther / ri) feed the Results → Overview and
+// Revenue KPIs: gm() sums revFees+revOther for regular revenue and Σ ri for
+// irregular. Per Willyanne 2026-05-30 (#2/#3/#5/#8/#9): these MUST match the
+// totals at the bottom of the wizard Inputs → Revenue pages, which sum the row
+// arrays (fees → $331,375, revRegOther → $0, revIrr → Gates $300,000). Earlier
+// each country carried hand-set placeholders that drifted from those rows (e.g.
+// Rwanda revFees $195k, revOther $15k, ri.grants $180k), so the Overview and
+// Results disagreed with the Inputs page. Derive all three from the same row
+// defaults so the seed always equals the Inputs totals; App.jsx re-derives them
+// from saved rows on load so existing Supabase rows self-heal the same way.
+const revFeesDefault  = totalFeesRevenue(FEES_DEFAULT_ROWS);
+const revOtherDefault = REVENUE_REGULAR_OTHER_DEFAULTS.reduce(
+  (s, r) => s + (Number(r.amount) || 0),
+  0,
+);
+const riDefault = () =>
+  REVENUE_IRREGULAR_DEFAULTS.reduce(
+    (acc, r) => {
+      const v = Number(r.amount) || 0;
+      if (r.category === "Grant") acc.grants += v;
+      else if (r.category === "Contract") acc.contracts += v;
+      else if (r.category === "Other 1-time payment") acc.other += v;
+      else if (r.category === "Deferred reserves") acc.reserves += v;
+      return acc;
+    },
+    { grants: 0, contracts: 0, other: 0, reserves: 0 },
+  );
+
+// Ethics Committee detailed breakdown (Results → Expenses). Per Willyanne
+// 2026-05-30 (#7): these must equal the er Ethics items on the wizard Inputs →
+// 3. Expenses page ($30,000 / $5,000 / $5,000 / $5,000 / $5,000), not the
+// drifted per-country placeholders (e.g. Rwanda $14k / $2k / $2k / $2k / $4k).
+// Derive from the shared er Ethics defaults so the card always mirrors the
+// inputs; App.jsx re-derives from saved er rows on load.
+const necDetailDefault = () => ({
+  reviewPay:   EXPENSES_REGULAR_USD_DEFAULTS.necReviewerSalaryReview,
+  reviewTrain: EXPENSES_REGULAR_USD_DEFAULTS.necReviewerSalaryTraining,
+  travelTime:  EXPENSES_REGULAR_USD_DEFAULTS.necTravelTimeStipend,
+  travelCost:  EXPENSES_REGULAR_USD_DEFAULTS.necTravelCostStipend,
+  meetings:    EXPENSES_REGULAR_USD_DEFAULTS.necReviewMeetingHosting,
 });
 
 // Per Willyanne 2026-05-26 #9: all 5 testing countries seed identical
@@ -95,12 +137,12 @@ export const COUNTRIES = {
     _legacyEr: { recG: 42000, recGov: 57500 },
     // Irregular expenses (summed by gm() for ti total)
     ei: { proj: irrProjDefaultTotal },
-    revFees: 331375, revOther: 0,
-    ri: { grants: 300000, contracts: 0, other: 25000, reserves: 0 },
+    revFees: revFeesDefault, revOther: revOtherDefault,
+    ri: riDefault(),
     grantEnd: "Dec 2026",
     ikReg: ikRegDefaults(),
     ikIrr: ikIrrDefaults(),
-    necDetail: { reviewPay: 30000, reviewTrain: 5000, travelTime: 5000, travelCost: 5000, meetings: 5000 },
+    necDetail: necDetailDefault(),
     fees: cloneFeesDefaults(),
     feesColumns: cloneFeesColumns(),
     activities: cloneActivityDefaults(),
@@ -113,12 +155,12 @@ export const COUNTRIES = {
     er: { ...EXPENSES_REGULAR_USD_DEFAULTS },
     _legacyEr: { recG: 72000, recGov: 45000 },
     ei: { proj: irrProjDefaultTotal },
-    revFees: 380000, revOther: 20000,
-    ri: { grants: 250000, contracts: 0, other: 0, reserves: 10000 },
+    revFees: revFeesDefault, revOther: revOtherDefault,
+    ri: riDefault(),
     grantEnd: "Dec 2026",
     ikReg: ikRegDefaults(),
     ikIrr: ikIrrDefaults(),
-    necDetail: { reviewPay: 28000, reviewTrain: 5000, travelTime: 4000, travelCost: 4000, meetings: 7000 },
+    necDetail: necDetailDefault(),
     fees: cloneFeesDefaults(),
     feesColumns: cloneFeesColumns(),
     activities: cloneActivityDefaults(),
@@ -131,12 +173,12 @@ export const COUNTRIES = {
     er: { ...EXPENSES_REGULAR_USD_DEFAULTS },
     _legacyEr: { recG: 35000, recGov: 25000 },
     ei: { proj: irrProjDefaultTotal },
-    revFees: 195000, revOther: 15000,
-    ri: { grants: 180000, contracts: 0, other: 0, reserves: 5000 },
+    revFees: revFeesDefault, revOther: revOtherDefault,
+    ri: riDefault(),
     grantEnd: "Dec 2026",
     ikReg: ikRegDefaults(),
     ikIrr: ikIrrDefaults(),
-    necDetail: { reviewPay: 14000, reviewTrain: 2000, travelTime: 2000, travelCost: 2000, meetings: 4000 },
+    necDetail: necDetailDefault(),
     fees: cloneFeesDefaults(),
     feesColumns: cloneFeesColumns(),
     activities: cloneActivityDefaults(),
@@ -149,12 +191,12 @@ export const COUNTRIES = {
     er: { ...EXPENSES_REGULAR_USD_DEFAULTS },
     _legacyEr: { recG: 48000, recGov: 35000 },
     ei: { proj: irrProjDefaultTotal },
-    revFees: 270000, revOther: 10000,
-    ri: { grants: 220000, contracts: 0, other: 0, reserves: 8000 },
+    revFees: revFeesDefault, revOther: revOtherDefault,
+    ri: riDefault(),
     grantEnd: "Dec 2026",
     ikReg: ikRegDefaults(),
     ikIrr: ikIrrDefaults(),
-    necDetail: { reviewPay: 19600, reviewTrain: 2800, travelTime: 2800, travelCost: 2800, meetings: 6000 },
+    necDetail: necDetailDefault(),
     fees: cloneFeesDefaults(),
     feesColumns: cloneFeesColumns(),
     activities: cloneActivityDefaults(),
@@ -167,12 +209,12 @@ export const COUNTRIES = {
     er: { ...EXPENSES_REGULAR_USD_DEFAULTS },
     _legacyEr: { recG: 32000, recGov: 22000 },
     ei: { proj: irrProjDefaultTotal },
-    revFees: 165000, revOther: 5000,
-    ri: { grants: 140000, contracts: 0, other: 0, reserves: 3000 },
+    revFees: revFeesDefault, revOther: revOtherDefault,
+    ri: riDefault(),
     grantEnd: "Dec 2026",
     ikReg: ikRegDefaults(),
     ikIrr: ikIrrDefaults(),
-    necDetail: { reviewPay: 12600, reviewTrain: 1800, travelTime: 1800, travelCost: 1800, meetings: 3500 },
+    necDetail: necDetailDefault(),
     fees: cloneFeesDefaults(),
     feesColumns: cloneFeesColumns(),
     activities: cloneActivityDefaults(),

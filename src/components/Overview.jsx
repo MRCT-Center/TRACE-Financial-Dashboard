@@ -4,7 +4,11 @@ import { useCurrency } from "../utils/CurrencyContext";
 import { EXPENSES_REGULAR, EXPENSES_REGULAR_ITEM_LOOKUP, NEC_KEYS } from "../data/expensesRegular";
 import InfoTip, { Def } from "./InfoTip";
 
-const EXP_COLORS = [C.navy, C.teal, C.steelblue, C.purple, C.blueGrey, C.darkTeal, C.orange];
+// Per Willyanne 2026-05-30 (#4): the "By category" pie keeps a cool blue/teal
+// family; the "Ethics Committee" pie uses a distinct warm palette so the two
+// circles never share a colour.
+const EXP_COLORS = [C.navy, C.teal, C.steelblue, C.darkTeal, C.blueGrey, "#3f6f8f", "#6aa6c2"];
+const NEC_COLORS = [C.purple, C.orange, C.yellow, C.green, C.red, C.darkRed];
 
 export default function Overview({ country, data: d, flag, onEdit }) {
   const m = gm(d);
@@ -143,7 +147,7 @@ function ExpensePieCard({ d }) {
 
   const necPie = NEC_KEYS
     .filter((k) => (d.er?.[k] || 0) > 0)
-    .map((k, i) => ({ name: getLabel(k), value: d.er[k], color: [C.navy, C.teal, C.steelblue, C.purple, C.darkTeal][i % 5] }));
+    .map((k, i) => ({ name: getLabel(k), value: d.er[k], color: NEC_COLORS[i % NEC_COLORS.length] }));
 
   const necTotal = NEC_KEYS.reduce((s, k) => s + (d.er?.[k] || 0), 0);
 
@@ -153,33 +157,41 @@ function ExpensePieCard({ d }) {
         The left circle shows the regular budget grouped by category — each Secretariat/mgmt. category plus the combined Ethics Committee total. The right circle breaks out the Ethics Committee portion alone ({fmt(necTotal)}).
         Hover over each segment for details.
       </p>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", marginTop: 8 }}>
-        <div style={{ width: 200, height: 180 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={groupedPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80}>
-                {groupedPie.map((e, i) => <Cell key={i} fill={e.color} />)}
-              </Pie>
-              <Tooltip formatter={(v) => fmt(v)} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div style={{ textAlign: "center", fontSize: 11, color: C.blueGrey }}>By category</div>
-        </div>
-        {necPie.length > 0 && (
-          <div style={{ width: 150, height: 180 }}>
+      {/* Per Willyanne 2026-05-30 (#4): each pie gets its own legend stacked in
+          a single vertical column directly beneath it (rather than one shared
+          wrapping legend), so each circle reads with its own colour key. */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 24, justifyContent: "center", marginTop: 8 }}>
+        <div style={{ flex: "1 1 240px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={{ width: "100%", height: 190 }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={necPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60}>
-                  {necPie.map((e, i) => <Cell key={i} fill={e.color} />)}
+                <Pie data={groupedPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80}>
+                  {groupedPie.map((e, i) => <Cell key={i} fill={e.color} />)}
                 </Pie>
                 <Tooltip formatter={(v) => fmt(v)} />
               </PieChart>
             </ResponsiveContainer>
-            <div style={{ textAlign: "center", fontSize: 11, color: C.blueGrey }}>Ethics Committee only</div>
+          </div>
+          <div style={{ textAlign: "center", fontSize: 11, color: C.blueGrey, fontWeight: 600, marginTop: 2 }}>By category</div>
+          <PieLegend items={groupedPie} />
+        </div>
+        {necPie.length > 0 && (
+          <div style={{ flex: "1 1 240px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <div style={{ width: "100%", height: 190 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={necPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70}>
+                    {necPie.map((e, i) => <Cell key={i} fill={e.color} />)}
+                  </Pie>
+                  <Tooltip formatter={(v) => fmt(v)} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div style={{ textAlign: "center", fontSize: 11, color: C.blueGrey, fontWeight: 600, marginTop: 2 }}>Ethics Committee only</div>
+            <PieLegend items={necPie} />
           </div>
         )}
       </div>
-      <PieLegend items={groupedPie} />
     </Card>
   );
 }
@@ -305,12 +317,14 @@ function Card({ title, children, style = {} }) {
   );
 }
 
+// A single vertical column of legend entries, sized to sit beneath its pie.
+// Per Willyanne 2026-05-30 (#4): one entry per row so the key forms a column.
 function PieLegend({ items }) {
   const { fmt } = useCurrency();
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", marginTop: 10 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 10, alignSelf: "stretch", width: "100%" }}>
       {items.map((item) => (
-        <div key={item.name} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11 }}>
+        <div key={item.name} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
           <div style={{ width: 10, height: 10, borderRadius: 2, background: item.color, flexShrink: 0 }} />
           <span style={{ color: "#444" }}>{item.name}: {fmt(item.value)}</span>
         </div>
