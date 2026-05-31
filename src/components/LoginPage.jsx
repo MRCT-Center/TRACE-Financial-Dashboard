@@ -99,11 +99,14 @@ export default function LoginPage({ onLogin }) {
 
         <div style={{ marginTop: 24, borderTop: `1px solid #eee`, paddingTop: 16 }}>
           <div style={{ fontSize: 11, color: C.blueGrey, marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Prototype credentials
+            Country sign-in
           </div>
           <div style={{ display: "grid", gap: 4 }}>
+            {/* MRCT Admin is intentionally omitted from this quick-fill list so
+                country-team participants only see their five country logins and
+                don't stumble into the admin / survey-results view. The admin
+                account still works by typing the credentials manually. */}
             {[
-              ["MRCT Admin", "admin@mrct.org", "mrct2026"],
               ["Kenya", "kenya@trace.org", "kenya2026"],
               ["Nigeria", "nigeria@trace.org", "nigeria2026"],
               ["Rwanda", "rwanda@trace.org", "rwanda2026"],
