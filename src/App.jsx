@@ -11,6 +11,8 @@ import IntroPage from "./components/IntroPage";
 import Results from "./components/Results";
 import GuidedWizard from "./components/GuidedWizard";
 import AdminDashboard from "./components/AdminDashboard";
+import Feedback from "./components/Feedback";
+import AdminFeedback from "./components/AdminFeedback";
 
 // Mock credentials — Phase 2 will use Supabase Auth
 const MOCK_USERS = {
@@ -39,16 +41,18 @@ function deepSet(obj, path, value) {
 }
 
 const ADMIN_VIEWS = [
-  { id: "intro",   label: "Introduction" },
-  { id: "wizard",  label: "Inputs"       },
-  { id: "results", label: "Results"      },
-  { id: "admin",   label: "Admin 🔐"     },
+  { id: "intro",    label: "Introduction" },
+  { id: "wizard",   label: "Inputs"       },
+  { id: "results",  label: "Results"      },
+  { id: "feedback", label: "Feedback"     },
+  { id: "admin",    label: "Admin 🔐"     },
 ];
 
 const COUNTRY_VIEWS = [
-  { id: "intro",   label: "Introduction" },
-  { id: "wizard",  label: "Inputs"       },
-  { id: "results", label: "Results"      },
+  { id: "intro",    label: "Introduction" },
+  { id: "wizard",   label: "Inputs"       },
+  { id: "results",  label: "Results"      },
+  { id: "feedback", label: "Feedback"     },
 ];
 
 export default function App() {
@@ -414,12 +418,16 @@ export default function App() {
             />
           )}
           {view === "results" && <Results country={selectedCountry} data={countryData} flag={flag} onEdit={handleEdit} />}
+          {view === "feedback" && <Feedback country={selectedCountry} email={session.email} />}
           {view === "admin"   && isAdmin && (
-            <AdminDashboard
-              countries={countryCache}
-              flags={COUNTRY_FLAGS}
-              onNavigate={(c, v) => { setSelectedCountry(c); setView(v); }}
-            />
+            <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+              <AdminFeedback />
+              <AdminDashboard
+                countries={countryCache}
+                flags={COUNTRY_FLAGS}
+                onNavigate={(c, v) => { setSelectedCountry(c); setView(v); }}
+              />
+            </div>
           )}
         </main>
         <footer style={{ background: C.navy, color: "#fff", padding: "12px 20px", fontSize: 12, textAlign: "center", opacity: 0.85 }}>
