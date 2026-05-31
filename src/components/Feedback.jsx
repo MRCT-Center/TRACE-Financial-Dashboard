@@ -11,6 +11,9 @@ import { SURVEY_INTRO, QUESTIONS_INTRO, SURVEY_QUESTIONS } from "../data/feedbac
 export default function Feedback({ country, email }) {
   const [responses, setResponses] = useState({}); // { q1: 4, q5: "text", ... }
   const [message, setMessage] = useState("");
+  const [name, setName] = useState("");
+  const [contactOk, setContactOk] = useState(false);
+  const [contactEmail, setContactEmail] = useState("");
   const [status, setStatus] = useState("idle");   // idle | saving | done | error
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -19,7 +22,7 @@ export default function Feedback({ country, email }) {
 
   const hasAnyInput =
     Object.values(responses).some((v) => v !== "" && v !== undefined && v !== null) ||
-    message.trim() !== "";
+    message.trim() !== "" || name.trim() !== "" || contactEmail.trim() !== "";
 
   // Completion progress — to encourage finishing without ever requiring it.
   const answeredCount = SURVEY_QUESTIONS.filter((q) => {
@@ -40,6 +43,10 @@ export default function Feedback({ country, email }) {
         user_email: email || null,
         responses,
         message: message.trim() || null,
+        respondent_name: name.trim() || null,
+        contact_ok: contactOk,
+        // only keep an explicit contact email if they opted in
+        contact_email: contactOk ? (contactEmail.trim() || null) : null,
         user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
       });
       if (error) throw error;
@@ -54,6 +61,9 @@ export default function Feedback({ country, email }) {
   function resetForm() {
     setResponses({});
     setMessage("");
+    setName("");
+    setContactOk(false);
+    setContactEmail("");
     setStatus("idle");
     setErrorMsg("");
   }
@@ -124,6 +134,51 @@ export default function Feedback({ country, email }) {
         placeholder="Enter your questions or feedback here…"
         style={{ ...textareaStyle, minHeight: 96 }}
       />
+
+      {/* ───────── About you (optional) ───────── */}
+      <SectionHeading>About You (optional)</SectionHeading>
+      <p style={blurbStyle}>
+        Sharing your name is optional. Let us know if we may follow up with you
+        directly about your feedback.
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div>
+          <label style={fieldLabel}>Your name</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Optional"
+            style={inputStyle}
+          />
+        </div>
+
+        <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={contactOk}
+            onChange={(e) => setContactOk(e.target.checked)}
+            style={{ width: 18, height: 18, marginTop: 2, flexShrink: 0, cursor: "pointer" }}
+          />
+          <span style={{ fontSize: 14, color: C.navy, lineHeight: 1.4 }}>
+            Yes, the MRCT Center may contact me directly with any follow-up
+            questions about my feedback.
+          </span>
+        </label>
+
+        {contactOk && (
+          <div>
+            <label style={fieldLabel}>Best email to reach you</label>
+            <input
+              type="email"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
+              placeholder="you@example.org"
+              style={inputStyle}
+            />
+          </div>
+        )}
+      </div>
 
       {/* ───────── Completion nudge + Submit ───────── */}
       <div style={{ background: "#f4f8fa", border: "1px solid #e3e8ec", borderRadius: 10, padding: "14px 16px", marginTop: 4 }}>
@@ -248,6 +303,12 @@ const textareaStyle = {
   width: "100%", marginTop: 8, padding: "9px 11px", fontSize: 14,
   border: "1px solid #cbd5dc", borderRadius: 8, fontFamily: "inherit",
   resize: "vertical", boxSizing: "border-box", color: C.navy,
+};
+const fieldLabel = { display: "block", fontSize: 12, fontWeight: 600, color: "#6b7780", marginBottom: 4 };
+const inputStyle = {
+  width: "100%", maxWidth: 360, padding: "9px 11px", fontSize: 14,
+  border: "1px solid #cbd5dc", borderRadius: 8, fontFamily: "inherit",
+  boxSizing: "border-box", color: C.navy,
 };
 const primaryBtn = {
   background: C.teal, color: "#fff", border: "none", borderRadius: 8,

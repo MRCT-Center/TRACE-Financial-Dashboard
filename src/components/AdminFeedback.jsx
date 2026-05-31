@@ -20,7 +20,7 @@ export default function AdminFeedback() {
     try {
       const { data, error } = await supabase
         .from("feedback")
-        .select("id, created_at, country, user_email, responses, message")
+        .select("id, created_at, country, user_email, responses, message, respondent_name, contact_ok, contact_email")
         .order("created_at", { ascending: false });
       if (error) throw error;
       setRows(data || []);
@@ -35,6 +35,7 @@ export default function AdminFeedback() {
 
   const surveyRows = rows.filter((r) => hasSurveyAnswers(r.responses));
   const messageRows = rows.filter((r) => r.message && r.message.trim());
+  const contactRows = rows.filter((r) => r.contact_ok);
 
   // Per-scale-question average across all responses that answered it.
   const averages = SCALE_Q.map((q) => {
@@ -47,7 +48,7 @@ export default function AdminFeedback() {
 
   function exportCSV() {
     const headers = [
-      "Submitted", "Country", "User",
+      "Submitted", "Country", "Login", "Name", "May contact?", "Contact email",
       ...SURVEY_QUESTIONS.map((q, i) => `Q${i + 1}`),
       "Question/Other feedback",
     ];
@@ -57,6 +58,9 @@ export default function AdminFeedback() {
         new Date(r.created_at).toLocaleString(),
         r.country || "",
         r.user_email || "",
+        r.respondent_name || "",
+        r.contact_ok ? "Yes" : "No",
+        r.contact_email || "",
         ...SURVEY_QUESTIONS.map((q) => r.responses?.[q.id] ?? ""),
         r.message || "",
       ].map(esc).join(",")
@@ -134,6 +138,8 @@ export default function AdminFeedback() {
                     <tr style={{ background: C.lightBG }}>
                       <th style={thL}>When</th>
                       <th style={thL}>Country</th>
+                      <th style={thL}>Name</th>
+                      <th style={thL}>Contact?</th>
                       {SCALE_Q.map((q, i) => (
                         <th key={q.id} style={{ ...thR, whiteSpace: "nowrap" }} title={q.text}>
                           Q{SURVEY_QUESTIONS.indexOf(q) + 1}
@@ -151,6 +157,12 @@ export default function AdminFeedback() {
                       <tr key={r.id} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top" }}>
                         <td style={tdCell}>{new Date(r.created_at).toLocaleString()}</td>
                         <td style={tdCell}>{r.country || "—"}</td>
+                        <td style={tdCell}>{r.respondent_name || <span style={{ color: "#bbb" }}>—</span>}</td>
+                        <td style={tdCell}>
+                          {r.contact_ok
+                            ? <span style={{ color: C.green, fontWeight: 700 }}>✓ {r.contact_email || "(no email)"}</span>
+                            : <span style={{ color: "#bbb" }}>—</span>}
+                        </td>
                         {SCALE_Q.map((q) => (
                           <td key={q.id} style={{ ...tdR }}>{r.responses?.[q.id] ?? "—"}</td>
                         ))}
@@ -170,6 +182,40 @@ export default function AdminFeedback() {
             )}
           </Card>
 
+          {/* Follow-up contacts */}
+          <Card title={`Willing to be contacted for follow-up (${contactRows.length})`}>
+            {contactRows.length === 0 ? (
+              <Note>No one has opted in to follow-up contact yet.</Note>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: C.lightBG }}>
+                      <th style={thL}>Name</th>
+                      <th style={thL}>Contact email</th>
+                      <th style={thL}>Country</th>
+                      <th style={thL}>Submitted</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {contactRows.map((r) => (
+                      <tr key={r.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                        <td style={tdCell}>{r.respondent_name || <span style={{ color: "#bbb" }}>(no name)</span>}</td>
+                        <td style={tdCell}>
+                          {r.contact_email
+                            ? <a href={`mailto:${r.contact_email}`} style={{ color: C.teal }}>{r.contact_email}</a>
+                            : <span style={{ color: "#bbb" }}>(none given)</span>}
+                        </td>
+                        <td style={tdCell}>{r.country || "—"}</td>
+                        <td style={tdCell}>{new Date(r.created_at).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+
           {/* Open questions / other feedback */}
           <Card title={`Questions & Other Feedback (${messageRows.length})`}>
             {messageRows.length === 0 ? (
@@ -179,7 +225,8 @@ export default function AdminFeedback() {
                 {messageRows.map((r) => (
                   <div key={r.id} style={{ border: "1px solid #e3e8ec", borderRadius: 8, padding: "11px 14px" }}>
                     <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>
-                      {r.country ? `${r.country} · ` : ""}{r.user_email || "anonymous"} · {new Date(r.created_at).toLocaleString()}
+                      {r.respondent_name ? `${r.respondent_name} · ` : ""}{r.country ? `${r.country} · ` : ""}{r.user_email || "anonymous"} · {new Date(r.created_at).toLocaleString()}
+                      {r.contact_ok && <span style={{ color: C.green, fontWeight: 700 }}> · ✓ may contact{r.contact_email ? ` (${r.contact_email})` : ""}</span>}
                     </div>
                     <div style={{ fontSize: 14, color: C.navy, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{r.message}</div>
                   </div>
