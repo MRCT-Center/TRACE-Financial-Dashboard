@@ -36,7 +36,7 @@ export default function LoginPage({ onLogin }) {
         <div style={{ textAlign: "center", marginBottom: 28 }}>
           <img src="/trace-logo-color.svg" alt="TRACE" style={{ height: 60, objectFit: "contain", marginBottom: 12 }} />
           <div style={{ fontSize: 13, color: C.blueGrey, marginTop: 4 }}>
-            MRCT Center
+            Financial Dashboard · MRCT Center
           </div>
           <div style={{ marginTop: 12, fontSize: 13, fontWeight: 800, color: C.red, textTransform: "uppercase", letterSpacing: 0.5 }}>
             Draft Version: Do Not Share
