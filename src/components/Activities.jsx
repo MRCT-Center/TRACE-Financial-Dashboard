@@ -1,5 +1,8 @@
-import { COLORS as C } from "../utils/metrics";
+import { useState } from "react";
+import { COLORS as C, gm } from "../utils/metrics";
+import { useCurrency } from "../utils/CurrencyContext";
 import { ACTIVITY_DESCRIPTIONS } from "../data/activities";
+import { FORECAST_OPTIONS, FORECAST_DEFAULT, forecastMultiplier, makeForecastDefault } from "../data/forecast";
 import InfoTip from "./InfoTip";
 
 const TREND_COLORS = {
@@ -22,7 +25,7 @@ const isDecrease = (v) => (v || "").toLowerCase().includes("decreas");
 const isSame     = (v) => { const s = (v || "").toLowerCase(); return s.includes("same") || s.includes("remain"); };
 const hasValue   = (v) => (v || "").trim().length > 0;
 
-export default function Activities({ country, data: d, flag }) {
+export default function Activities({ country, data: d, flag, onEdit }) {
   const activities = d.activities || [];
 
   // Fractions of activities by expected effort direction (Willyanne 2026-05-31
@@ -80,6 +83,8 @@ export default function Activities({ country, data: d, flag }) {
           </div>
         </Card>
       )}
+
+      <ForecastCard key={country} data={d} onEdit={onEdit} />
 
       {activities.length === 0 ? (
         <div style={{ background: "#fff", borderRadius: 9, border: "1px solid #dde", padding: "28px 24px", textAlign: "center", color: C.blueGrey }}>
@@ -180,5 +185,103 @@ function SectionHeader({ title, subtitle }) {
     </div>
   );
 }
+
+// Budget Forecast (Willyanne 2026-06-18). Sits after the activity review, where
+// the team reasons from how many activities are expected to increase/decrease.
+// Near-term (next year) and long-term (3–5 years) each get a % band + a reason.
+// The chosen band drives a multiplier applied to total regular expenses; the
+// near-term result feeds the "gap including forecast" line in Gap Analysis.
+const FORECAST_TERMS = [
+  { key: "near", title: "Near-term (next year)", projLabel: "next year", color: C.teal },
+  { key: "long", title: "Long-term (3–5 years)", projLabel: "long-term", color: C.purple },
+];
+
+function ForecastCard({ data, onEdit }) {
+  const { fmt } = useCurrency();
+  const { te, tr } = gm(data);
+
+  const init = data.forecast || makeForecastDefault();
+  const [fc, setFc] = useState({
+    near: { ...FORECAST_DEFAULT, ...(init.near || {}) },
+    long: { ...FORECAST_DEFAULT, ...(init.long || {}) },
+  });
+
+  const commit = (next) => onEdit && onEdit("forecast", next);
+  const setField = (term, patch, doCommit = true) => {
+    const next = { ...fc, [term]: { ...fc[term], ...patch } };
+    setFc(next);
+    if (doCommit) commit(next);
+  };
+
+  return (
+    <Card title="Budget Forecast">
+      <p style={narrativeStyle}>
+        Using the activity review above — how many activities are expected to increase or decrease in effort — estimate how much the regular operating budget should change to maintain ethics review operations, address near-term risks and opportunities, and account for scale-up. Choose a percentage and explain your reasoning, for the near term (next year) and the long term (3–5 years).
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 18, marginTop: 14 }}>
+        {FORECAST_TERMS.map((t) => {
+          const f = fc[t.key];
+          const opt = FORECAST_OPTIONS.find((o) => o.label === f.option);
+          const isOpen = !!opt?.openEnded;
+          const projected = Math.round(te * forecastMultiplier(f));
+          const delta = projected - te;
+          const projGap = tr - projected;
+          return (
+            <div key={t.key} style={{ border: "1px solid #dde", borderTop: `3px solid ${t.color}`, borderRadius: 9, padding: "14px 16px" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: t.color, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 }}>{t.title}</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end" }}>
+                <label style={{ flex: "1 1 280px", fontSize: 12, color: C.blueGrey }}>
+                  Expected change in the regular budget
+                  <select value={f.option} onChange={(e) => setField(t.key, { option: e.target.value })} style={fcInputStyle}>
+                    {FORECAST_OPTIONS.map((o) => <option key={o.label} value={o.label}>{o.label}</option>)}
+                  </select>
+                </label>
+                {isOpen && (
+                  <label style={{ flex: "0 1 170px", fontSize: 12, color: C.blueGrey }}>
+                    {opt.openEnded === "increase" ? "Exact % increase" : "Exact % decrease"}
+                    <input type="number" min="0" value={f.customPct} onChange={(e) => setField(t.key, { customPct: e.target.value })} placeholder="e.g. 150" style={fcInputStyle} />
+                  </label>
+                )}
+              </div>
+              <label style={{ display: "block", marginTop: 12, fontSize: 12, color: C.blueGrey }}>
+                Why this change? (e.g., a new permanent staff position, more staff training, scaling activities up or down — be specific, such as the title of any new hire)
+                <textarea
+                  value={f.reason}
+                  onChange={(e) => setField(t.key, { reason: e.target.value }, false)}
+                  onBlur={() => commit(fc)}
+                  rows={2}
+                  placeholder="Explain your reasoning…"
+                  style={{ ...fcInputStyle, resize: "vertical", fontFamily: "inherit" }}
+                />
+              </label>
+              <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 12 }}>
+                <ProjBox label="Current regular expenses" val={fmt(te)} color={C.navy} />
+                <ProjBox
+                  label={`Projected expenses (${t.projLabel})`}
+                  val={fmt(projected)}
+                  sub={delta !== 0 ? `${delta > 0 ? "+" : "−"}${fmt(Math.abs(delta))} vs. current` : "no change"}
+                  color={t.color}
+                />
+                <ProjBox label="Projected regular gap" val={fmt(projGap)} sub={projGap >= 0 ? "surplus" : "deficit"} color={projGap >= 0 ? C.green : C.red} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+function ProjBox({ label, val, sub, color }) {
+  return (
+    <div style={{ flex: "1 1 150px", background: "#f9f9fb", border: "1px solid #e3e3ea", borderRadius: 8, padding: "10px 14px" }}>
+      <div style={{ fontSize: 11, color: C.blueGrey, textTransform: "uppercase", letterSpacing: 0.4 }}>{label}</div>
+      <div style={{ fontSize: 20, fontWeight: 800, color, marginTop: 3 }}>{val}</div>
+      {sub && <div style={{ fontSize: 11, color, marginTop: 1 }}>{sub}</div>}
+    </div>
+  );
+}
+
+const fcInputStyle = { display: "block", width: "100%", marginTop: 5, padding: "8px 10px", fontSize: 13, border: "1px solid #ccd", borderRadius: 6, color: C.navy, background: "#fff", boxSizing: "border-box" };
 
 const narrativeStyle = { fontSize: 13, color: "#555", lineHeight: 1.6, fontStyle: "italic" };

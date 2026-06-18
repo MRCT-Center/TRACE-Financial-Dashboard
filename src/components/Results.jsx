@@ -51,7 +51,7 @@ export default function Results({ country, data, flag, onEdit, defaultTab = "ove
         {activeTab === "expenses"   && <Expenses   country={country} data={data} flag={flag} onEdit={onEdit} />}
         {activeTab === "revenue"    && <Revenue    country={country} data={data} flag={flag} onEdit={onEdit} />}
         {activeTab === "gap"        && <GapView    country={country} data={data} flag={flag} onEdit={onEdit} />}
-        {activeTab === "activities" && <Activities country={country} data={data} flag={flag} />}
+        {activeTab === "activities" && <Activities country={country} data={data} flag={flag} onEdit={onEdit} />}
       </div>
     </div>
   );

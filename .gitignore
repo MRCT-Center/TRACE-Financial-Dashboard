@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local source docs (workbooks, Willyanne's files) kept inside the repo dir
+/TRACE Financial Dashboard/

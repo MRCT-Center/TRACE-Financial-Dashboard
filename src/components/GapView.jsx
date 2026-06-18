@@ -1,11 +1,22 @@
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { gm, fmtPct, COLORS as C } from "../utils/metrics";
+import { forecastMultiplier } from "../data/forecast";
 import { useCurrency } from "../utils/CurrencyContext";
 import InfoTip, { Def } from "./InfoTip";
 
 export default function GapView({ country, data: d, flag }) {
   const { fmt } = useCurrency();
   const m = gm(d);
+
+  // Forecast-adjusted regular gap (Willyanne 2026-06-18). The forecast % chosen
+  // on the Activities tab scales regular expenses; the gap is then revenue less
+  // the projected expenses. Only shown when a term is set to something other
+  // than "Remain the same" (multiplier 1). Near-term mirrors the workbook's
+  // "gap including forecast" line; long-term is the dashboard's 3–5 year view.
+  const nearMult = forecastMultiplier(d.forecast?.near);
+  const longMult = forecastMultiplier(d.forecast?.long);
+  const nearForecastGap = m.tr - m.te * nearMult;
+  const longForecastGap = m.tr - m.te * longMult;
 
   const totalReviews = d.fees ? d.fees.reduce((s, f) => s + (f.ctPro || 0) + (f.ctStu || 0), 0) : 0;
   const initialReviews = d.fees ? d.fees.filter((f) => f.type?.toLowerCase().includes("initial") || f.type?.toLowerCase().includes("full")).reduce((s, f) => s + (f.ctPro || 0) + (f.ctStu || 0), 0) : 0;
@@ -30,6 +41,8 @@ export default function GapView({ country, data: d, flag }) {
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
         <GapKPI label="Regular Budget Gap" val={m.rg} />
+        {nearMult !== 1 && <GapKPI label="Regular Gap (incl. near-term forecast)" val={nearForecastGap} />}
+        {longMult !== 1 && <GapKPI label="Regular Gap (incl. long-term forecast)" val={longForecastGap} />}
         <GapKPI label="Irregular Budget Gap" val={m.ig} />
         <GapKPI label="Combined Gap" val={m.cg} large />
         {m.ik > 0 && (
