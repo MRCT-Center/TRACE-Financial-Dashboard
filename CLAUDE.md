@@ -7,7 +7,7 @@ A financial sustainability dashboard for the TRACE program (a multi-country ethi
 - **Local path:** `/Users/nc404/Desktop/TRACE-Financial-Dashboard/`
 - **Repo:** `nclough68/TRACE-Financial-Dashboard` (private)
 - **Live:** Vercel (auto-deploys from main)
-- **Stakeholder:** Willyanne De Peña (TRACE program, primary content reviewer)
+- **Stakeholder:** Willyanne DeCormier Plosky (TRACE program, primary content reviewer)
 
 ## Dev Setup
 
