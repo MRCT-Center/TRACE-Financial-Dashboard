@@ -84,8 +84,6 @@ export default function Activities({ country, data: d, flag, onEdit }) {
         </Card>
       )}
 
-      <ForecastCard key={country} data={d} onEdit={onEdit} />
-
       {activities.length === 0 ? (
         <div style={{ background: "#fff", borderRadius: 9, border: "1px solid #dde", padding: "28px 24px", textAlign: "center", color: C.blueGrey }}>
           No activity planning data has been entered yet. Use the Guided Wizard to add activity expectations.
@@ -177,7 +175,7 @@ function Card({ title, children }) {
   );
 }
 
-function SectionHeader({ title, subtitle }) {
+export function SectionHeader({ title, subtitle }) {
   return (
     <div style={{ background: C.navy, borderRadius: 9, padding: "14px 20px", color: "#fff" }}>
       <div style={{ fontSize: 18, fontWeight: 700 }}>{title}</div>
@@ -186,17 +184,19 @@ function SectionHeader({ title, subtitle }) {
   );
 }
 
-// Budget Forecast (Willyanne 2026-06-18). Sits after the activity review, where
-// the team reasons from how many activities are expected to increase/decrease.
-// Near-term (next year) and long-term (3–5 years) each get a % band + a reason.
-// The chosen band drives a multiplier applied to total regular expenses; the
-// near-term result feeds the "gap including forecast" line in Gap Analysis.
+// Budget Forecast (Willyanne 2026-06-18; promoted to its own Results tab
+// 2026-07-01). Rendered from Forecast.jsx as a standalone section after
+// Activities. The team reasons from how many activities are expected to
+// increase/decrease. Near-term (next year) and long-term (3–5 years) each get a
+// % band + a reason. The chosen band drives a multiplier applied to total
+// regular expenses; the near-term result feeds the "gap including forecast"
+// line in Gap Analysis.
 const FORECAST_TERMS = [
   { key: "near", title: "Near-term (next year)", projLabel: "next year", color: C.teal },
   { key: "long", title: "Long-term (3–5 years)", projLabel: "long-term", color: C.purple },
 ];
 
-function ForecastCard({ data, onEdit }) {
+export function ForecastCard({ data, onEdit }) {
   const { fmt } = useCurrency();
   const { te, tr } = gm(data);
 

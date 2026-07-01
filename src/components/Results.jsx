@@ -5,6 +5,7 @@ import Expenses from "./Expenses";
 import Revenue from "./Revenue";
 import GapView from "./GapView";
 import Activities from "./Activities";
+import Forecast from "./Forecast";
 
 const RESULTS_TABS = [
   { id: "overview",   label: "Overview"      },
@@ -12,6 +13,7 @@ const RESULTS_TABS = [
   { id: "revenue",    label: "Revenue"       },
   { id: "gap",        label: "Gap Analysis"  },
   { id: "activities", label: "Activities"    },
+  { id: "forecast",   label: "Forecast"      },
 ];
 
 export default function Results({ country, data, flag, onEdit, defaultTab = "overview" }) {
@@ -52,6 +54,7 @@ export default function Results({ country, data, flag, onEdit, defaultTab = "ove
         {activeTab === "revenue"    && <Revenue    country={country} data={data} flag={flag} onEdit={onEdit} />}
         {activeTab === "gap"        && <GapView    country={country} data={data} flag={flag} onEdit={onEdit} />}
         {activeTab === "activities" && <Activities country={country} data={data} flag={flag} onEdit={onEdit} />}
+        {activeTab === "forecast"   && <Forecast   country={country} data={data} flag={flag} onEdit={onEdit} />}
       </div>
     </div>
   );

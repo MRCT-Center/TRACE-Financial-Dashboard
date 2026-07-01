@@ -218,3 +218,22 @@ export const WIZARD_STEP_INSTRUCTIONS = {
     ],
   },
 };
+
+// Budget Forecast instructions (added 2026-07-01 for the new Forecast Results
+// tab). DRAFT copy pending Willyanne's final wording — walks the team through
+// the near-term/long-term % bands and the required reasoning. Shaped for
+// <StepInstructions>: { note, sheets: [{ name, lines }] }.
+export const FORECAST_STEPS = [
+  'Step 1: Review the activity outlook on the Activities tab first — how many of your activities you expect to increase, stay the same, or decrease in effort. Your budget forecast should follow from that picture.',
+  'Step 2: For the near term (next year), use the drop-down to select how much you expect your regular operating budget to change. The options run from "Remain the same" through increases and decreases in set percentage bands. If your expected change is larger than any band, choose the "more than 100%" option and type the exact percentage.',
+  'Step 3: In the reason box, explain why you chose that change. Be specific — for example, a new permanent staff position (give the title), added staff training, or scaling a particular activity up or down.',
+  'Step 4: Repeat Steps 2 and 3 for the long term (the next 3–5 years).',
+  'Step 5: Review the projection boxes. They show your current regular expenses, the projected expenses at the percentage you chose, and the projected gap (revenue minus projected expenses). Use these to sense-check whether your forecast is realistic.',
+];
+
+export const FORECAST_INSTRUCTIONS = {
+  note: 'The forecast applies to your regular operating budget. The projected gap uses your current revenue, so it shows the effect of the expense change alone.',
+  sheets: [
+    { name: "Budget Forecast", lines: FORECAST_STEPS },
+  ],
+};
