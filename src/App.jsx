@@ -17,6 +17,7 @@ import AdminFeedback from "./components/AdminFeedback";
 // Mock credentials — Phase 2 will use Supabase Auth
 const MOCK_USERS = {
   "admin@mrct.org":      { password: "mrct2026",    role: "admin",    country: null },
+  "nyika@trace.org":     { password: "nyika2026",   role: "country",  country: "Nyika" },
   "kenya@trace.org":     { password: "kenya2026",   role: "country",  country: "Kenya" },
   "nigeria@trace.org":   { password: "nigeria2026", role: "country",  country: "Nigeria" },
   "rwanda@trace.org":    { password: "rwanda2026",  role: "country",  country: "Rwanda" },
@@ -58,7 +59,9 @@ const COUNTRY_VIEWS = [
 export default function App() {
   const [session, setSession] = useState(null);
   const [view, setView] = useState("intro");
-  const [selectedCountry, setSelectedCountry] = useState("Kenya");
+  // Admin lands on Nyika (the worked example); country logins are set to their
+  // own country in handleLogin, so this default only affects the admin view.
+  const [selectedCountry, setSelectedCountry] = useState("Nyika");
   // countryCache holds live data: either loaded from Supabase or hardcoded fallback
   const [countryCache, setCountryCache] = useState({ ...COUNTRIES });
   const [dbStatus, setDbStatus] = useState("idle"); // idle | loading | ready | error
@@ -76,7 +79,15 @@ export default function App() {
           // demo never writes to the database (it falls back to the in-code
           // COUNTRIES dummy data instead). See src/demoConfig.js.
           if (!DEMO_MODE) await seedSupabase();
-        } else {
+        } else if (!DEMO_MODE) {
+          // DEMO_MODE short-circuit (Willyanne 2026-07-01): in demo mode we
+          // render straight from the in-code COUNTRIES seeds (Nyika = worked
+          // example; the five real countries = blank) and skip this whole
+          // Supabase merge. The guards below re-seed dummy data whenever a saved
+          // row looks blank (isAllBlankFees / isAllBlankRevIrr / the In-Kind +
+          // revenue aggregate guards), which would refill the blanked countries
+          // from stale Supabase rows. Skipping the merge keeps blank blank; the
+          // guards return for real data once DEMO_MODE is off.
           // Merge Supabase data into cache (Supabase wins over hardcoded).
           // Phase 1 er.* rekey: if a Supabase row carries the legacy expense
           // shape (secSal/secBen/nSal/...) without any post-rekey workbook

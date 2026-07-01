@@ -107,6 +107,7 @@ export default function LoginPage({ onLogin }) {
                 don't stumble into the admin / survey-results view. The admin
                 account still works by typing the credentials manually. */}
             {[
+              ["Nyika (example — demo data)", "nyika@trace.org", "nyika2026"],
               ["Kenya", "kenya@trace.org", "kenya2026"],
               ["Nigeria", "nigeria@trace.org", "nigeria2026"],
               ["Rwanda", "rwanda@trace.org", "rwanda2026"],

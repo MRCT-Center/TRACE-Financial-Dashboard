@@ -1,9 +1,9 @@
-import { EXPENSES_REGULAR_USD_DEFAULTS } from "./expensesRegular";
+import { EXPENSES_REGULAR_USD_DEFAULTS, EXPENSES_REGULAR_ROW_DEFAULTS } from "./expensesRegular";
 import { EXPENSES_IRREGULAR_DEFAULTS } from "./expensesIrregular";
 import { ACTIVITY_DEFAULT_ROWS } from "./activities";
 import { REVENUE_REGULAR_OTHER_DEFAULTS } from "./revenueRegularOther";
 import { REVENUE_IRREGULAR_DEFAULTS } from "./revenueIrregular";
-import { FEES_DEFAULT_ROWS, FEES_DEFAULT_COLUMN_LABELS, totalFeesRevenue } from "./feesModel";
+import { FEES_DEFAULT_ROWS, FEES_DEFAULT_COLUMN_LABELS, FEES_DEFAULT_ROW_TYPES, makeBlankFeeRow, totalFeesRevenue } from "./feesModel";
 import { IN_KIND_REGULAR_DEFAULTS } from "./inKindRegular";
 import { IN_KIND_IRREGULAR_DEFAULTS } from "./inKindIrregular";
 
@@ -125,101 +125,80 @@ export const KEY_CONSIDERATIONS_DEFAULTS = {
   oppText:  "Increase in international funding is expected, e.g., the current Gates Foundation, Africa Clinical Trial Network.",
 };
 
-// Per Willyanne 2026-05-22: all 5 testing countries seed identical USD dummy
-// amounts from workbook 2026-04-17 Expenses_regular column H (total $351,500).
-// Country teams can edit values or toggle to local currency once live.
+// Populated worked-example seed. Per Willyanne 2026-07-01 the demo data (which
+// used to fill all five countries with identical USD dummy amounts from the
+// workbook) now lives ONLY in the fake example country "Nyika". The five real
+// countries seed blank (see blankCountry below) so country teams start from a
+// clean slate. `_legacyEr.recG/recGov` were mis-classified expenses preserved
+// pending the Revenue deep-dive; kept on the example only.
+const demoCountry = () => ({
+  er: { ...EXPENSES_REGULAR_USD_DEFAULTS },
+  _legacyEr: { recG: 42000, recGov: 57500 },
+  ei: { proj: irrProjDefaultTotal },
+  revFees: revFeesDefault, revOther: revOtherDefault,
+  ri: riDefault(),
+  grantEnd: "Dec 2026",
+  ikReg: ikRegDefaults(),
+  ikIrr: ikIrrDefaults(),
+  necDetail: necDetailDefault(),
+  fees: cloneFeesDefaults(),
+  feesColumns: cloneFeesColumns(),
+  activities: cloneActivityDefaults(),
+  irrProj: cloneIrregularDefaults(),
+  revRegOther: cloneRevRegOtherDefaults(),
+  revIrr: cloneRevIrrDefaults(),
+});
+
+// Blank (money-free) seed for the five real countries. Per Willyanne 2026-07-01:
+// every expense, revenue, in-kind, and fee amount/count is empty, while ALL
+// structure is kept — expense/revenue row labels + categories, the fee-schedule
+// review-type rows + column headers, activities, and the Key Considerations
+// text. The ⓘ callouts and step instructions are unaffected (they live in
+// instructions.js / component copy, not here). Country teams enter their own
+// numbers in the wizard.
+//   - Aggregate fields consumed by gm() with raw `a + b` (er, ei, revFees,
+//     revOther, ri, ikReg/ikIrr totals, necDetail) MUST stay numeric 0.
+//   - Editable input ROWS (irrProj, revRegOther, revIrr, fee cells) blank to ""
+//     so their input boxes render empty rather than "0".
+// NOTE: the App.jsx re-seed guards (isAllBlankFees / isAllBlankRevIrr / the
+// In-Kind + revenue aggregate guards) would refill this dummy data on load, so
+// the Supabase merge is skipped while DEMO_MODE is on — see App.jsx.
+const blankMoneyRows = (rows) =>
+  JSON.parse(JSON.stringify(rows)).map((r) => {
+    const out = { ...r };
+    if ("amount" in out) out.amount = "";
+    if ("count" in out) out.count = "";
+    return out;
+  });
+const blankEr = () =>
+  Object.fromEntries(Object.keys(EXPENSES_REGULAR_USD_DEFAULTS).map((k) => [k, 0]));
+const blankCountry = () => ({
+  er: blankEr(),
+  // erRows feeds the wizard's Regular Expenses step; without it the wizard falls
+  // back to the dummy EXPENSES_REGULAR_ROW_DEFAULTS. Seed a blank copy (labels +
+  // categories kept, amounts empty) so the step renders empty for real teams.
+  erRows: blankMoneyRows(EXPENSES_REGULAR_ROW_DEFAULTS),
+  _legacyEr: { recG: 0, recGov: 0 },
+  ei: { proj: 0 },
+  revFees: 0, revOther: 0,
+  ri: { grants: 0, contracts: 0, other: 0, reserves: 0 },
+  grantEnd: "",
+  ikReg: { federal: 0, institutional: 0, other: 0, total: 0 },
+  ikIrr: { federal: 0, institutional: 0, other: 0, total: 0 },
+  necDetail: { reviewPay: 0, reviewTrain: 0, travelTime: 0, travelCost: 0, meetings: 0 },
+  fees: FEES_DEFAULT_ROW_TYPES.map((t) => makeBlankFeeRow(t)),
+  feesColumns: cloneFeesColumns(),
+  activities: cloneActivityDefaults(),
+  irrProj: blankMoneyRows(EXPENSES_IRREGULAR_DEFAULTS),
+  revRegOther: blankMoneyRows(REVENUE_REGULAR_OTHER_DEFAULTS),
+  revIrr: blankMoneyRows(REVENUE_IRREGULAR_DEFAULTS),
+});
+
 export const COUNTRIES = {
-  Kenya: {
-    er: { ...EXPENSES_REGULAR_USD_DEFAULTS },
-    // TODO Revenue session: re-home recG / recGov to revOther or ri.grants
-    // (they were mis-classified as expenses; preserved here pending the
-    // Revenue tab deep-dive with Willyanne).
-    _legacyEr: { recG: 42000, recGov: 57500 },
-    // Irregular expenses (summed by gm() for ti total)
-    ei: { proj: irrProjDefaultTotal },
-    revFees: revFeesDefault, revOther: revOtherDefault,
-    ri: riDefault(),
-    grantEnd: "Dec 2026",
-    ikReg: ikRegDefaults(),
-    ikIrr: ikIrrDefaults(),
-    necDetail: necDetailDefault(),
-    fees: cloneFeesDefaults(),
-    feesColumns: cloneFeesColumns(),
-    activities: cloneActivityDefaults(),
-    irrProj: cloneIrregularDefaults(),
-    revRegOther: cloneRevRegOtherDefaults(),
-    revIrr: cloneRevIrrDefaults(),
-  },
-
-  Nigeria: {
-    er: { ...EXPENSES_REGULAR_USD_DEFAULTS },
-    _legacyEr: { recG: 72000, recGov: 45000 },
-    ei: { proj: irrProjDefaultTotal },
-    revFees: revFeesDefault, revOther: revOtherDefault,
-    ri: riDefault(),
-    grantEnd: "Dec 2026",
-    ikReg: ikRegDefaults(),
-    ikIrr: ikIrrDefaults(),
-    necDetail: necDetailDefault(),
-    fees: cloneFeesDefaults(),
-    feesColumns: cloneFeesColumns(),
-    activities: cloneActivityDefaults(),
-    irrProj: cloneIrregularDefaults(),
-    revRegOther: cloneRevRegOtherDefaults(),
-    revIrr: cloneRevIrrDefaults(),
-  },
-
-  Rwanda: {
-    er: { ...EXPENSES_REGULAR_USD_DEFAULTS },
-    _legacyEr: { recG: 35000, recGov: 25000 },
-    ei: { proj: irrProjDefaultTotal },
-    revFees: revFeesDefault, revOther: revOtherDefault,
-    ri: riDefault(),
-    grantEnd: "Dec 2026",
-    ikReg: ikRegDefaults(),
-    ikIrr: ikIrrDefaults(),
-    necDetail: necDetailDefault(),
-    fees: cloneFeesDefaults(),
-    feesColumns: cloneFeesColumns(),
-    activities: cloneActivityDefaults(),
-    irrProj: cloneIrregularDefaults(),
-    revRegOther: cloneRevRegOtherDefaults(),
-    revIrr: cloneRevIrrDefaults(),
-  },
-
-  Tanzania: {
-    er: { ...EXPENSES_REGULAR_USD_DEFAULTS },
-    _legacyEr: { recG: 48000, recGov: 35000 },
-    ei: { proj: irrProjDefaultTotal },
-    revFees: revFeesDefault, revOther: revOtherDefault,
-    ri: riDefault(),
-    grantEnd: "Dec 2026",
-    ikReg: ikRegDefaults(),
-    ikIrr: ikIrrDefaults(),
-    necDetail: necDetailDefault(),
-    fees: cloneFeesDefaults(),
-    feesColumns: cloneFeesColumns(),
-    activities: cloneActivityDefaults(),
-    irrProj: cloneIrregularDefaults(),
-    revRegOther: cloneRevRegOtherDefaults(),
-    revIrr: cloneRevIrrDefaults(),
-  },
-
-  Zimbabwe: {
-    er: { ...EXPENSES_REGULAR_USD_DEFAULTS },
-    _legacyEr: { recG: 32000, recGov: 22000 },
-    ei: { proj: irrProjDefaultTotal },
-    revFees: revFeesDefault, revOther: revOtherDefault,
-    ri: riDefault(),
-    grantEnd: "Dec 2026",
-    ikReg: ikRegDefaults(),
-    ikIrr: ikIrrDefaults(),
-    necDetail: necDetailDefault(),
-    fees: cloneFeesDefaults(),
-    feesColumns: cloneFeesColumns(),
-    activities: cloneActivityDefaults(),
-    irrProj: cloneIrregularDefaults(),
-    revRegOther: cloneRevRegOtherDefaults(),
-    revIrr: cloneRevIrrDefaults(),
-  },
+  Nyika:    demoCountry(),
+  Kenya:    blankCountry(),
+  Nigeria:  blankCountry(),
+  Rwanda:   blankCountry(),
+  Tanzania: blankCountry(),
+  Zimbabwe: blankCountry(),
 };
