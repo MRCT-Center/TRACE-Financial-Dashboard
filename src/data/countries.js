@@ -168,8 +168,18 @@ const blankMoneyRows = (rows) =>
     const out = { ...r };
     if ("amount" in out) out.amount = "";
     if ("count" in out) out.count = "";
+    // Per Willyanne 2026-07-01: also clear pre-seeded funding sources so every
+    // funder cell reads the placeholder ("e.g., Gates Foundation" on the free-
+    // text irregular expense/revenue inputs) or "-select-" (the in-kind dropdown)
+    // for real teams, rather than the demo's "Gates Foundation" values.
+    if ("funder" in out) out.funder = "";
     return out;
   });
+// Blank activities: keep the workbook activity names + descriptions (scaffolding)
+// but clear the near-term / long-term effort selections so the dropdowns read
+// their empty "Select…" state for real teams (per Willyanne 2026-07-01).
+const blankActivityRows = () =>
+  cloneActivityDefaults().map((a) => ({ ...a, nearTerm: "", longTerm: "" }));
 const blankEr = () =>
   Object.fromEntries(Object.keys(EXPENSES_REGULAR_USD_DEFAULTS).map((k) => [k, 0]));
 const blankCountry = () => ({
@@ -183,15 +193,25 @@ const blankCountry = () => ({
   revFees: 0, revOther: 0,
   ri: { grants: 0, contracts: 0, other: 0, reserves: 0 },
   grantEnd: "",
+  // Key Considerations: leave the risk/opportunity toggles unanswered and the
+  // description boxes blank (per Willyanne 2026-07-01). The wizard reads these
+  // via nullish-coalescing, so "" stays "" (won't fall back to the demo "yes"
+  // defaults, which Nyika still gets since demoCountry omits them).
+  hasRisks: "", hasOpps: "", riskText: "", oppText: "",
   ikReg: { federal: 0, institutional: 0, other: 0, total: 0 },
   ikIrr: { federal: 0, institutional: 0, other: 0, total: 0 },
   necDetail: { reviewPay: 0, reviewTrain: 0, travelTime: 0, travelCost: 0, meetings: 0 },
   fees: FEES_DEFAULT_ROW_TYPES.map((t) => makeBlankFeeRow(t)),
   feesColumns: cloneFeesColumns(),
-  activities: cloneActivityDefaults(),
+  activities: blankActivityRows(),
   irrProj: blankMoneyRows(EXPENSES_IRREGULAR_DEFAULTS),
   revRegOther: blankMoneyRows(REVENUE_REGULAR_OTHER_DEFAULTS),
   revIrr: blankMoneyRows(REVENUE_IRREGULAR_DEFAULTS),
+  // In-Kind rows: without these the wizard falls back to the populated
+  // IN_KIND_*_DEFAULTS (amounts + funders). Seed blank copies so amounts are
+  // empty and every funding-source dropdown reads "-select-" (Willyanne 2026-07-01).
+  ikRegRows: blankMoneyRows(IN_KIND_REGULAR_DEFAULTS),
+  ikIrrRows: blankMoneyRows(IN_KIND_IRREGULAR_DEFAULTS),
 });
 
 export const COUNTRIES = {

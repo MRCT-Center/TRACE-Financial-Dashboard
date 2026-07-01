@@ -691,7 +691,7 @@ function StepRisks({ hasRisks, onHasRisks, hasOpps, onHasOpps, riskText, onRiskT
         <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
           {["Yes", "No"].map((opt) => (
             <button key={opt} onClick={() => onHasRisks(opt.toLowerCase())}
-              style={{ ...toggleBtnStyle, background: hasRisks === opt.toLowerCase() ? C.red : "#f4f6f8", color: hasRisks === opt.toLowerCase() ? "#fff" : C.navy, border: `1px solid ${hasRisks === opt.toLowerCase() ? C.red : "#dde"}` }}>
+              style={{ ...toggleBtnStyle, background: hasRisks === opt.toLowerCase() ? C.red : "#e4eef8", color: hasRisks === opt.toLowerCase() ? "#fff" : C.navy, border: `1px solid ${hasRisks === opt.toLowerCase() ? C.red : "#bcd4ec"}` }}>
               {opt}
             </button>
           ))}
@@ -711,7 +711,7 @@ function StepRisks({ hasRisks, onHasRisks, hasOpps, onHasOpps, riskText, onRiskT
         <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
           {["Yes", "No"].map((opt) => (
             <button key={opt} onClick={() => onHasOpps(opt.toLowerCase())}
-              style={{ ...toggleBtnStyle, background: hasOpps === opt.toLowerCase() ? C.teal : "#f4f6f8", color: hasOpps === opt.toLowerCase() ? "#fff" : C.navy, border: `1px solid ${hasOpps === opt.toLowerCase() ? C.teal : "#dde"}` }}>
+              style={{ ...toggleBtnStyle, background: hasOpps === opt.toLowerCase() ? C.teal : "#e4eef8", color: hasOpps === opt.toLowerCase() ? "#fff" : C.navy, border: `1px solid ${hasOpps === opt.toLowerCase() ? C.teal : "#bcd4ec"}` }}>
               {opt}
             </button>
           ))}
@@ -1239,7 +1239,7 @@ function StepExpensesIrregular({ conv, irrProjEdits, setIrrProjEdits }) {
                         <IrregularTextInput
                           value={row.funder}
                           onChange={(v) => updateRow(idx, { funder: v })}
-                          placeholder="e.g. Gates Foundation"
+                          placeholder="e.g., Gates Foundation"
                         />
                       </td>
                       <td style={{ padding: "8px 10px" }}>
@@ -1553,7 +1553,7 @@ function RevenueCategoryCards({ conv, rows, setRows, categories, withPaymentStat
                         <IrregularTextInput
                           value={row.funder}
                           onChange={(v) => updateRow(idx, { funder: v })}
-                          placeholder={row.category === "Subsidy (federal)" ? "e.g., Ministry of Health" : ""}
+                          placeholder={row.category === "Subsidy (federal)" ? "e.g., Ministry of Health" : row.category === "Grant" ? "e.g., Gates Foundation" : ""}
                         />
                       </td>
                       <td style={{ padding: "8px 10px" }}>
@@ -1926,7 +1926,7 @@ function FundingSourceSelect({ value, onChange }) {
         background: "#fff",
       }}
     >
-      <option value="">— select —</option>
+      <option value="">-select-</option>
       {IN_KIND_FUNDING_SOURCE_OPTIONS.map((opt) => (
         <option key={opt} value={opt}>{opt}</option>
       ))}

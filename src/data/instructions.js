@@ -219,20 +219,20 @@ export const WIZARD_STEP_INSTRUCTIONS = {
   },
 };
 
-// Budget Forecast instructions (added 2026-07-01 for the new Forecast Results
-// tab). DRAFT copy pending Willyanne's final wording — walks the team through
-// the near-term/long-term % bands and the required reasoning. Shaped for
-// <StepInstructions>: { note, sheets: [{ name, lines }] }.
+// Budget Forecast instructions for the Forecast Results tab. Willyanne's final
+// wording (2026-07-01 afternoon), verbatim. Her drop-down paragraph (which sat
+// between Steps 2 and 3 in her note) is folded onto the end of Step 2 since the
+// step list renders as a numbered <ol>. Shaped for <StepInstructions>:
+// { note, sheets: [{ name, lines }] }.
 export const FORECAST_STEPS = [
-  'Step 1: Review the activity outlook on the Activities tab first — how many of your activities you expect to increase, stay the same, or decrease in effort. Your budget forecast should follow from that picture.',
-  'Step 2: For the near term (next year), use the drop-down to select how much you expect your regular operating budget to change. The options run from "Remain the same" through increases and decreases in set percentage bands. If your expected change is larger than any band, choose the "more than 100%" option and type the exact percentage.',
-  'Step 3: In the reason box, explain why you chose that change. Be specific — for example, a new permanent staff position (give the title), added staff training, or scaling a particular activity up or down.',
+  'Step 1: Review the activity outlook on the Activities tab first. How many of your activities do you expect increase, how many will stay the same, and how many will decrease in effort?',
+  'Step 2: For the near term (next year), use the drop-down to select how much you expect your regular operating budget to change. If increasing or decreasing activities, what will you need (or what could you reduce) for those changes (e.g., more staff, more training, more vehicles, office space, etc.)? Your budget forecast should follow from that picture. Please note that the forecast you choose is an "educated guess." It does not have to be exact. The point of the forecasting is to give you a general idea of expected increase (or decrease) so that you can plan. The forecast drop-down list runs from "Remain the same" through increases and decreases in set percentage bands. If your expected change is larger than any band, choose the "more than 100%" option and type the exact percentage.',
+  'Step 3: In the reason box, explain WHY you chose that drop-down option (e.g., remain the same, or a specific percentage increase or decrease). Be specific. For example, if you will be adding a new permanent staff position, give the position/title, because that affects the estimated salary.',
   'Step 4: Repeat Steps 2 and 3 for the long term (the next 3–5 years).',
-  'Step 5: Review the projection boxes. They show your current regular expenses, the projected expenses at the percentage you chose, and the projected gap (revenue minus projected expenses). Use these to sense-check whether your forecast is realistic.',
+  'Step 5: Review the projection boxes. They show your current regular expenses, the projected expenses at the percentage you chose, and the projected gap (revenue minus projected expenses). Use these to double-check whether your forecast seems realistic.',
 ];
 
 export const FORECAST_INSTRUCTIONS = {
-  note: 'The forecast applies to your regular operating budget. The projected gap uses your current revenue, so it shows the effect of the expense change alone.',
   sheets: [
     { name: "Budget Forecast", lines: FORECAST_STEPS },
   ],
