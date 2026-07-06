@@ -7,6 +7,10 @@ export const CURRENCIES = {
   RWF: { code: "RWF", symbol: "RF",  name: "Rwandan Franc",      rate: 1405  },
   TZS: { code: "TZS", symbol: "TSh", name: "Tanzanian Shilling", rate: 2655  },
   ZWG: { code: "ZWG", symbol: "ZiG", name: "Zimbabwe Gold",      rate: 13.6  },
+  // Fictional currency for the worked-example country Nyika. Pegged to the
+  // Indonesian rupiah rate so the demo shows a realistic currency conversion
+  // without colliding with any real African currency we may add later.
+  NYR: { code: "NYR", symbol: "Rp",  name: "Nyika Rupiah",       rate: 16300 },
 };
 
 export const COUNTRY_CURRENCIES = {
@@ -15,6 +19,7 @@ export const COUNTRY_CURRENCIES = {
   Rwanda:   "RWF",
   Tanzania: "TZS",
   Zimbabwe: "ZWG",
+  Nyika:    "NYR",
 };
 
 const CurrencyContext = createContext(null);

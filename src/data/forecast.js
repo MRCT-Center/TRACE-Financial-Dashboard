@@ -35,7 +35,10 @@ export const FORECAST_OPTIONS = [
 
 // One forecast entry = the chosen band, an optional typed % (open-ended bands
 // only), and the required reasoning.
-export const FORECAST_DEFAULT = { option: "Remain the same", customPct: "", reason: "" };
+// option defaults to "" so the select shows the "-select-" placeholder (like
+// other blank cells) rather than pre-choosing "Remain the same" (Willyanne
+// 2026-07-06). forecastMultiplier() treats "" as no change (multiplier 1).
+export const FORECAST_DEFAULT = { option: "", customPct: "", reason: "" };
 
 // A country carries a near-term (next year) and a long-term (3–5 years) forecast.
 export const makeForecastDefault = () => ({

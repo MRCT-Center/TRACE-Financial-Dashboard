@@ -192,7 +192,7 @@ export default function Feedback({ country, email }) {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>
                   {allAnswered
-                    ? "All 10 questions answered. Thank you!"
+                    ? `All ${totalCount} questions answered. Thank you!`
                     : `You've answered ${answeredCount} of ${totalCount} survey questions.`}
                 </span>
                 {!allAnswered && (
@@ -204,6 +204,8 @@ export default function Feedback({ country, email }) {
               <div style={{ height: 8, background: "#dde6ec", borderRadius: 5, marginTop: 10, overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${pct}%`, background: allAnswered ? C.green : C.teal, transition: "width 0.2s" }} />
               </div>
+
+              <SavedNote />
 
               <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 14 }}>
                 <button
@@ -258,6 +260,8 @@ export default function Feedback({ country, email }) {
               contactEmail={contactEmail} setContactEmail={setContactEmail}
             />
 
+            <SavedNote />
+
             <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 4 }}>
               <button
                 onClick={handleQuestionsSubmit}
@@ -291,6 +295,27 @@ export default function Feedback({ country, email }) {
 }
 
 // ───────────────────────── pieces ─────────────────────────
+
+// Reassures participants that, unlike the sample financial data they edit while
+// exploring (which the demo badge flags as "not saved"), their feedback IS
+// recorded on Submit. Feedback always persists, independent of DEMO_MODE.
+function SavedNote() {
+  return (
+    <p style={{
+      display: "flex", alignItems: "flex-start", gap: 7,
+      fontSize: 12.5, color: C.navy, lineHeight: 1.5,
+      background: "#eef7f0", border: "1px solid #cfe6d5", borderRadius: 8,
+      padding: "10px 12px", margin: "14px 0 0",
+    }}>
+      <span style={{ color: C.green, fontWeight: 800, flexShrink: 0 }}>✓</span>
+      <span>
+        Your responses are saved when you click Submit. The sample financial data
+        you edit while exploring the dashboard is not kept, but your feedback here
+        always is.
+      </span>
+    </p>
+  );
+}
 
 function ThankYou({ onAgain, againLabel }) {
   return (

@@ -233,6 +233,7 @@ export function ForecastCard({ data, onEdit }) {
                 <label style={{ flex: "1 1 280px", fontSize: 12, color: C.blueGrey }}>
                   Expected change in the regular budget
                   <select value={f.option} onChange={(e) => setField(t.key, { option: e.target.value })} style={fcInputStyle}>
+                    <option value="">-select-</option>
                     {FORECAST_OPTIONS.map((o) => <option key={o.label} value={o.label}>{o.label}</option>)}
                   </select>
                 </label>

@@ -26,6 +26,7 @@ const CURRENCIES = [
   { code: "RWF", symbol: "RF",  name: "Rwandan Franc"    },
   { code: "TZS", symbol: "TSh", name: "Tanzanian Shilling" },
   { code: "ZWG", symbol: "ZiG", name: "Zimbabwe Gold"    },
+  { code: "NYR", symbol: "Rp",  name: "Nyika Rupiah"    },
 ];
 
 // Setup tab — Unit options. Per Willyanne 2026-05-26 #4: only the two
