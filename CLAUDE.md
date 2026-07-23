@@ -4,9 +4,11 @@
 
 A financial sustainability dashboard for the TRACE program (a multi-country ethics training initiative run by the MRCT Center at Harvard). Country teams enter budget data through a guided wizard; the dashboard displays expenses, revenue, gap analysis, activities, and an overview for each country.
 
-- **Local path:** `/Users/nc404/Desktop/TRACE-Financial-Dashboard/`
-- **Repo:** `nclough68/TRACE-Financial-Dashboard` (private)
-- **Live:** Vercel (auto-deploys from main)
+> **Migrated 2026-07-23:** this repo moved from `nclough68` to the `MRCT-Center` GitHub org, and hosting moved to the MRCT Center Vercel account. Old URLs redirect; the live URL is unchanged.
+
+- **Local path:** clone anywhere you work (was `/Users/nc404/Desktop/TRACE-Financial-Dashboard/` on Nannie's machine)
+- **Repo:** `MRCT-Center/TRACE-Financial-Dashboard` (private; in the MRCT Center GitHub org)
+- **Live:** `trace-financial-dashboard.vercel.app`, hosted on the MRCT Center Vercel account (`mrct@bwh.harvard.edu`); auto-deploys from `main`
 - **Stakeholder:** Willyanne DeCormier Plosky (TRACE program, primary content reviewer)
 
 ## Dev Setup
