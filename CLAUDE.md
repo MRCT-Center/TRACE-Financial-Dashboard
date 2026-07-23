@@ -29,26 +29,53 @@ Always commit and push before ending a session — localhost is not Vercel.
 
 ## Architecture
 
+`CLAUDE.md` is notes-for-AI only; it does not run. The app is built entirely from `src/`.
+
 ```
 src/
-  App.jsx                  # Top-level routing, country selector, currency toggle
-  supabaseClient.js        # Supabase init
-  CurrencyContext.jsx      # Static fallback exchange rates; provides displayCode/convert()
-  components/
-    LoginPage.jsx          # 6 prototype accounts with auto-fill credentials panel
-    IntroPage.jsx          # About TRACE, MRCT Center's role, why this dashboard
-    Overview.jsx           # Summary cards incl. in-kind contributions
-    Expenses.jsx           # Regular + irregular expenses breakdown
-    Revenue.jsx            # Fees, grants, funder types
-    GapView.jsx            # Gap analysis, advocacy summary
-    Activities.jsx         # Per-activity data with NHSRD/etc descriptions
-    GuidedWizard.jsx       # Multi-step data entry wizard (Steps 1–5)
-    InfoTip.jsx            # Click-to-open callout component; Def helper for term/definition pairs
-    EditableCell.jsx       # Inline-editable table cell
+  App.jsx                  # Top-level routing, tabs/nav, country selector, currency toggle, mocked prototype logins
+  main.jsx                 # React entry point
+  App.css, index.css       # Global styles
+  supabaseClient.js        # Supabase client — connection URL + publishable key are HARDCODED here (no env vars)
+  demoConfig.js            # DEMO_MODE flag (currently true)
+  assets/                  # Logo + images
+  components/              # SCREENS (how each page looks and behaves)
+    LoginPage.jsx          # Sign-in screen + quick-fill prototype logins
+    IntroPage.jsx          # About TRACE / MRCT Center's role
+    Overview.jsx           # Overview summary cards (incl. in-kind)
+    Expenses.jsx           # Expenses screen (regular + irregular)
+    Revenue.jsx            # Revenue screen (fees, grants, funder types)
+    GapView.jsx            # Gap analysis + advocacy summary
+    Activities.jsx         # Activities screen
+    Forecast.jsx           # Budget Forecast tab
+    Results.jsx            # Results tab wrapper (holds the results sub-tabs)
+    Feedback.jsx           # Feedback/survey tab (participant survey + open questions)
     AdminDashboard.jsx     # Admin view
+    AdminFeedback.jsx      # Admin feedback inbox (survey responses)
+    GuidedWizard.jsx       # Multi-step data-entry wizard (largest file, ~125KB)
+    StepInstructions.jsx   # "Instructions for this step" box in the wizard
+    InfoTip.jsx            # Click-to-open callout + Def helper (term/definition pairs)
+    EditableCell.jsx       # Inline-editable table cell
+  data/                    # CONTENT (wording, categories, definitions, fee model, instruction text)
+    countries.js           # Country list + per-country seed data (Kenya...Nyika)
+    expensesRegular.js     # Regular expense categories/rows
+    expensesIrregular.js   # Irregular expense categories/rows
+    revenueIrregular.js    # Irregular revenue categories
+    revenueRegularOther.js # Other-regular revenue categories
+    inKindRegular.js       # In-kind contributions (regular)
+    inKindIrregular.js     # In-kind contributions (irregular)
+    feesModel.js           # Fee model (review types + fee structure)
+    activities.js          # Activity list + descriptions
+    forecast.js            # Forecast bands + projection logic
+    instructions.js        # Wizard step-by-step instruction text (~42KB content file)
+    feedbackSurvey.js      # Feedback survey questions
+    archivedBlurbs.js      # Older/archived text blurbs
+  utils/
+    CurrencyContext.jsx    # Static fallback exchange rates; provides displayCode/convert()
     metrics.js             # Metric definitions
-    countries.js           # Country data (Kenya most accurate; others placeholder)
 ```
+
+For most wording, definition, or category edits, the target is a `src/data/` file. The `src/components/` files control layout and behavior.
 
 ## Key Decisions & Constraints
 
