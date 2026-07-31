@@ -1,16 +1,12 @@
-# React + Vite
+# TRACE Financial Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Financial sustainability dashboard for the TRACE programme, a multi-country research-ethics initiative run by the [MRCT Center](https://mrctcenter.org). Country teams enter budget data through a guided wizard; the dashboard shows expenses, revenue, gap analysis, activities and a forecast for each of the five participating countries.
 
-Currently, two official plugins are available:
+- **Live:** https://trace-financial-dashboard.vercel.app
+- **Stack:** React 19 · Vite · Recharts · Supabase
+- **Status:** in prototype demo mode (`DEMO_MODE = true`), pending Willyanne DeCormier Plosky's sign-off
+- **Owner:** Nannie Clough · **Reviewer:** Willyanne DeCormier Plosky
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+**Working on this? Read [`AGENTS.md`](./AGENTS.md) first.** It is the runbook: what the tool does, which file controls which screen, the decisions behind the odd bits, and the known issues. Update it in the same commit as your change.
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Internal MRCT Center tool. The repository is private; the deployed site is reachable by anyone with the link.
