@@ -87,7 +87,7 @@ The single most useful thing to know: **screens live in `src/components/`, conte
 
 ## How to make changes
 
-The team how-to, with a path for whichever AI you use, is at **mrct-how-we-build.vercel.app**, section 04.
+The team how-to, with a path for whichever AI you use, is at **how-we-build.vercel.app**.
 
 This repo has a local clone, so it supports the full loop: branch, edit, preview, merge. It can also be edited entirely through GitHub's web editor.
 
