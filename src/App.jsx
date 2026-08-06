@@ -6,6 +6,7 @@ import { FEES_DEFAULT_ROWS, FEES_DEFAULT_COLUMN_LABELS, isLegacyFeesArray, isAll
 import { CurrencyProvider, COUNTRY_CURRENCIES, CURRENCIES, useCurrency } from "./utils/CurrencyContext";
 import { supabase } from "./supabaseClient";
 import { DEMO_MODE } from "./demoConfig";
+import { signOut, ensureProfile } from "./auth";
 import LoginPage from "./components/LoginPage";
 import IntroPage from "./components/IntroPage";
 import Results from "./components/Results";
@@ -13,17 +14,7 @@ import GuidedWizard from "./components/GuidedWizard";
 import AdminDashboard from "./components/AdminDashboard";
 import Feedback from "./components/Feedback";
 import AdminFeedback from "./components/AdminFeedback";
-
-// Mock credentials — Phase 2 will use Supabase Auth
-const MOCK_USERS = {
-  "admin@mrct.org":      { password: "mrct2026",    role: "admin",    country: null },
-  "nyika@trace.org":     { password: "nyika2026",   role: "country",  country: "Nyika" },
-  "kenya@trace.org":     { password: "kenya2026",   role: "country",  country: "Kenya" },
-  "nigeria@trace.org":   { password: "nigeria2026", role: "country",  country: "Nigeria" },
-  "rwanda@trace.org":    { password: "rwanda2026",  role: "country",  country: "Rwanda" },
-  "tanzania@trace.org":  { password: "tz2026",      role: "country",  country: "Tanzania" },
-  "zimbabwe@trace.org":  { password: "zim2026",     role: "country",  country: "Zimbabwe" },
-};
+import AdminAccessRequests from "./components/AdminAccessRequests";
 
 const COUNTRY_NAMES = Object.keys(COUNTRIES);
 
@@ -57,7 +48,13 @@ const COUNTRY_VIEWS = [
 ];
 
 export default function App() {
-  const [session, setSession] = useState(null);
+  // Real Supabase Auth session (see src/auth.js). `session` below is the
+  // simplified {email, role, country} shape the rest of this file already
+  // expects — derived from authUser + profile so downstream code didn't need
+  // to change when mock logins were replaced with real accounts.
+  const [authUser, setAuthUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [view, setView] = useState("intro");
   // Admin lands on Nyika (the worked example); country logins are set to their
   // own country in handleLogin, so this default only affects the admin view.
@@ -65,6 +62,13 @@ export default function App() {
   // countryCache holds live data: either loaded from Supabase or hardcoded fallback
   const [countryCache, setCountryCache] = useState({ ...COUNTRIES });
   const [dbStatus, setDbStatus] = useState("idle"); // idle | loading | ready | error
+
+  // Simplified {email, role, country} shape the rest of this file expects,
+  // derived from the real Supabase Auth user + profiles row. Declared early
+  // so saveCountryData below (and everything else) can reference it.
+  const session = authUser && profile
+    ? { email: authUser.email, role: profile.role, country: profile.country }
+    : null;
 
   // Load all country data from Supabase on mount
   useEffect(() => {
@@ -381,22 +385,48 @@ export default function App() {
     await saveCountryData(selectedCountry, updated);
   }, [selectedCountry, countryCache]); // eslint-disable-line
 
-  function handleLogin(email, password) {
-    const user = MOCK_USERS[email.toLowerCase()];
-    if (!user || user.password !== password) return "Invalid email or password.";
-    const country = user.country || "Kenya";
-    setSession({ email: email.toLowerCase(), role: user.role, country });
-    setSelectedCountry(country);
+  const handleAuthUser = useCallback(async (user) => {
+    setAuthUser(user);
+    if (!user) { setProfile(null); setAuthLoading(false); return; }
+    setAuthLoading(true);
+    try {
+      const prof = await ensureProfile(user);
+      setProfile(prof);
+    } catch (err) {
+      console.warn("Profile load failed:", err.message);
+      setProfile(null);
+    } finally {
+      setAuthLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (active) handleAuthUser(data.session?.user || null);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+      handleAuthUser(s?.user || null);
+    });
+    return () => { active = false; sub.subscription.unsubscribe(); };
+  }, [handleAuthUser]);
+
+  // Country logins land on their own country; this only fires once per
+  // sign-in since selectedCountry then stays under the admin/country selector.
+  useEffect(() => {
+    if (session?.role === "country" && session.country) setSelectedCountry(session.country);
+  }, [session?.role, session?.country]);
+
+  async function handleLogout() {
+    await signOut();
     setView("intro");
-    return null;
   }
 
-  function handleLogout() {
-    setSession(null);
-    setView("intro");
+  if (authLoading) return <SplashScreen />;
+  if (!session) return <LoginPage />;
+  if (session.role === "country" && !session.country) {
+    return <UnlinkedAccountScreen email={session.email} onLogout={handleLogout} />;
   }
-
-  if (!session) return <LoginPage onLogin={handleLogin} />;
 
   const isAdmin = session.role === "admin";
   const views = isAdmin ? ADMIN_VIEWS : COUNTRY_VIEWS;
@@ -432,6 +462,7 @@ export default function App() {
           {view === "feedback" && <Feedback country={selectedCountry} email={session.email} />}
           {view === "admin"   && isAdmin && (
             <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+              <AdminAccessRequests adminEmail={session.email} />
               <AdminFeedback />
               <AdminDashboard
                 countries={countryCache}
@@ -446,6 +477,33 @@ export default function App() {
         </footer>
       </div>
     </CurrencyProvider>
+  );
+}
+
+function SplashScreen() {
+  return (
+    <div style={{ minHeight: "100svh", background: C.navy, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 14, opacity: 0.8 }}>
+      Loading…
+    </div>
+  );
+}
+
+function UnlinkedAccountScreen({ email, onLogout }) {
+  return (
+    <div style={{ minHeight: "100svh", background: C.navy, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ background: "#fff", borderRadius: 12, padding: "32px 28px", maxWidth: 420, textAlign: "center" }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: C.navy, marginBottom: 8 }}>Account not linked to a country</div>
+        <p style={{ fontSize: 13, color: "#555", lineHeight: 1.6 }}>
+          {email} is signed in but isn't associated with a country yet. Contact MRCT Center to resolve this.
+        </p>
+        <button
+          onClick={onLogout}
+          style={{ marginTop: 16, background: C.teal, color: "#fff", borderRadius: 8, padding: "10px 18px", fontSize: 13, fontWeight: 600, minHeight: 44, border: "none" }}
+        >
+          Sign out
+        </button>
+      </div>
+    </div>
   );
 }
 
