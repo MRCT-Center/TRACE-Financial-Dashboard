@@ -7,7 +7,7 @@ import { signIn, requestAccess, checkAccessRequest, claimAccess } from "../auth"
 // not something a country team requests access to.
 const REQUESTABLE_COUNTRIES = Object.keys(COUNTRIES).filter((c) => c !== "Nyika");
 
-export default function LoginPage() {
+export default function LoginPage({ notice }) {
   const [screen, setScreen] = useState("signin"); // signin | request | claim
 
   return (
@@ -37,6 +37,12 @@ export default function LoginPage() {
             Draft Version: Do Not Share
           </div>
         </div>
+
+        {notice && (
+          <div style={{ background: "#fdecec", border: `1px solid ${C.red}`, color: C.red, borderRadius: 8, padding: "10px 14px", fontSize: 13, marginBottom: 18 }}>
+            {notice}
+          </div>
+        )}
 
         {screen === "signin" && <SignInForm onNavigate={setScreen} />}
         {screen === "request" && <RequestAccessForm onNavigate={setScreen} />}

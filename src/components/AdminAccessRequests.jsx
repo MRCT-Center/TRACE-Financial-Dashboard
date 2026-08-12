@@ -4,10 +4,24 @@ import { supabase } from "../supabaseClient";
 
 // Admin queue for the access-request gatekeeping flow: country teams submit
 // requests from the login page (RequestAccessForm in LoginPage.jsx); this
-// panel is where MRCT Center approves or denies them. Approval doesn't create
-// the account directly — it just unlocks the "set your password" step for
-// that email (see claimAccess() in src/auth.js). Reads/writes the
-// access_requests table set up by supabase-access-control-migration.sql.
+// panel is where MRCT Center approves or denies them.
+//
+// Approving works two different ways depending on whether the requester
+// already has an account:
+//   - First-time requester: no profile row exists yet for their email, so
+//     approval just unlocks the "set your password" step (see claimAccess()
+//     in src/auth.js). The request stays 'approved' until they finish that.
+//   - Returning requester (e.g. someone whose access was revoked and who
+//     re-requested): a profile row already exists for their email. There's
+//     no password step to redo, so approval reactivates that profile
+//     directly (role/country/active) and marks the request 'completed'
+//     immediately. See src/components/ManageAccess.jsx for the revoke side
+//     of this.
+//
+// Reads/writes the access_requests table set up by
+// supabase-access-control-migration.sql; the reactivation path also writes
+// to profiles, which requires the "admins can update profiles" policy from
+// the access-control-lockdown-and-revoke migration.
 
 export default function AdminAccessRequests({ adminEmail }) {
   const [rows, setRows] = useState([]);
@@ -33,14 +47,45 @@ export default function AdminAccessRequests({ adminEmail }) {
 
   useEffect(() => { load(); }, [load]);
 
-  async function decide(id, decision) {
-    setBusyId(id);
+  async function decide(req, decision) {
+    setBusyId(req.id);
     try {
-      const { error } = await supabase
-        .from("access_requests")
-        .update({ status: decision, decided_at: new Date().toISOString(), decided_by: adminEmail })
-        .eq("id", id);
-      if (error) throw error;
+      if (decision === "approved") {
+        // Returning requester? Reactivate their existing profile directly
+        // instead of routing them through "set your password" again.
+        const { data: existingProfile, error: lookupErr } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("email", req.email)
+          .maybeSingle();
+        if (lookupErr) throw lookupErr;
+
+        if (existingProfile) {
+          const { error: updErr } = await supabase
+            .from("profiles")
+            .update({ role: "country", country: req.country, active: true })
+            .eq("id", existingProfile.id);
+          if (updErr) throw updErr;
+
+          const { error: reqErr } = await supabase
+            .from("access_requests")
+            .update({ status: "completed", decided_at: new Date().toISOString(), decided_by: adminEmail })
+            .eq("id", req.id);
+          if (reqErr) throw reqErr;
+        } else {
+          const { error: reqErr } = await supabase
+            .from("access_requests")
+            .update({ status: "approved", decided_at: new Date().toISOString(), decided_by: adminEmail })
+            .eq("id", req.id);
+          if (reqErr) throw reqErr;
+        }
+      } else {
+        const { error } = await supabase
+          .from("access_requests")
+          .update({ status: decision, decided_at: new Date().toISOString(), decided_by: adminEmail })
+          .eq("id", req.id);
+        if (error) throw error;
+      }
       await load();
     } catch (err) {
       setErrorMsg(err.message || "Could not update the request.");
@@ -82,8 +127,8 @@ export default function AdminAccessRequests({ adminEmail }) {
                       {r.note && <div style={{ fontSize: 13, color: "#444", marginTop: 6, whiteSpace: "pre-wrap" }}>{r.note}</div>}
                     </div>
                     <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                      <button onClick={() => decide(r.id, "denied")} disabled={busyId === r.id} style={denyBtn}>Deny</button>
-                      <button onClick={() => decide(r.id, "approved")} disabled={busyId === r.id} style={approveBtn}>
+                      <button onClick={() => decide(r, "denied")} disabled={busyId === r.id} style={denyBtn}>Deny</button>
+                      <button onClick={() => decide(r, "approved")} disabled={busyId === r.id} style={approveBtn}>
                         {busyId === r.id ? "…" : "Approve"}
                       </button>
                     </div>

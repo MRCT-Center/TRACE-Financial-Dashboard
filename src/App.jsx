@@ -15,6 +15,7 @@ import AdminDashboard from "./components/AdminDashboard";
 import Feedback from "./components/Feedback";
 import AdminFeedback from "./components/AdminFeedback";
 import AdminAccessRequests from "./components/AdminAccessRequests";
+import ManageAccess from "./components/ManageAccess";
 
 const COUNTRY_NAMES = Object.keys(COUNTRIES);
 
@@ -55,6 +56,7 @@ export default function App() {
   const [authUser, setAuthUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [loginNotice, setLoginNotice] = useState("");
   const [view, setView] = useState("intro");
   // Admin lands on Nyika (the worked example); country logins are set to their
   // own country in handleLogin, so this default only affects the admin view.
@@ -391,6 +393,17 @@ export default function App() {
     setAuthLoading(true);
     try {
       const prof = await ensureProfile(user);
+      if (prof && prof.role === "country" && prof.active === false) {
+        // Revoked mid-session (or they signed back in after being revoked):
+        // the database already blocks their data access, but sign them out
+        // of the UI too rather than leaving them on a broken/empty screen.
+        await signOut();
+        setAuthUser(null);
+        setProfile(null);
+        setLoginNotice("Your access has been revoked. Contact your MRCT Center admin if you believe this is a mistake.");
+        return;
+      }
+      setLoginNotice("");
       setProfile(prof);
     } catch (err) {
       console.warn("Profile load failed:", err.message);
@@ -423,7 +436,7 @@ export default function App() {
   }
 
   if (authLoading) return <SplashScreen />;
-  if (!session) return <LoginPage />;
+  if (!session) return <LoginPage notice={loginNotice} />;
   if (session.role === "country" && !session.country) {
     return <UnlinkedAccountScreen email={session.email} onLogout={handleLogout} />;
   }
@@ -463,6 +476,7 @@ export default function App() {
           {view === "admin"   && isAdmin && (
             <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
               <AdminAccessRequests adminEmail={session.email} />
+              <ManageAccess />
               <AdminFeedback />
               <AdminDashboard
                 countries={countryCache}

@@ -135,14 +135,50 @@ This repo has a local clone, so it supports the full loop: branch, edit, preview
     no longer work.** Recreate any you still need (e.g. Nyika for Willyanne's
     demos) the same way as the admin account — Supabase Auth user + a
     `profiles` row — since they're not real country requests.
-  - **Not built yet:** revoking access, an admin UI for changing someone's
-    role/country after creation, and email notifications when a request comes
-    in (the admin currently has to check the Access Requests tab). Depending
-    on the Supabase project's "Confirm email" setting, a rep may need to
-    confirm their email before `ensureProfile()` can finish linking their
-    account — either setting works, `App.jsx`'s auth listener re-runs
-    `ensureProfile()` on every sign-in until it succeeds.
-- **The repository is private. The live site is not.** `trace-financial-dashboard.vercel.app` answers anyone who knows the address, with no account and no password. A `noindex` header keeps it out of search results, but **the link is the key**. Taken with the mocked auth above: until real authentication exists, treat anything entered here as reachable by anyone who has the URL.
+  - **Revoking access (2026-08-12):** `profiles` has an `active` column
+    (default `true`). Admin → **Manage Access** (`ManageAccess.jsx`) lists
+    every country account, grouped by country — a country can have more than
+    one rep, `profiles.country` isn't unique — with a Revoke/Reinstate toggle
+    per person. Revoking sets `active = false`; this is enforced at the
+    database level (every RLS policy that grants a country rep access to
+    their own country's data also requires `active = true`), not just hidden
+    in the UI, and if they're mid-session when it happens, `App.jsx`'s auth
+    listener signs them out on the next profile check. Revoking does **not**
+    block a resubmitted access request — that's intentional, situations
+    change — it just goes back through the normal approval queue. Approving a
+    request from someone who already has a profile (a returning/revoked rep)
+    reactivates that profile directly instead of routing them through
+    "set your password" again, since they already have a working login. See
+    `AdminAccessRequests.jsx`'s `decide()`.
+  - **Not built yet:** an admin UI for changing someone's role/country after
+    creation (still by hand in Supabase), and email notifications when a
+    request comes in (the admin currently has to check the Access Requests
+    tab — a Resend-based notification was scoped on 2026-08-12 but not yet
+    built, blocked on getting API keys). Depending on the Supabase project's
+    "Confirm email" setting, a rep may need to confirm their email before
+    `ensureProfile()` can finish linking their account — either setting
+    works, `App.jsx`'s auth listener re-runs `ensureProfile()` on every
+    sign-in until it succeeds.
+- **Real data access is now locked down by role/country/active (2026-08-12).**
+  `country_data` — the table the live app actually reads and writes — used to
+  have a wide-open policy (`public_access`, `qual: true`) left over from
+  before real auth existed: anyone with the public anon key, logged in or
+  not, could read and overwrite any country's data. That's now replaced with
+  policies requiring a matching, active `profiles` row (or `role = 'admin'`).
+  The older normalized tables (`activities`, `expenses_regular`,
+  `expenses_irregular`, `revenue_regular`, `revenue_irregular`, `in_kind`,
+  `countries`) — not queried by the current app, but still holding real
+  financial data with the same stale/open policies (some referencing
+  `auth.jwt() ->> 'country'` and `->> 'user_role'` claims from the old mock
+  system, which the real Supabase Auth session never sets) — got the same
+  treatment for defense in depth. See the
+  `access_control_lockdown_and_revoke` migration. **Nyika is not a real row
+  in any of these tables** — it only exists as hardcoded seed data in
+  `src/data/countries.js`, rendered client-side, so it needed no special
+  carve-out; it stays effectively public simply by never touching the
+  database. `feedback` was left as-is (still publicly readable) — out of
+  scope for this pass, worth a look separately.
+- **The repository is private. The live site is not.** `trace-financial-dashboard.vercel.app` answers anyone who knows the address, with no account and no password required to *reach* the login screen. A `noindex` header keeps it out of search results, but **the link is the key** to who can attempt to sign in or request access. As of 2026-08-12, actually reading or writing country data additionally requires a real, active, approved account for that specific country (or admin) — see the two points above — so the login screen being reachable no longer means the data behind it is.
 - **Country data status:** Kenya is the most accurate (April 17 workbook, real data). Nigeria, Rwanda, Tanzania and Zimbabwe are **placeholder data only** and need real figures.
 
 ## Known issues / to-do
