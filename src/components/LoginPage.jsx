@@ -1,19 +1,14 @@
 import { useState } from "react";
 import { COLORS as C } from "../utils/metrics";
+import { COUNTRIES } from "../data/countries";
+import { signIn, requestAccess, checkAccessRequest, claimAccess } from "../auth";
 
-export default function LoginPage({ onLogin }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+// Real country list for the request form — Nyika is the fixed worked example,
+// not something a country team requests access to.
+const REQUESTABLE_COUNTRIES = Object.keys(COUNTRIES).filter((c) => c !== "Nyika");
 
-  function handleSubmit(e) {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    const err = onLogin(email.trim(), password);
-    if (err) { setError(err); setLoading(false); }
-  }
+export default function LoginPage() {
+  const [screen, setScreen] = useState("signin"); // signin | request | claim
 
   return (
     <div style={{
@@ -43,101 +38,318 @@ export default function LoginPage({ onLogin }) {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.navy, marginBottom: 4 }}>
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@trace.org"
-              required
-              autoFocus
-              style={inputStyle}
-            />
-          </div>
-          <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.navy, marginBottom: 4 }}>
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              style={inputStyle}
-            />
-          </div>
-
-          {error && (
-            <div style={{ background: "#fff0f0", border: `1px solid ${C.red}`, borderRadius: 6, padding: "8px 12px", color: C.red, fontSize: 13 }}>
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              background: loading ? C.blueGrey : C.teal,
-              color: "#fff",
-              borderRadius: 8,
-              padding: "12px 0",
-              fontSize: 15,
-              fontWeight: 600,
-              marginTop: 6,
-              minHeight: 44,
-              transition: "background 0.15s",
-            }}
-          >
-            {loading ? "Signing in…" : "Sign in"}
-          </button>
-        </form>
-
-        <div style={{ marginTop: 24, borderTop: `1px solid #eee`, paddingTop: 16 }}>
-          <div style={{ fontSize: 11, color: C.blueGrey, marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Country sign-in
-          </div>
-          <div style={{ display: "grid", gap: 4 }}>
-            {/* MRCT Admin is intentionally omitted from this quick-fill list so
-                country-team participants only see their five country logins and
-                don't stumble into the admin / survey-results view. The admin
-                account still works by typing the credentials manually. */}
-            {[
-              ["Nyika (example — demo data)", "nyika@trace.org", "nyika2026"],
-              ["Kenya", "kenya@trace.org", "kenya2026"],
-              ["Nigeria", "nigeria@trace.org", "nigeria2026"],
-              ["Rwanda", "rwanda@trace.org", "rwanda2026"],
-              ["Tanzania", "tanzania@trace.org", "tz2026"],
-              ["Zimbabwe", "zimbabwe@trace.org", "zim2026"],
-            ].map(([label, em, pw]) => (
-              <button
-                key={em}
-                type="button"
-                onClick={() => { setEmail(em); setPassword(pw); }}
-                style={{
-                  background: "#f4f6f8",
-                  borderRadius: 6,
-                  padding: "5px 10px",
-                  fontSize: 12,
-                  color: C.navy,
-                  textAlign: "left",
-                  border: "1px solid #dde",
-                  minHeight: 32,
-                }}
-              >
-                <strong>{label}</strong> — {em}
-              </button>
-            ))}
-          </div>
-        </div>
+        {screen === "signin" && <SignInForm onNavigate={setScreen} />}
+        {screen === "request" && <RequestAccessForm onNavigate={setScreen} />}
+        {screen === "claim" && <ClaimAccessForm onNavigate={setScreen} />}
       </div>
     </div>
   );
 }
+
+// ─── Sign in ────────────────────────────────────────────────────────────────
+
+function SignInForm({ onNavigate }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    const err = await signIn(email, password);
+    // On success, App.jsx's onAuthStateChange listener picks up the new
+    // session automatically — nothing more to do here.
+    if (err) { setError(humanizeAuthError(err)); setLoading(false); }
+  }
+
+  return (
+    <>
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div>
+          <label style={labelStyle}>Email</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@trace.org"
+            required
+            autoFocus
+            style={inputStyle}
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Password</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            required
+            style={inputStyle}
+          />
+        </div>
+
+        {error && <ErrorBox>{error}</ErrorBox>}
+
+        <button type="submit" disabled={loading} style={primaryBtn(loading)}>
+          {loading ? "Signing in…" : "Sign in"}
+        </button>
+      </form>
+
+      <div style={{ marginTop: 20, borderTop: "1px solid #eee", paddingTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+        <LinkButton onClick={() => onNavigate("request")}>
+          New country team? Request access
+        </LinkButton>
+        <LinkButton onClick={() => onNavigate("claim")}>
+          Already approved? Set your password
+        </LinkButton>
+      </div>
+    </>
+  );
+}
+
+// ─── Request access ─────────────────────────────────────────────────────────
+
+function RequestAccessForm({ onNavigate }) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [country, setCountry] = useState(REQUESTABLE_COUNTRIES[0]);
+  const [note, setNote] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    const err = await requestAccess({ name, email, country, note });
+    setLoading(false);
+    if (err) { setError(err); return; }
+    setSubmitted(true);
+  }
+
+  if (submitted) {
+    return (
+      <div>
+        <p style={{ fontSize: 14, color: C.navy, lineHeight: 1.6 }}>
+          Request submitted. MRCT Center will review it and you'll be able to
+          set your password once it's approved — check back using
+          "Already approved? Set your password" below.
+        </p>
+        <div style={{ marginTop: 18 }}>
+          <LinkButton onClick={() => onNavigate("signin")}>← Back to sign in</LinkButton>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <p style={{ fontSize: 13, color: C.blueGrey, marginBottom: 16, lineHeight: 1.5 }}>
+        Requesting dashboard access for your country's team. MRCT Center
+        reviews every request before it's granted.
+      </p>
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div>
+          <label style={labelStyle}>Your name</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} required autoFocus style={inputStyle} />
+        </div>
+        <div>
+          <label style={labelStyle}>Email</label>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={inputStyle} />
+        </div>
+        <div>
+          <label style={labelStyle}>Country</label>
+          <select value={country} onChange={(e) => setCountry(e.target.value)} style={inputStyle}>
+            {REQUESTABLE_COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={labelStyle}>Note (optional)</label>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={3}
+            style={{ ...inputStyle, resize: "vertical", minHeight: 60 }}
+          />
+        </div>
+
+        {error && <ErrorBox>{error}</ErrorBox>}
+
+        <button type="submit" disabled={loading} style={primaryBtn(loading)}>
+          {loading ? "Submitting…" : "Submit request"}
+        </button>
+      </form>
+
+      <div style={{ marginTop: 18 }}>
+        <LinkButton onClick={() => onNavigate("signin")}>← Back to sign in</LinkButton>
+      </div>
+    </>
+  );
+}
+
+// ─── Claim / set password after approval ───────────────────────────────────
+
+function ClaimAccessForm({ onNavigate }) {
+  const [step, setStep] = useState("email"); // email | password | done
+  const [email, setEmail] = useState("");
+  const [request, setRequest] = useState(null);
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleCheckEmail(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      const req = await checkAccessRequest(email);
+      if (!req) {
+        setError("No access request found for this email. Submit a request first.");
+      } else if (req.status === "pending") {
+        setError("Your request is still awaiting review by MRCT Center.");
+      } else if (req.status === "denied") {
+        setError("Your request wasn't approved. Contact MRCT Center for more information.");
+      } else if (req.status === "completed") {
+        setError("An account already exists for this email — sign in instead.");
+      } else {
+        setRequest(req);
+        setStep("password");
+      }
+    } catch (err) {
+      setError(err.message || "Something went wrong checking your request.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSetPassword(e) {
+    e.preventDefault();
+    setError("");
+    if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
+    if (password !== confirm) { setError("Passwords don't match."); return; }
+    setLoading(true);
+    const err = await claimAccess({ email, password });
+    setLoading(false);
+    if (err) { setError(humanizeAuthError(err)); return; }
+    setStep("done");
+  }
+
+  if (step === "done") {
+    return (
+      <div>
+        <p style={{ fontSize: 14, color: C.navy, lineHeight: 1.6 }}>
+          Account created for <strong>{request?.country}</strong>. If you're
+          not signed in automatically in a moment, use "Sign in" with your new
+          password (check your email first if this Supabase project requires
+          confirmation).
+        </p>
+        <div style={{ marginTop: 18 }}>
+          <LinkButton onClick={() => onNavigate("signin")}>← Back to sign in</LinkButton>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "password") {
+    return (
+      <>
+        <p style={{ fontSize: 13, color: C.blueGrey, marginBottom: 16, lineHeight: 1.5 }}>
+          Approved for <strong>{request?.country}</strong>. Set a password to finish creating your account.
+        </p>
+        <form onSubmit={handleSetPassword} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <label style={labelStyle}>Password</label>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoFocus style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Confirm password</label>
+            <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required style={inputStyle} />
+          </div>
+
+          {error && <ErrorBox>{error}</ErrorBox>}
+
+          <button type="submit" disabled={loading} style={primaryBtn(loading)}>
+            {loading ? "Creating account…" : "Create account"}
+          </button>
+        </form>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <p style={{ fontSize: 13, color: C.blueGrey, marginBottom: 16, lineHeight: 1.5 }}>
+        Enter the email you used to request access.
+      </p>
+      <form onSubmit={handleCheckEmail} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div>
+          <label style={labelStyle}>Email</label>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus style={inputStyle} />
+        </div>
+
+        {error && <ErrorBox>{error}</ErrorBox>}
+
+        <button type="submit" disabled={loading} style={primaryBtn(loading)}>
+          {loading ? "Checking…" : "Continue"}
+        </button>
+      </form>
+
+      <div style={{ marginTop: 18 }}>
+        <LinkButton onClick={() => onNavigate("signin")}>← Back to sign in</LinkButton>
+      </div>
+    </>
+  );
+}
+
+// ─── shared bits ─────────────────────────────────────────────────────────
+
+function humanizeAuthError(msg) {
+  if (/already registered/i.test(msg)) return "An account already exists for this email — sign in instead.";
+  if (/invalid login credentials/i.test(msg)) return "Invalid email or password.";
+  return msg;
+}
+
+function ErrorBox({ children }) {
+  return (
+    <div style={{ background: "#fff0f0", border: `1px solid ${C.red}`, borderRadius: 6, padding: "8px 12px", color: C.red, fontSize: 13 }}>
+      {children}
+    </div>
+  );
+}
+
+function LinkButton({ onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{ background: "none", border: "none", color: C.teal, fontSize: 13, fontWeight: 600, textAlign: "left", cursor: "pointer", padding: 0, minHeight: 0 }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function primaryBtn(loading) {
+  return {
+    background: loading ? C.blueGrey : C.teal,
+    color: "#fff",
+    borderRadius: 8,
+    padding: "12px 0",
+    fontSize: 15,
+    fontWeight: 600,
+    marginTop: 6,
+    minHeight: 44,
+    border: "none",
+    transition: "background 0.15s",
+  };
+}
+
+const labelStyle = { display: "block", fontSize: 12, fontWeight: 600, color: C.navy, marginBottom: 4 };
 
 const inputStyle = {
   width: "100%",

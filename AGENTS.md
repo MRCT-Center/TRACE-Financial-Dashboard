@@ -58,7 +58,8 @@ The single most useful thing to know: **screens live in `src/components/`, conte
 | To change this... | Edit this file |
 |---|---|
 | Layout, tabs/nav, country selector, currency toggle, prototype logins | `../App.jsx` |
-| Sign-in screen + quick-fill logins | `LoginPage.jsx` |
+| Sign-in screen + request-access + set-password flows | `LoginPage.jsx` |
+| Admin queue for approving/denying access requests | `AdminAccessRequests.jsx` |
 | "About TRACE / MRCT Center's role" intro | `IntroPage.jsx` |
 | Overview summary cards (incl. in-kind) | `Overview.jsx` |
 | Expenses screen (regular + irregular) | `Expenses.jsx` |
@@ -80,6 +81,7 @@ The single most useful thing to know: **screens live in `src/components/`, conte
 | File | What it does |
 |---|---|
 | `src/supabaseClient.js` | Hardcoded Supabase connection |
+| `src/auth.js` | Access-control helpers: sign in/out, request access, check request status, claim account, ensureProfile (backfills the `profiles` row on first sign-in) |
 | `src/demoConfig.js` | The `DEMO_MODE` switch — see Key decisions |
 | `src/utils/CurrencyContext.jsx` | Fallback exchange rates, `displayCode`/`convert()` |
 | `src/utils/metrics.js` | Metric definitions |
@@ -106,7 +108,40 @@ This repo has a local clone, so it supports the full loop: branch, edit, preview
 - **`canConvert`** disables local-currency mode while the rate is loading or errored, preventing bad data entry.
 - **Currency toggle visibility** keys off `defaultCode !== "USD"` (the country's base currency), not `displayCode`, so the toggle does not hide itself after switching to USD view.
 - **`overflow: hidden` was removed from all Card components** because it clipped InfoTip callouts. Border-radius now applies to header divs only.
-- **Supabase auth is mocked** — six hardcoded prototype logins in `App.jsx`. Real auth is Phase 2.
+- **Real Supabase Auth now backs sign-in (2026-08-06).** The six hardcoded
+  `MOCK_USERS` prototype logins in `App.jsx` are gone. Access control works as
+  a request/approve/claim flow:
+  1. A country rep uses "Request access" on the login screen (name, email,
+     country, optional note) — inserted into the `access_requests` table as
+     `status = 'pending'`.
+  2. An MRCT admin reviews the queue in Admin → **Access Requests**
+     (`AdminAccessRequests.jsx`) and approves or denies it.
+  3. The rep returns to "Already approved? Set your password", enters their
+     email, and — if approved — sets a password. This calls
+     `supabase.auth.signUp()`, creating a real Supabase Auth user.
+  4. On first sign-in, `ensureProfile()` (`src/auth.js`) creates their
+     `profiles` row (`role`, `country`), backfilling `country` from the
+     matching access request and marking it `completed`.
+  - **Tables:** `access_requests` and `profiles`, plus a `check_access_request(email)`
+    RPC so a signed-out visitor can check their own request status without a
+    public SELECT policy on the table. Set up via
+    `supabase-access-control-migration.sql` (run once in the Supabase SQL
+    editor) — see that file for the RLS policies.
+  - **The MRCT admin account is created manually**, not through the request
+    flow: add the user in Supabase Dashboard → Authentication → Users, then
+    run the `profiles` insert at the bottom of the migration file to set
+    `role = 'admin'`.
+  - **The old quick-fill demo logins (nyika@trace.org, kenya@trace.org, etc.)
+    no longer work.** Recreate any you still need (e.g. Nyika for Willyanne's
+    demos) the same way as the admin account — Supabase Auth user + a
+    `profiles` row — since they're not real country requests.
+  - **Not built yet:** revoking access, an admin UI for changing someone's
+    role/country after creation, and email notifications when a request comes
+    in (the admin currently has to check the Access Requests tab). Depending
+    on the Supabase project's "Confirm email" setting, a rep may need to
+    confirm their email before `ensureProfile()` can finish linking their
+    account — either setting works, `App.jsx`'s auth listener re-runs
+    `ensureProfile()` on every sign-in until it succeeds.
 - **The repository is private. The live site is not.** `trace-financial-dashboard.vercel.app` answers anyone who knows the address, with no account and no password. A `noindex` header keeps it out of search results, but **the link is the key**. Taken with the mocked auth above: until real authentication exists, treat anything entered here as reachable by anyone who has the URL.
 - **Country data status:** Kenya is the most accurate (April 17 workbook, real data). Nigeria, Rwanda, Tanzania and Zimbabwe are **placeholder data only** and need real figures.
 
