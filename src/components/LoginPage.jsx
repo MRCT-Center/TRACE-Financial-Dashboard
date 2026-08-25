@@ -112,11 +112,11 @@ function SignInForm({ onNavigate }) {
       </form>
 
       <div style={{ marginTop: 20, borderTop: "1px solid #eee", paddingTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-        <LinkButton onClick={() => onNavigate("request")} style={{ fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>
-          Request access
+        <LinkButton onClick={() => onNavigate("request")}>
+          New user? Request access to the dashboard
         </LinkButton>
         <LinkButton onClick={() => onNavigate("claim")}>
-          Already approved? Set your password
+          Access approved? Set your password
         </LinkButton>
       </div>
     </>
@@ -186,6 +186,9 @@ function ForgotPasswordForm({ onNavigate }) {
           working, this code is the fix — some work email systems open
           links automatically before you get to them, but they can't type
           in a code for you.)
+        </p>
+        <p style={{ fontSize: 12, color: C.blueGrey, marginTop: -8, marginBottom: 16 }}>
+          The email can take 5–10 minutes to arrive — no need to request another right away.
         </p>
         <form onSubmit={handleReset} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
