@@ -16,6 +16,7 @@ import Feedback from "./components/Feedback";
 import AdminFeedback from "./components/AdminFeedback";
 import AdminAccessRequests from "./components/AdminAccessRequests";
 import ManageAccess from "./components/ManageAccess";
+import ResetPasswordScreen from "./components/ResetPasswordScreen";
 
 const COUNTRY_NAMES = Object.keys(COUNTRIES);
 
@@ -57,6 +58,7 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [loginNotice, setLoginNotice] = useState("");
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [view, setView] = useState("intro");
   // Admin lands on Nyika (the worked example); country logins are set to their
   // own country in handleLogin, so this default only affects the admin view.
@@ -418,7 +420,12 @@ export default function App() {
     supabase.auth.getSession().then(({ data }) => {
       if (active) handleAuthUser(data.session?.user || null);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      // Someone arriving via a "Forgot password?" email link lands here
+      // already signed into a temporary session — intercept with
+      // ResetPasswordScreen instead of dropping them straight into the app
+      // on the old password. See requestPasswordReset() in src/auth.js.
+      if (event === "PASSWORD_RECOVERY") setPasswordRecovery(true);
       handleAuthUser(s?.user || null);
     });
     return () => { active = false; sub.subscription.unsubscribe(); };
@@ -436,6 +443,7 @@ export default function App() {
   }
 
   if (authLoading) return <SplashScreen />;
+  if (passwordRecovery) return <ResetPasswordScreen onDone={() => setPasswordRecovery(false)} />;
   if (!session) return <LoginPage notice={loginNotice} />;
   if (session.role === "country" && !session.country) {
     return <UnlinkedAccountScreen email={session.email} onLogout={handleLogout} />;

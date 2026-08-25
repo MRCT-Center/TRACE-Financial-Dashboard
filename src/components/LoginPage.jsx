@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { COLORS as C } from "../utils/metrics";
 import { COUNTRIES } from "../data/countries";
-import { signIn, requestAccess, checkAccessRequest, claimAccess } from "../auth";
+import { signIn, requestAccess, checkAccessRequest, claimAccess, requestPasswordReset } from "../auth";
 
 // Real country list for the request form — Nyika is the fixed worked example,
 // not something a country team requests access to.
 const REQUESTABLE_COUNTRIES = Object.keys(COUNTRIES).filter((c) => c !== "Nyika");
 
 export default function LoginPage({ notice }) {
-  const [screen, setScreen] = useState("signin"); // signin | request | claim
+  const [screen, setScreen] = useState("signin"); // signin | request | claim | forgot
 
   return (
     <div style={{
@@ -47,6 +47,7 @@ export default function LoginPage({ notice }) {
         {screen === "signin" && <SignInForm onNavigate={setScreen} />}
         {screen === "request" && <RequestAccessForm onNavigate={setScreen} />}
         {screen === "claim" && <ClaimAccessForm onNavigate={setScreen} />}
+        {screen === "forgot" && <ForgotPasswordForm onNavigate={setScreen} />}
       </div>
     </div>
   );
@@ -99,6 +100,12 @@ function SignInForm({ onNavigate }) {
 
         {error && <ErrorBox>{error}</ErrorBox>}
 
+        <div style={{ textAlign: "right" }}>
+          <LinkButton onClick={() => onNavigate("forgot")} style={{ fontSize: 12 }}>
+            Forgot password?
+          </LinkButton>
+        </div>
+
         <button type="submit" disabled={loading} style={primaryBtn(loading)}>
           {loading ? "Signing in…" : "Sign in"}
         </button>
@@ -111,6 +118,64 @@ function SignInForm({ onNavigate }) {
         <LinkButton onClick={() => onNavigate("claim")}>
           Already approved? Set your password
         </LinkButton>
+      </div>
+    </>
+  );
+}
+
+// ─── Forgot password ────────────────────────────────────────────────────────
+
+function ForgotPasswordForm({ onNavigate }) {
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    const err = await requestPasswordReset(email);
+    setLoading(false);
+    if (err) { setError(err); return; }
+    setSent(true);
+  }
+
+  if (sent) {
+    return (
+      <div>
+        <p style={{ fontSize: 14, color: C.navy, lineHeight: 1.6 }}>
+          If an account exists for <strong>{email}</strong>, a password reset
+          link has been sent. Check your email and follow the link to choose
+          a new password.
+        </p>
+        <div style={{ marginTop: 18 }}>
+          <LinkButton onClick={() => onNavigate("signin")}>← Back to sign in</LinkButton>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <p style={{ fontSize: 13, color: C.blueGrey, marginBottom: 16, lineHeight: 1.5 }}>
+        Enter the email on your account and we'll send you a link to reset your password.
+      </p>
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div>
+          <label style={labelStyle}>Email</label>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus style={inputStyle} />
+        </div>
+
+        {error && <ErrorBox>{error}</ErrorBox>}
+
+        <button type="submit" disabled={loading} style={primaryBtn(loading)}>
+          {loading ? "Sending…" : "Send reset link"}
+        </button>
+      </form>
+
+      <div style={{ marginTop: 20, borderTop: "1px solid #eee", paddingTop: 16 }}>
+        <LinkButton onClick={() => onNavigate("signin")}>← Back to sign in</LinkButton>
       </div>
     </>
   );

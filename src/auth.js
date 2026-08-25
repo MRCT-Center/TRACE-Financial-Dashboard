@@ -97,3 +97,28 @@ export async function fetchProfile(userId) {
   if (error) throw new Error(error.message);
   return data;
 }
+
+// ─── Forgot password ────────────────────────────────────────────────────────
+// Sends a reset-password email via Supabase Auth's own flow (not related to
+// the access_requests/claimAccess flow above, which is only for a rep's
+// first-ever password). Supabase doesn't error for an email with no account,
+// by design, so this can't be used to check whether an email is registered.
+// Clicking the emailed link redirects back here with a recovery token in the
+// URL; App.jsx listens for the resulting PASSWORD_RECOVERY auth event and
+// shows ResetPasswordScreen instead of the normal login/dashboard.
+export async function requestPasswordReset(email) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+    redirectTo: `${window.location.origin}${window.location.pathname}`,
+  });
+  if (error) return error.message;
+  return null;
+}
+
+// Called from ResetPasswordScreen once someone has landed via a recovery
+// link — Supabase Auth already has them in a temporary authenticated session
+// at that point, so this just sets the new password on the current user.
+export async function updatePassword(newPassword) {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) return error.message;
+  return null;
+}
