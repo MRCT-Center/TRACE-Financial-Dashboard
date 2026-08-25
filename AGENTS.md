@@ -159,6 +159,26 @@ This repo has a local clone, so it supports the full loop: branch, edit, preview
     `ensureProfile()` can finish linking their account — either setting
     works, `App.jsx`'s auth listener re-runs `ensureProfile()` on every
     sign-in until it succeeds.
+- **Forgot-password now has a code-based fallback, not just a link
+  (2026-08-25).** The sign-in screen's "Forgot password?" link emails a
+  reset code; the first version only sent a clickable link
+  (`resetPasswordForEmail` + `{{ .ConfirmationURL }}`). Testing turned up
+  that BWH/MGB's email security (Microsoft Defender's Safe Links) silently
+  opens links in incoming mail to scan them, which burns Supabase's
+  one-time recovery token before the real person clicks it — confirmed
+  directly in Supabase's auth logs (the token got hit from a Microsoft
+  datacenter IP within seconds of delivery, before the user's own click,
+  which then failed). This is a documented Supabase limitation, not a bug
+  in this app. Fix: the Reset Password email template needs `{{ .Token }}`
+  added (Supabase dashboard → Authentication → Email Templates — a manual
+  step, not something pushed through this repo) so the email also carries a
+  6-digit code; `ForgotPasswordForm` in `LoginPage.jsx` now has the person
+  type that code plus their new password, verified via
+  `supabase.auth.verifyOtp({ type: "recovery" })` in `auth.js`
+  (`verifyPasswordResetOtp`). A scanner can fetch a link automatically, but
+  it can't type a code into a form. The original link still works too for
+  anyone whose email doesn't prefetch it — this just adds a path that
+  survives the ones that do.
 - **Real data access is now locked down by role/country/active (2026-08-12).**
   `country_data` — the table the live app actually reads and writes — used to
   have a wide-open policy (`public_access`, `qual: true`) left over from

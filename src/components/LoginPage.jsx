@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { COLORS as C } from "../utils/metrics";
 import { COUNTRIES } from "../data/countries";
-import { signIn, requestAccess, checkAccessRequest, claimAccess, requestPasswordReset } from "../auth";
+import { signIn, requestAccess, checkAccessRequest, claimAccess, requestPasswordReset, verifyPasswordResetOtp, updatePassword } from "../auth";
 
 // Real country list for the request form — Nyika is the fixed worked example,
 // not something a country team requests access to.
@@ -126,42 +126,129 @@ function SignInForm({ onNavigate }) {
 // ─── Forgot password ────────────────────────────────────────────────────────
 
 function ForgotPasswordForm({ onNavigate }) {
+  const [step, setStep] = useState("email"); // "email" | "code"
   const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [resent, setResent] = useState(false);
 
-  async function handleSubmit(e) {
+  async function handleSendCode(e) {
     e.preventDefault();
     setLoading(true);
     setError("");
     const err = await requestPasswordReset(email);
     setLoading(false);
     if (err) { setError(err); return; }
-    setSent(true);
+    setStep("code");
   }
 
-  if (sent) {
+  async function handleResend() {
+    setLoading(true);
+    setError("");
+    setResent(false);
+    const err = await requestPasswordReset(email);
+    setLoading(false);
+    if (err) { setError(err); return; }
+    setResent(true);
+  }
+
+  async function handleReset(e) {
+    e.preventDefault();
+    setError("");
+    if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
+    if (password !== confirm) { setError("Passwords don't match."); return; }
+    setLoading(true);
+    const verifyErr = await verifyPasswordResetOtp(email, code);
+    if (verifyErr) {
+      setLoading(false);
+      setError(/expired|invalid/i.test(verifyErr)
+        ? "That code is incorrect or has expired. Request a new one below."
+        : verifyErr);
+      return;
+    }
+    const pwErr = await updatePassword(password);
+    setLoading(false);
+    if (pwErr) { setError(pwErr); return; }
+    // Password is set and a real session now exists — App.jsx's auth
+    // listener will pick it up and move past the login screen on its own.
+  }
+
+  if (step === "code") {
     return (
-      <div>
-        <p style={{ fontSize: 14, color: C.navy, lineHeight: 1.6 }}>
-          If an account exists for <strong>{email}</strong>, a password reset
-          link has been sent. Check your email and follow the link to choose
-          a new password.
+      <>
+        <p style={{ fontSize: 13, color: C.blueGrey, marginBottom: 16, lineHeight: 1.5 }}>
+          We sent a 6-digit code to <strong>{email}</strong>. Enter it below
+          along with your new password. (If the "reset password" link in
+          that email just took you back to the sign-in page instead of
+          working, this code is the fix — some work email systems open
+          links automatically before you get to them, but they can't type
+          in a code for you.)
         </p>
-        <div style={{ marginTop: 18 }}>
+        <form onSubmit={handleReset} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <label style={labelStyle}>6-digit code</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="123456"
+              maxLength={6}
+              required
+              autoFocus
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>New password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>Confirm new password</label>
+            <input
+              type="password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              placeholder="••••••••"
+              required
+              style={inputStyle}
+            />
+          </div>
+
+          {error && <ErrorBox>{error}</ErrorBox>}
+          {resent && !error && (
+            <p style={{ fontSize: 12, color: C.blueGrey }}>A new code is on its way.</p>
+          )}
+
+          <button type="submit" disabled={loading} style={primaryBtn(loading)}>
+            {loading ? "Resetting…" : "Reset password"}
+          </button>
+        </form>
+
+        <div style={{ marginTop: 20, borderTop: "1px solid #eee", paddingTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+          <LinkButton onClick={handleResend}>Didn't get a code? Send another</LinkButton>
           <LinkButton onClick={() => onNavigate("signin")}>← Back to sign in</LinkButton>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
     <>
       <p style={{ fontSize: 13, color: C.blueGrey, marginBottom: 16, lineHeight: 1.5 }}>
-        Enter the email on your account and we'll send you a link to reset your password.
+        Enter the email on your account and we'll send you a code to reset your password.
       </p>
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <form onSubmit={handleSendCode} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div>
           <label style={labelStyle}>Email</label>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus style={inputStyle} />
@@ -170,7 +257,7 @@ function ForgotPasswordForm({ onNavigate }) {
         {error && <ErrorBox>{error}</ErrorBox>}
 
         <button type="submit" disabled={loading} style={primaryBtn(loading)}>
-          {loading ? "Sending…" : "Send reset link"}
+          {loading ? "Sending…" : "Send reset code"}
         </button>
       </form>
 

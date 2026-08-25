@@ -122,3 +122,24 @@ export async function updatePassword(newPassword) {
   if (error) return error.message;
   return null;
 }
+
+// Alternative to clicking the emailed link — types the 6-digit code from the
+// same email into the app instead. Exists because corporate email security
+// scanners (e.g. Microsoft Defender's Safe Links, which BWH/MGB uses)
+// auto-fetch links in incoming mail to scan them, silently burning the
+// one-time link before the person ever sees it (confirmed via Supabase's
+// auth logs: the link gets hit from a Microsoft datacenter IP within
+// seconds of delivery). A typed code isn't affected, since a scanner has
+// nothing to fetch. This requires the Reset Password email template in the
+// Supabase dashboard to include {{ .Token }} — otherwise the code is never
+// in the email to begin with. Succeeding establishes a session, same as the
+// link does, so a normal updatePassword() call right after finishes the job.
+export async function verifyPasswordResetOtp(email, code) {
+  const { error } = await supabase.auth.verifyOtp({
+    email: email.trim().toLowerCase(),
+    token: code.trim(),
+    type: "recovery",
+  });
+  if (error) return error.message;
+  return null;
+}
