@@ -105,8 +105,8 @@ function SignInForm({ onNavigate }) {
       </form>
 
       <div style={{ marginTop: 20, borderTop: "1px solid #eee", paddingTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-        <LinkButton onClick={() => onNavigate("request")}>
-          New country team? Request access
+        <LinkButton onClick={() => onNavigate("request")} style={{ fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>
+          Request access
         </LinkButton>
         <LinkButton onClick={() => onNavigate("claim")}>
           Already approved? Set your password
@@ -328,12 +328,12 @@ function ErrorBox({ children }) {
   );
 }
 
-function LinkButton({ onClick, children }) {
+function LinkButton({ onClick, children, style }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      style={{ background: "none", border: "none", color: C.teal, fontSize: 13, fontWeight: 600, textAlign: "left", cursor: "pointer", padding: 0, minHeight: 0 }}
+      style={{ background: "none", border: "none", color: C.teal, fontSize: 13, fontWeight: 600, textAlign: "left", cursor: "pointer", padding: 0, minHeight: 0, ...style }}
     >
       {children}
     </button>
