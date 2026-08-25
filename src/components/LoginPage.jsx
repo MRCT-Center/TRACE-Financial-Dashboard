@@ -248,8 +248,11 @@ function ForgotPasswordForm({ onNavigate }) {
 
   return (
     <>
-      <p style={{ fontSize: 13, color: C.blueGrey, marginBottom: 16, lineHeight: 1.5 }}>
+      <p style={{ fontSize: 13, color: C.blueGrey, marginBottom: 8, lineHeight: 1.5 }}>
         Enter the email on your account and we'll send you a code to reset your password.
+      </p>
+      <p style={{ fontSize: 12, color: C.blueGrey, marginBottom: 16 }}>
+        It may take 5–10 minutes to receive the reset password email.
       </p>
       <form onSubmit={handleSendCode} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div>
