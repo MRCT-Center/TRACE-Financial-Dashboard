@@ -215,8 +215,17 @@ This repo has a local clone, so it supports the full loop: branch, edit, preview
   in any of these tables** — it only exists as hardcoded seed data in
   `src/data/countries.js`, rendered client-side, so it needed no special
   carve-out; it stays effectively public simply by never touching the
-  database. `feedback` was left as-is (still publicly readable) — out of
-  scope for this pass, worth a look separately.
+  database. **(2026-09-01):** `feedback` is no longer publicly readable —
+  it originally shipped with a wide-open `feedback_anon_select` policy
+  (`qual: true`), same as the other stale pre-auth tables, but got missed
+  in the first lockdown pass and was flagged as a follow-up. Replaced with
+  `feedback_admin_select`, scoped to `is_admin(auth.uid())`, same helper
+  used everywhere else. Submitting feedback (`feedback_anon_insert`)
+  stays open to anyone signed in — only *reading* past responses is
+  admin-only now. See the `restrict_feedback_select_to_admins` migration.
+  Verified directly against the database with simulated JWTs: an admin
+  sees responses, a country-role account and an anonymous request both
+  get zero rows.
 - **The repository is private. The live site is not.** `trace-financial-dashboard.vercel.app` answers anyone who knows the address, with no account and no password required to *reach* the login screen. A `noindex` header keeps it out of search results, but **the link is the key** to who can attempt to sign in or request access. As of 2026-08-12, actually reading or writing country data additionally requires a real, active, approved account for that specific country (or admin) — see the two points above — so the login screen being reachable no longer means the data behind it is.
 - **Country data status:** Kenya is the most accurate (April 17 workbook, real data). Nigeria, Rwanda, Tanzania and Zimbabwe are **placeholder data only** and need real figures.
 
