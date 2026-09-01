@@ -72,11 +72,14 @@ function SignInForm({ onNavigate }) {
 
     // People who click the emailed reset link often land back on this
     // exact screen (see auth.js/ForgotPasswordForm for why) and, since
-    // they're already here, just type their 6-digit reset code into this
-    // password box instead of going to "Forgot password?" separately.
-    // Rather than relying on everyone finding the right screen, try it as
-    // a reset code before giving up on it as a wrong password.
-    if (/^\d{6}$/.test(password.trim())) {
+    // they're already here, just type their reset code into this password
+    // box instead of going to "Forgot password?" separately. Rather than
+    // relying on everyone finding the right screen, try it as a reset
+    // code before giving up on it as a wrong password. Supabase's docs
+    // say this code is always 6 digits, but real testing has shown
+    // longer all-numeric codes too, so match a range rather than one
+    // exact length.
+    if (/^\d{4,10}$/.test(password.trim())) {
       const otpErr = await verifyPasswordResetOtp(email, password);
       if (!otpErr) {
         // Success — App.jsx's PASSWORD_RECOVERY listener takes over from
@@ -202,22 +205,22 @@ function ForgotPasswordForm({ onNavigate }) {
     return (
       <>
         <p style={{ fontSize: 13, color: C.blueGrey, marginBottom: 16, lineHeight: 1.5 }}>
-          We sent a 6-digit code to <strong>{email}</strong>. Enter it below
-          along with your new password.
+          We sent a code to <strong>{email}</strong>. Enter it below along
+          with your new password.
         </p>
         <p style={{ fontSize: 12, color: C.blueGrey, marginTop: -8, marginBottom: 16 }}>
           The email can take 5–10 minutes to arrive — no need to request another right away.
         </p>
         <form onSubmit={handleReset} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
-            <label style={labelStyle}>6-digit code</label>
+            <label style={labelStyle}>Code from email</label>
             <input
               type="text"
               inputMode="numeric"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="123456"
-              maxLength={6}
+              maxLength={10}
               required
               autoFocus
               style={inputStyle}
