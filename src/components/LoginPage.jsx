@@ -203,11 +203,7 @@ function ForgotPasswordForm({ onNavigate }) {
       <>
         <p style={{ fontSize: 13, color: C.blueGrey, marginBottom: 16, lineHeight: 1.5 }}>
           We sent a 6-digit code to <strong>{email}</strong>. Enter it below
-          along with your new password. (If the "reset password" link in
-          that email just took you back to the sign-in page instead of
-          working, this code is the fix — some work email systems open
-          links automatically before you get to them, but they can't type
-          in a code for you.)
+          along with your new password.
         </p>
         <p style={{ fontSize: 12, color: C.blueGrey, marginTop: -8, marginBottom: 16 }}>
           The email can take 5–10 minutes to arrive — no need to request another right away.

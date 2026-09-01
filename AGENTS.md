@@ -176,16 +176,28 @@ This repo has a local clone, so it supports the full loop: branch, edit, preview
   type that code plus their new password, verified via
   `supabase.auth.verifyOtp({ type: "recovery" })` in `auth.js`
   (`verifyPasswordResetOtp`). A scanner can fetch a link automatically, but
-  it can't type a code into a form. The original link still works too for
-  anyone whose email doesn't prefetch it — this just adds a path that
-  survives the ones that do. **Also (2026-08-25):** real testing showed
+  it can't type a code into a form. **(2026-08-25):** real testing showed
   people who click the (sometimes-broken) link land back on the plain
   sign-in screen and, since they're already there, just type the 6-digit
   code into the password box instead of separately finding "Forgot
   password?". `SignInForm`'s `handleSubmit` now catches this: on a failed
   sign-in, if the "password" is exactly 6 digits, it tries
   `verifyPasswordResetOtp` before showing an error. So the code works from
-  either screen, not just the dedicated one.
+  either screen, not just the dedicated one. **(2026-09-01, important):**
+  the original plan was to keep the link in the email alongside the code,
+  reasoning a scanner could burn the link without touching the code. Real
+  logs disproved that — the link and the code are two ways of redeeming
+  the *same* one-time Supabase recovery token, so once anything actually
+  opens and follows the link (not just a HEAD request — something was
+  doing a full GET and getting redirected, logging the account in, all
+  within under a minute of the email going out, before the real person
+  touched anything), the code dies with it. A quick safety-check HEAD
+  request is harmless; a security tool that fully loads the page is not.
+  The fix: the Reset Password email template must contain **only**
+  `{{ .Token }}`, no `{{ .ConfirmationURL }}` link at all — nothing left
+  for anything automated to consume. This is a manual dashboard edit
+  (Authentication → Emails → Reset Password), not something pushed
+  through this repo.
 - **Real data access is now locked down by role/country/active (2026-08-12).**
   `country_data` — the table the live app actually reads and writes — used to
   have a wide-open policy (`public_access`, `qual: true`) left over from
