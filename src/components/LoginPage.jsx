@@ -68,7 +68,29 @@ function SignInForm({ onNavigate }) {
     const err = await signIn(email, password);
     // On success, App.jsx's onAuthStateChange listener picks up the new
     // session automatically — nothing more to do here.
-    if (err) { setError(humanizeAuthError(err)); setLoading(false); }
+    if (!err) return;
+
+    // People who click the emailed reset link often land back on this
+    // exact screen (see auth.js/ForgotPasswordForm for why) and, since
+    // they're already here, just type their 6-digit reset code into this
+    // password box instead of going to "Forgot password?" separately.
+    // Rather than relying on everyone finding the right screen, try it as
+    // a reset code before giving up on it as a wrong password.
+    if (/^\d{6}$/.test(password.trim())) {
+      const otpErr = await verifyPasswordResetOtp(email, password);
+      if (!otpErr) {
+        // Success — App.jsx's PASSWORD_RECOVERY listener takes over from
+        // here and shows the reset-password screen.
+        setLoading(false);
+        return;
+      }
+      setError("That code didn't work — it may be expired or already used. Request a new one below.");
+      setLoading(false);
+      return;
+    }
+
+    setError(humanizeAuthError(err));
+    setLoading(false);
   }
 
   return (

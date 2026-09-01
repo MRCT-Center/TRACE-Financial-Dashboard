@@ -178,7 +178,14 @@ This repo has a local clone, so it supports the full loop: branch, edit, preview
   (`verifyPasswordResetOtp`). A scanner can fetch a link automatically, but
   it can't type a code into a form. The original link still works too for
   anyone whose email doesn't prefetch it — this just adds a path that
-  survives the ones that do.
+  survives the ones that do. **Also (2026-08-25):** real testing showed
+  people who click the (sometimes-broken) link land back on the plain
+  sign-in screen and, since they're already there, just type the 6-digit
+  code into the password box instead of separately finding "Forgot
+  password?". `SignInForm`'s `handleSubmit` now catches this: on a failed
+  sign-in, if the "password" is exactly 6 digits, it tries
+  `verifyPasswordResetOtp` before showing an error. So the code works from
+  either screen, not just the dedicated one.
 - **Real data access is now locked down by role/country/active (2026-08-12).**
   `country_data` — the table the live app actually reads and writes — used to
   have a wide-open policy (`public_access`, `qual: true`) left over from
