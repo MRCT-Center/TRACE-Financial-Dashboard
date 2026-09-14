@@ -87,6 +87,18 @@ The single most useful thing to know: **screens live in `src/components/`, conte
 | `src/utils/metrics.js` | Metric definitions |
 | `src/assets/trace-logo.svg` | Logo; header renders it white via `filter: brightness(0) invert(1)` |
 
+## Security rules (read before proposing any change)
+
+This dashboard will hold country ethics-system financial data. Willyanne and Hayat set these rules on 2026-09-14. They override any suggestion an AI tool makes.
+
+- **No new outside services without review by Willyanne and Hayat.** That includes email senders (Resend, SendGrid, SMTP relays), webhooks, automation tools, analytics or tracking scripts, form services, and any new API key. If a request would need one, **say so and stop.** Do not build a workaround, and do not propose an outside service as the default answer. Offer an in-app option first, such as an admin tab to check instead of an email alert.
+- **The approved outside connections, and the only ones:** Vercel (serves the page), Supabase (database and sign-in, including its own sign-in emails), and the `cdn.jsdelivr.net` currency-rate fetch, which sends no dashboard data. Anything not on this list is new.
+- **Email alerts for access requests are deliberately not built.** An admin checks Admin → **Access Requests**. Revisit only if volume makes that impractical, and only through the review above.
+- **Never weaken row-level security.** Do not disable RLS, add a policy with `using (true)` on any table, or give the `anon` role read access to data. Every country-data policy keeps both the matching-country check and `active = true`. After any database change, run Supabase's security advisor and confirm a signed-out request still returns zero rows.
+- **No secret keys in the repo, the browser, or an AI chat.** Only the public anon/publishable key belongs in frontend code. The `service_role` key never goes in `src/`, in a committed `.env`, or into a prompt.
+- **Country financial data stays in Supabase.** Do not copy it into `localStorage`, logs, emails, or third-party tools. The wizard's existing `localStorage` notes are a known issue, listed below.
+- **Branch previews use the live database.** A preview link reads and writes the same Supabase project as the live site. Once `DEMO_MODE` is off, test anything that saves against Nyika or a demo login, never a real country.
+
 ## How to make changes
 
 The team how-to, with a path for whichever AI you use, is at **how-we-build.vercel.app**.
@@ -153,8 +165,8 @@ This repo has a local clone, so it supports the full loop: branch, edit, preview
   - **Not built yet:** an admin UI for changing someone's role/country after
     creation (still by hand in Supabase), and email notifications when a
     request comes in (the admin currently has to check the Access Requests
-    tab — a Resend-based notification was scoped on 2026-08-12 but not yet
-    built, blocked on getting API keys). Depending on the Supabase project's
+    tab — a Resend-based notification was scoped on 2026-08-12 and is now
+    deliberately not built; see **Security rules** above). Depending on the Supabase project's
     "Confirm email" setting, a rep may need to confirm their email before
     `ensureProfile()` can finish linking their account — either setting
     works, `App.jsx`'s auth listener re-runs `ensureProfile()` on every
