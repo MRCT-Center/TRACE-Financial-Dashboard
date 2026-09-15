@@ -11,7 +11,6 @@ import { REVENUE_IRREGULAR_DEFAULTS, REVENUE_IRREGULAR_CATEGORIES, PAYMENT_STATU
 import { IN_KIND_REGULAR_DEFAULTS, IN_KIND_REGULAR_CATEGORIES, IN_KIND_FUNDING_SOURCE_OPTIONS } from "../data/inKindRegular";
 import { IN_KIND_IRREGULAR_DEFAULTS, IN_KIND_IRREGULAR_CATEGORIES } from "../data/inKindIrregular";
 import { KEY_CONSIDERATIONS_DEFAULTS } from "../data/countries";
-import { DEMO_MODE } from "../demoConfig";
 import {
   FEES_COLUMN_KEYS, FEES_DEFAULT_COLUMN_LABELS, FEES_DEFAULT_ROWS,
   makeBlankFeeRow, rowRevenue, totalFeesRevenue,
@@ -71,9 +70,12 @@ const STEPS = [
 
 export default function GuidedWizard({ country, data, onSave }) {
   // Hydrate from localStorage draft on mount (component is keyed by country in App.jsx).
-  // Demo mode: ignore any saved draft so every visitor starts from the pristine
-  // seeded data and a refresh always resets to clean. See src/demoConfig.js.
-  const draft = DEMO_MODE ? null : loadDraft(country);
+  // Demo mode loads the draft too now, so switching to another tab (Results,
+  // Feedback, ...) and back doesn't wipe out what was just typed — App.jsx
+  // clears any leftover demo draft once on a real page load/refresh (see its
+  // top-level useEffect), which is what actually guarantees every visitor
+  // starts from the same clean copy. See src/demoConfig.js.
+  const draft = loadDraft(country);
 
   const [step, setStep]           = useState(() => draft?.step ?? 0);
   // Furthest step the user has reached. Once a step has been visited (advanced
@@ -218,9 +220,11 @@ export default function GuidedWizard({ country, data, onSave }) {
   const [inkVisitedIrregular, setInkVisitedIrregular] = useState(() => !!draft?.inkVisitedIrregular);
 
   // Autosave every state change. Synchronous localStorage write is fast for this payload size.
-  // Demo mode: skip autosave entirely so nothing persists across a refresh.
+  // Runs in demo mode too now, so progress survives switching tabs within a
+  // visit — App.jsx clears demo drafts on a real page load instead, so a
+  // refresh still resets everyone to the same clean copy. See src/demoConfig.js.
   useEffect(() => {
-    if (submitted || DEMO_MODE) return;
+    if (submitted) return;
     saveDraft(country, {
       step, maxStepReached, currencyCode: currency.code, inputMode, unit, budgetYear,
       hasRisks, hasOpps, riskText, oppText,

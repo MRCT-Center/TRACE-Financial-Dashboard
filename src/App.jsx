@@ -67,6 +67,22 @@ export default function App() {
   const [countryCache, setCountryCache] = useState({ ...COUNTRIES });
   const [dbStatus, setDbStatus] = useState("idle"); // idle | loading | ready | error
 
+  // Demo mode: clear any leftover wizard drafts from localStorage once, on a
+  // real page load (this effect only runs on mount, not on in-app view
+  // navigation, since App itself never unmounts while switching tabs). This
+  // is what actually delivers the "a refresh resets everyone to the same
+  // clean copy" guarantee described in demoConfig.js, now that the wizard's
+  // own draft autosave/hydrate runs during demo mode too (so progress
+  // survives switching tabs within one visit, see GuidedWizard.jsx).
+  useEffect(() => {
+    if (!DEMO_MODE) return;
+    try {
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith("trace-wizard-draft:"))
+        .forEach((k) => localStorage.removeItem(k));
+    } catch {}
+  }, []);
+
   // Simplified {email, role, country} shape the rest of this file expects,
   // derived from the real Supabase Auth user + profiles row. Declared early
   // so saveCountryData below (and everything else) can reference it.
