@@ -250,6 +250,9 @@ This repo has a local clone, so it supports the full loop: branch, edit, preview
 - In-kind contributions feeding the gap calculation is deferred to Phase 2; Willyanne to define the logic.
 - `ikReg.total` is auto-computed from federal + institutional + other on save, not directly editable.
 - **When switching to real data entry:** flip `DEMO_MODE` to `false`, re-check the `App.jsx` Supabase merge guard, and run the five-country data reconciliation. A change to a default in `countries.js` does **not** update rows already in Supabase.
+- **Two SECURITY DEFINER functions are more exposed than they need to be (flagged 2026-09-18, not yet fixed).** Supabase's security advisor warns on both:
+  - `is_admin(uid uuid)` — built for `fix_profiles_rls_recursion` (see above) purely as an internal helper for RLS policies, but it's directly callable via `/rest/v1/rpc/is_admin` by any signed-in user, with any user id, not just their own. Low severity (returns only a true/false, not PII), but tighter would be to revoke `EXECUTE` from `authenticated` entirely so it's only reachable from inside policy definitions, not as a public RPC.
+  - `check_access_request(p_email text)` — predates this project's work with Claude, part of the original claim-your-account flow. Being callable by `anon` is almost certainly intentional (someone claiming an account has no session yet), but its exact body hasn't been reviewed to confirm it returns only a yes/no for the one email passed in, rather than anything broader. Worth reading its definition before deciding whether it needs changing.
 
 ## Related repos
 
