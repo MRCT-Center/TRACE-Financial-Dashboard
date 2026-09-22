@@ -5,7 +5,7 @@ import { EXPENSES_REGULAR_ROW_DEFAULTS } from "./data/expensesRegular";
 import { FEES_DEFAULT_ROWS, FEES_DEFAULT_COLUMN_LABELS, isLegacyFeesArray, isAllBlankFees, totalFeesRevenue, deriveLegacyFeeFields } from "./data/feesModel";
 import { CurrencyProvider, COUNTRY_CURRENCIES, CURRENCIES, useCurrency } from "./utils/CurrencyContext";
 import { supabase } from "./supabaseClient";
-import { DEMO_MODE } from "./demoConfig";
+import { DEMO_MODE, isDemoCountry } from "./demoConfig";
 import { signOut, ensureProfile } from "./auth";
 import LoginPage from "./components/LoginPage";
 import IntroPage from "./components/IntroPage";
@@ -87,15 +87,34 @@ export default function App() {
           // demo never writes to the database (it falls back to the in-code
           // COUNTRIES dummy data instead). See src/demoConfig.js.
           if (!DEMO_MODE) await seedSupabase();
-        } else if (!DEMO_MODE) {
+        } else {
+          // Nyika II (2026-09-22): a real, persisting test country that bypasses
+          // DEMO_MODE (see NON_DEMO_COUNTRIES in demoConfig.js). The table
+          // already has rows for the 5 real countries seeded pre-DEMO_MODE, so
+          // the "table is empty" branch above never fires for it — backfill its
+          // row directly if it's missing.
+          if (!data.some((r) => r.country === "Nyika II")) {
+            const { error: nyikaIiSeedErr } = await supabase.from("country_data").insert({
+              country: "Nyika II",
+              data: COUNTRIES["Nyika II"],
+              updated_by: "seed",
+            });
+            if (nyikaIiSeedErr) {
+              console.warn("Nyika II seed failed (needs an admin session to succeed):", nyikaIiSeedErr.message);
+            } else {
+              data.push({ country: "Nyika II", data: COUNTRIES["Nyika II"], updated_at: new Date().toISOString() });
+            }
+          }
           // DEMO_MODE short-circuit (Willyanne 2026-07-01): in demo mode we
           // render straight from the in-code COUNTRIES seeds (Nyika = worked
-          // example; the five real countries = blank) and skip this whole
-          // Supabase merge. The guards below re-seed dummy data whenever a saved
-          // row looks blank (isAllBlankFees / isAllBlankRevIrr / the In-Kind +
-          // revenue aggregate guards), which would refill the blanked countries
-          // from stale Supabase rows. Skipping the merge keeps blank blank; the
-          // guards return for real data once DEMO_MODE is off.
+          // example; the five real countries = blank) and skip the Supabase
+          // merge below for demo countries. Nyika II (2026-09-22) is exempt via
+          // isDemoCountry() and gets the real merge, since it's meant to persist.
+          // The guards below re-seed dummy data whenever a saved row looks blank
+          // (isAllBlankFees / isAllBlankRevIrr / the In-Kind + revenue aggregate
+          // guards), which would refill the blanked countries from stale
+          // Supabase rows. Skipping the merge keeps blank blank; the guards
+          // return for real data once DEMO_MODE is off (or for Nyika II now).
           // Merge Supabase data into cache (Supabase wins over hardcoded).
           // Phase 1 er.* rekey: if a Supabase row carries the legacy expense
           // shape (secSal/secBen/nSal/...) without any post-rekey workbook
@@ -207,6 +226,7 @@ export default function App() {
           const updated = { ...COUNTRIES };
           data.forEach(({ country, data: d }) => {
             if (!updated[country]) return;
+            if (isDemoCountry(country)) return;
             const supabaseHasNewShape = d?.er && Object.prototype.hasOwnProperty.call(d.er, NEW_ER_PROBE_KEY);
             const merged = supabaseHasNewShape
               ? { ...updated[country], ...d }
@@ -373,7 +393,8 @@ export default function App() {
     // Demo mode: edits update the in-memory cache only (so the UI reflects them
     // this session) but are NEVER persisted to Supabase, so the seeded dummy data
     // stays pristine. A refresh reloads the clean data. See src/demoConfig.js.
-    if (DEMO_MODE) return;
+    // Nyika II (2026-09-22) is exempt and persists for real.
+    if (isDemoCountry(country)) return;
     const { error } = await supabase.from("country_data").upsert({
       country,
       data: merged,
@@ -555,8 +576,8 @@ function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange,
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ fontSize: 11, opacity: 0.7 }}>MRCT Center</div>
             {dbStatus === "loading" && <span style={{ fontSize: 10, opacity: 0.6 }}>⟳ connecting…</span>}
-            {dbStatus === "ready"   && !DEMO_MODE && <span style={{ fontSize: 10, color: "#7ecf5a" }}>● live</span>}
-            {dbStatus === "ready"   &&  DEMO_MODE && <span style={{ fontSize: 10, color: "#f8df57" }}>● demo (edits not saved)</span>}
+            {dbStatus === "ready"   && !isDemoCountry(selectedCountry) && <span style={{ fontSize: 10, color: "#7ecf5a" }}>● live</span>}
+            {dbStatus === "ready"   &&  isDemoCountry(selectedCountry) && <span style={{ fontSize: 10, color: "#f8df57" }}>● demo (edits not saved)</span>}
             {dbStatus === "error"   && <span style={{ fontSize: 10, color: C.yellow }}>● offline</span>}
           </div>
         </div>

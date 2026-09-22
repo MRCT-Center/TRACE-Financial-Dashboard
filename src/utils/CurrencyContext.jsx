@@ -20,6 +20,7 @@ export const COUNTRY_CURRENCIES = {
   Tanzania: "TZS",
   Zimbabwe: "ZWG",
   Nyika:    "NYR",
+  "Nyika II": "NYR",
 };
 
 const CurrencyContext = createContext(null);

@@ -18,6 +18,7 @@ export const fmtPct = (n) => `${Math.round(n)}%`;
 
 export const COUNTRY_FLAGS = {
   Nyika: "🧪", // fake example country (worked demo data)
+  "Nyika II": "🧫", // internal test copy of Nyika — real persistence, testers only
   Kenya: "🇰🇪",
   Nigeria: "🇳🇬",
   Rwanda: "🇷🇼",
