@@ -88,23 +88,6 @@ export default function App() {
           // COUNTRIES dummy data instead). See src/demoConfig.js.
           if (!DEMO_MODE) await seedSupabase();
         } else {
-          // Nyika II (2026-09-22): a real, persisting test country that bypasses
-          // DEMO_MODE (see NON_DEMO_COUNTRIES in demoConfig.js). The table
-          // already has rows for the 5 real countries seeded pre-DEMO_MODE, so
-          // the "table is empty" branch above never fires for it — backfill its
-          // row directly if it's missing.
-          if (!data.some((r) => r.country === "Nyika II")) {
-            const { error: nyikaIiSeedErr } = await supabase.from("country_data").insert({
-              country: "Nyika II",
-              data: COUNTRIES["Nyika II"],
-              updated_by: "seed",
-            });
-            if (nyikaIiSeedErr) {
-              console.warn("Nyika II seed failed (needs an admin session to succeed):", nyikaIiSeedErr.message);
-            } else {
-              data.push({ country: "Nyika II", data: COUNTRIES["Nyika II"], updated_at: new Date().toISOString() });
-            }
-          }
           // DEMO_MODE short-circuit (Willyanne 2026-07-01): in demo mode we
           // render straight from the in-code COUNTRIES seeds (Nyika = worked
           // example; the five real countries = blank) and skip the Supabase
@@ -376,6 +359,42 @@ export default function App() {
     }
     loadFromSupabase();
   }, []);
+
+  // Nyika II (2026-09-22): ensure its country_data row exists and pull in
+  // whatever's saved, once we actually have a session. The effect above only
+  // runs once, on the very first mount, which can fire before auth resolves —
+  // when that happens, Supabase RLS returns nothing to that anonymous
+  // request and Nyika II's row never gets created. This effect is keyed to
+  // session.email specifically so it re-runs once login completes (and again
+  // if a different user logs in), rather than depending on mount timing.
+  useEffect(() => {
+    if (!session) return;
+    (async () => {
+      const { data: existing, error: fetchErr } = await supabase
+        .from("country_data")
+        .select("data")
+        .eq("country", "Nyika II")
+        .maybeSingle();
+      if (!fetchErr && existing) {
+        // Already exists — pull in whatever's saved (real edits from a
+        // previous test session) rather than leaving the cache on the
+        // hardcoded worked-example seed.
+        setCountryCache((prev) => ({ ...prev, "Nyika II": { ...COUNTRIES["Nyika II"], ...existing.data } }));
+        return;
+      }
+      const { error: seedErr } = await supabase.from("country_data").insert({
+        country: "Nyika II",
+        data: COUNTRIES["Nyika II"],
+        updated_by: "seed",
+      });
+      if (seedErr) {
+        // Expected for a non-admin session that isn't a Nyika II rep yet —
+        // RLS correctly denies it. An admin session is what actually creates
+        // the row the first time.
+        console.warn("Nyika II seed skipped (needs an admin session to create it):", seedErr.message);
+      }
+    })();
+  }, [session?.email]); // eslint-disable-line
 
   async function seedSupabase() {
     const rows = Object.entries(COUNTRIES).map(([country, data]) => ({
