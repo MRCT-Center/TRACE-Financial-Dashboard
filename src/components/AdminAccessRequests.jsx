@@ -6,17 +6,21 @@ import { supabase } from "../supabaseClient";
 // requests from the login page (RequestAccessForm in LoginPage.jsx); this
 // panel is where MRCT Center approves or denies them.
 //
-// Approving works two different ways depending on whether the requester
-// already has an account:
+// Approving works three different ways depending on the requester:
 //   - First-time requester: no profile row exists yet for their email, so
 //     approval just unlocks the "set your password" step (see claimAccess()
 //     in src/auth.js). The request stays 'approved' until they finish that.
-//   - Returning requester (e.g. someone whose access was revoked and who
-//     re-requested): a profile row already exists for their email. There's
-//     no password step to redo, so approval reactivates that profile
+//   - Returning requester asking for the SAME country (e.g. someone whose
+//     access was revoked and who re-requested): reactivates that profile
 //     directly (role/country/active) and marks the request 'completed'
 //     immediately. See src/components/ManageAccess.jsx for the revoke side
 //     of this.
+//   - Existing rep requesting a DIFFERENT (second) country (2026-09-25, e.g.
+//     bgchen already has Rwanda and requests Nyika II too): their primary
+//     profiles.country is left untouched, and the new country is added to
+//     profile_country_access instead, so they keep both. See
+//     has_country_access() in Supabase, used by every country-scoped RLS
+//     policy alongside the plain profiles.country match.
 //
 // Reads/writes the access_requests table set up by
 // supabase-access-control-migration.sql; the reactivation path also writes
@@ -55,12 +59,36 @@ export default function AdminAccessRequests({ adminEmail }) {
         // instead of routing them through "set your password" again.
         const { data: existingProfile, error: lookupErr } = await supabase
           .from("profiles")
-          .select("id")
+          .select("id, country")
           .eq("email", req.email)
           .maybeSingle();
         if (lookupErr) throw lookupErr;
 
-        if (existingProfile) {
+        if (existingProfile && existingProfile.country && existingProfile.country !== req.country) {
+          // Already has a different primary country — grant this one as an
+          // addition rather than overwriting (see comment above).
+          const { error: grantErr } = await supabase
+            .from("profile_country_access")
+            .upsert(
+              { profile_id: existingProfile.id, country: req.country, granted_by: adminEmail },
+              { onConflict: "profile_id,country" },
+            );
+          if (grantErr) throw grantErr;
+
+          // Make sure the account itself is active (a revoked rep requesting
+          // a second country should come back active for both).
+          const { error: activeErr } = await supabase
+            .from("profiles")
+            .update({ active: true })
+            .eq("id", existingProfile.id);
+          if (activeErr) throw activeErr;
+
+          const { error: reqErr } = await supabase
+            .from("access_requests")
+            .update({ status: "completed", decided_at: new Date().toISOString(), decided_by: adminEmail })
+            .eq("id", req.id);
+          if (reqErr) throw reqErr;
+        } else if (existingProfile) {
           const { error: updErr } = await supabase
             .from("profiles")
             .update({ role: "country", country: req.country, active: true })

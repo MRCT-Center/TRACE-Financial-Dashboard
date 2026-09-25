@@ -66,6 +66,12 @@ export default function App() {
   // countryCache holds live data: either loaded from Supabase or hardcoded fallback
   const [countryCache, setCountryCache] = useState({ ...COUNTRIES });
   const [dbStatus, setDbStatus] = useState("idle"); // idle | loading | ready | error
+  // Countries this login has been separately granted beyond their primary
+  // country (2026-09-25, e.g. bgchen keeps Rwanda and is also granted
+  // Nyika II) -- see profile_country_access + has_country_access() in
+  // Supabase. Nyika itself doesn't need a grant: it's open to everyone to
+  // view/play (DEMO_MODE blocks any write regardless of who's looking).
+  const [grantedCountries, setGrantedCountries] = useState([]);
 
   // Simplified {email, role, country} shape the rest of this file expects,
   // derived from the real Supabase Auth user + profiles row. Declared early
@@ -396,6 +402,19 @@ export default function App() {
     })();
   }, [session?.email]); // eslint-disable-line
 
+  // Load this login's granted secondary countries (2026-09-25). Re-runs on
+  // login the same way the Nyika II effect above does.
+  useEffect(() => {
+    if (!session) { setGrantedCountries([]); return; }
+    supabase
+      .from("profile_country_access")
+      .select("country")
+      .then(({ data, error }) => {
+        if (error) { console.warn("Could not load granted countries:", error.message); return; }
+        setGrantedCountries((data || []).map((r) => r.country));
+      });
+  }, [session?.email]);
+
   async function seedSupabase() {
     const rows = Object.entries(COUNTRIES).map(([country, data]) => ({
       country,
@@ -491,6 +510,13 @@ export default function App() {
 
   const isAdmin = session.role === "admin";
   const views = isAdmin ? ADMIN_VIEWS : COUNTRY_VIEWS;
+  // Nyika is open to everyone to view/play (never saves, see DEMO_MODE); a
+  // country rep also gets whatever's in grantedCountries (e.g. Nyika II) on
+  // top of their own country. Admins keep the existing full COUNTRY_NAMES
+  // dropdown untouched.
+  const availableCountries = isAdmin
+    ? COUNTRY_NAMES
+    : [...new Set([session.country, ...grantedCountries, "Nyika"].filter(Boolean))];
   const countryData = countryCache[selectedCountry] || COUNTRIES[selectedCountry];
   const flag = COUNTRY_FLAGS[selectedCountry] || "";
 
@@ -501,7 +527,7 @@ export default function App() {
           isAdmin={isAdmin}
           selectedCountry={selectedCountry}
           flag={flag}
-          countryNames={COUNTRY_NAMES}
+          countryNames={availableCountries}
           onCountryChange={(c) => setSelectedCountry(c)}
           onLogout={handleLogout}
           email={session.email}
@@ -635,7 +661,7 @@ function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange,
           </div>
         )}
 
-        {isAdmin ? (
+        {countryNames.length > 1 ? (
           <select
             value={selectedCountry}
             onChange={(e) => onCountryChange(e.target.value)}
