@@ -216,6 +216,12 @@ const blankCountry = () => ({
 
 export const COUNTRIES = {
   Nyika:    demoCountry(),
+  // Internal test copy of Nyika (Hayat + Willyanne, 2026-09-22): a real,
+  // persisting country used to validate Master/Sandbox/Final rep-level
+  // behavior, reachable only via approved logins scoped to "Nyika II". See
+  // NON_DEMO_COUNTRIES in demoConfig.js. Starts from the same worked-example
+  // data as Nyika so testers have realistic numbers to work with.
+  "Nyika II": demoCountry(),
   Kenya:    blankCountry(),
   Nigeria:  blankCountry(),
   Rwanda:   blankCountry(),

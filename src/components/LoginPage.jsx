@@ -4,7 +4,9 @@ import { COUNTRIES } from "../data/countries";
 import { signIn, requestAccess, checkAccessRequest, claimAccess, requestPasswordReset, verifyPasswordResetOtp, updatePassword } from "../auth";
 
 // Real country list for the request form — Nyika is the fixed worked example,
-// not something a country team requests access to.
+// not something a country team requests access to. "Nyika II" IS requestable:
+// it's the internal test copy real testers (MRCT staff) request access to,
+// same flow as any real country (2026-09-22).
 const REQUESTABLE_COUNTRIES = Object.keys(COUNTRIES).filter((c) => c !== "Nyika");
 
 export default function LoginPage({ notice }) {

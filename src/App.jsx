@@ -5,7 +5,7 @@ import { EXPENSES_REGULAR_ROW_DEFAULTS } from "./data/expensesRegular";
 import { FEES_DEFAULT_ROWS, FEES_DEFAULT_COLUMN_LABELS, isLegacyFeesArray, isAllBlankFees, totalFeesRevenue, deriveLegacyFeeFields } from "./data/feesModel";
 import { CurrencyProvider, COUNTRY_CURRENCIES, CURRENCIES, useCurrency } from "./utils/CurrencyContext";
 import { supabase } from "./supabaseClient";
-import { DEMO_MODE } from "./demoConfig";
+import { DEMO_MODE, isDemoCountry } from "./demoConfig";
 import { signOut, ensureProfile } from "./auth";
 import LoginPage from "./components/LoginPage";
 import IntroPage from "./components/IntroPage";
@@ -87,15 +87,17 @@ export default function App() {
           // demo never writes to the database (it falls back to the in-code
           // COUNTRIES dummy data instead). See src/demoConfig.js.
           if (!DEMO_MODE) await seedSupabase();
-        } else if (!DEMO_MODE) {
+        } else {
           // DEMO_MODE short-circuit (Willyanne 2026-07-01): in demo mode we
           // render straight from the in-code COUNTRIES seeds (Nyika = worked
-          // example; the five real countries = blank) and skip this whole
-          // Supabase merge. The guards below re-seed dummy data whenever a saved
-          // row looks blank (isAllBlankFees / isAllBlankRevIrr / the In-Kind +
-          // revenue aggregate guards), which would refill the blanked countries
-          // from stale Supabase rows. Skipping the merge keeps blank blank; the
-          // guards return for real data once DEMO_MODE is off.
+          // example; the five real countries = blank) and skip the Supabase
+          // merge below for demo countries. Nyika II (2026-09-22) is exempt via
+          // isDemoCountry() and gets the real merge, since it's meant to persist.
+          // The guards below re-seed dummy data whenever a saved row looks blank
+          // (isAllBlankFees / isAllBlankRevIrr / the In-Kind + revenue aggregate
+          // guards), which would refill the blanked countries from stale
+          // Supabase rows. Skipping the merge keeps blank blank; the guards
+          // return for real data once DEMO_MODE is off (or for Nyika II now).
           // Merge Supabase data into cache (Supabase wins over hardcoded).
           // Phase 1 er.* rekey: if a Supabase row carries the legacy expense
           // shape (secSal/secBen/nSal/...) without any post-rekey workbook
@@ -207,6 +209,7 @@ export default function App() {
           const updated = { ...COUNTRIES };
           data.forEach(({ country, data: d }) => {
             if (!updated[country]) return;
+            if (isDemoCountry(country)) return;
             const supabaseHasNewShape = d?.er && Object.prototype.hasOwnProperty.call(d.er, NEW_ER_PROBE_KEY);
             const merged = supabaseHasNewShape
               ? { ...updated[country], ...d }
@@ -357,6 +360,42 @@ export default function App() {
     loadFromSupabase();
   }, []);
 
+  // Nyika II (2026-09-22): ensure its country_data row exists and pull in
+  // whatever's saved, once we actually have a session. The effect above only
+  // runs once, on the very first mount, which can fire before auth resolves —
+  // when that happens, Supabase RLS returns nothing to that anonymous
+  // request and Nyika II's row never gets created. This effect is keyed to
+  // session.email specifically so it re-runs once login completes (and again
+  // if a different user logs in), rather than depending on mount timing.
+  useEffect(() => {
+    if (!session) return;
+    (async () => {
+      const { data: existing, error: fetchErr } = await supabase
+        .from("country_data")
+        .select("data")
+        .eq("country", "Nyika II")
+        .maybeSingle();
+      if (!fetchErr && existing) {
+        // Already exists — pull in whatever's saved (real edits from a
+        // previous test session) rather than leaving the cache on the
+        // hardcoded worked-example seed.
+        setCountryCache((prev) => ({ ...prev, "Nyika II": { ...COUNTRIES["Nyika II"], ...existing.data } }));
+        return;
+      }
+      const { error: seedErr } = await supabase.from("country_data").insert({
+        country: "Nyika II",
+        data: COUNTRIES["Nyika II"],
+        updated_by: "seed",
+      });
+      if (seedErr) {
+        // Expected for a non-admin session that isn't a Nyika II rep yet —
+        // RLS correctly denies it. An admin session is what actually creates
+        // the row the first time.
+        console.warn("Nyika II seed skipped (needs an admin session to create it):", seedErr.message);
+      }
+    })();
+  }, [session?.email]); // eslint-disable-line
+
   async function seedSupabase() {
     const rows = Object.entries(COUNTRIES).map(([country, data]) => ({
       country,
@@ -373,7 +412,8 @@ export default function App() {
     // Demo mode: edits update the in-memory cache only (so the UI reflects them
     // this session) but are NEVER persisted to Supabase, so the seeded dummy data
     // stays pristine. A refresh reloads the clean data. See src/demoConfig.js.
-    if (DEMO_MODE) return;
+    // Nyika II (2026-09-22) is exempt and persists for real.
+    if (isDemoCountry(country)) return;
     const { error } = await supabase.from("country_data").upsert({
       country,
       data: merged,
@@ -555,8 +595,8 @@ function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange,
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ fontSize: 11, opacity: 0.7 }}>MRCT Center</div>
             {dbStatus === "loading" && <span style={{ fontSize: 10, opacity: 0.6 }}>⟳ connecting…</span>}
-            {dbStatus === "ready"   && !DEMO_MODE && <span style={{ fontSize: 10, color: "#7ecf5a" }}>● live</span>}
-            {dbStatus === "ready"   &&  DEMO_MODE && <span style={{ fontSize: 10, color: "#f8df57" }}>● demo (edits not saved)</span>}
+            {dbStatus === "ready"   && !isDemoCountry(selectedCountry) && <span style={{ fontSize: 10, color: "#7ecf5a" }}>● live</span>}
+            {dbStatus === "ready"   &&  isDemoCountry(selectedCountry) && <span style={{ fontSize: 10, color: "#f8df57" }}>● demo (edits not saved)</span>}
             {dbStatus === "error"   && <span style={{ fontSize: 10, color: C.yellow }}>● offline</span>}
           </div>
         </div>
