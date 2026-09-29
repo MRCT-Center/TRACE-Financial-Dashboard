@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { COLORS as C } from "../utils/metrics";
 import { supabase } from "../supabaseClient";
+import YearDates from "./YearDates";
 
 // Admin screen for revoking and reinstating country-rep access after the
 // fact. Country teams can have more than one rep (profiles.country isn't
@@ -105,6 +106,9 @@ export default function ManageAccess() {
                     </button>
                   </div>
                 ))}
+              </div>
+              <div style={{ marginTop: 14 }}>
+                <YearDates country={country} readOnly canEdit={false} />
               </div>
             </Card>
           ))

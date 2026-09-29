@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { COLORS as C } from "../utils/metrics";
 import { supabase } from "../supabaseClient";
+import YearDates from "./YearDates";
 
 // Master version history (2026-09-29): milestones (Original/Midpoint/Final)
 // are kept forever; 'working' versions are a rolling window of the last 5
@@ -67,6 +68,8 @@ export default function VersionHistory({ country, canEdit, onSaveMilestone, onRe
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <YearDates country={country} canEdit={canEdit} />
+
       <div style={{ background: "#fff", border: "1px solid #dde", borderRadius: 10, padding: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 8 }}>Version history</div>
         <p style={{ fontSize: 12.5, color: "#555", lineHeight: 1.6, marginBottom: 12 }}>
