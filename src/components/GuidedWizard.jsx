@@ -11,7 +11,6 @@ import { REVENUE_IRREGULAR_DEFAULTS, REVENUE_IRREGULAR_CATEGORIES, PAYMENT_STATU
 import { IN_KIND_REGULAR_DEFAULTS, IN_KIND_REGULAR_CATEGORIES, IN_KIND_FUNDING_SOURCE_OPTIONS } from "../data/inKindRegular";
 import { IN_KIND_IRREGULAR_DEFAULTS, IN_KIND_IRREGULAR_CATEGORIES } from "../data/inKindIrregular";
 import { KEY_CONSIDERATIONS_DEFAULTS } from "../data/countries";
-import { isDemoCountry } from "../demoConfig";
 import {
   FEES_COLUMN_KEYS, FEES_DEFAULT_COLUMN_LABELS, FEES_DEFAULT_ROWS,
   makeBlankFeeRow, rowRevenue, totalFeesRevenue,
@@ -71,9 +70,12 @@ const STEPS = [
 
 export default function GuidedWizard({ country, data, onSave }) {
   // Hydrate from localStorage draft on mount (component is keyed by country in App.jsx).
-  // Demo mode: ignore any saved draft so every visitor starts from the pristine
-  // seeded data and a refresh always resets to clean. See src/demoConfig.js.
-  const draft = isDemoCountry(country) ? null : loadDraft(country);
+  // Local drafts persist for every country, demo included (2026-09-29) -- switching
+  // tabs mid-wizard shouldn't wipe what you typed. A full page refresh still
+  // resets demo countries to the pristine seed regardless (see the DEMO_MODE
+  // localStorage-clear effect in App.jsx), so the "refresh gives everyone a
+  // clean copy" guarantee holds; this only fixes losing work within one visit.
+  const draft = loadDraft(country);
 
   const [step, setStep]           = useState(() => draft?.step ?? 0);
   // Furthest step the user has reached. Once a step has been visited (advanced
@@ -218,9 +220,10 @@ export default function GuidedWizard({ country, data, onSave }) {
   const [inkVisitedIrregular, setInkVisitedIrregular] = useState(() => !!draft?.inkVisitedIrregular);
 
   // Autosave every state change. Synchronous localStorage write is fast for this payload size.
-  // Demo mode: skip autosave entirely so nothing persists across a refresh.
+  // Runs for every country, demo included (2026-09-29) -- see the hydration
+  // comment above for why this doesn't undermine the demo refresh guarantee.
   useEffect(() => {
-    if (submitted || isDemoCountry(country)) return;
+    if (submitted) return;
     saveDraft(country, {
       step, maxStepReached, currencyCode: currency.code, inputMode, unit, budgetYear,
       hasRisks, hasOpps, riskText, oppText,
