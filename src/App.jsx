@@ -439,7 +439,70 @@ export default function App() {
       updated_at: new Date().toISOString(),
       updated_by: session?.email || "unknown",
     });
-    if (error) console.warn("Save failed:", error.message);
+    if (error) { console.warn("Save failed:", error.message); return; }
+    await recordWorkingVersion(country, merged);
+  }
+
+  // Master version history (2026-09-29). A 'working' snapshot is recorded on
+  // every real save (wizard Submit or an inline Results edit), then pruned to
+  // the last 5 since the most recent milestone. See country_versions.
+  async function recordWorkingVersion(country, data) {
+    const { error } = await supabase.from("country_versions").insert({
+      country, kind: "working", data, created_by: session?.email || "unknown",
+    });
+    if (error) { console.warn("Could not record version history:", error.message); return; }
+    await pruneWorkingVersions(country);
+  }
+
+  async function pruneWorkingVersions(country) {
+    const { data: milestones } = await supabase
+      .from("country_versions")
+      .select("created_at")
+      .eq("country", country)
+      .in("kind", ["original", "midpoint", "final"])
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const since = milestones?.[0]?.created_at;
+    let query = supabase
+      .from("country_versions")
+      .select("id, created_at")
+      .eq("country", country)
+      .eq("kind", "working")
+      .order("created_at", { ascending: false });
+    if (since) query = query.gt("created_at", since);
+    const { data: working, error } = await query;
+    if (error || !working) return;
+    const stale = working.slice(5);
+    if (stale.length > 0) {
+      await supabase.from("country_versions").delete().in("id", stale.map((w) => w.id));
+    }
+  }
+
+  // Explicit milestone save (Original / Midpoint / Final) — kept forever,
+  // unlike the rolling 'working' snapshots above.
+  async function saveMilestone(country, kind, yearLabel) {
+    const { error } = await supabase.from("country_versions").insert({
+      country, kind, year_label: yearLabel,
+      data: countryCache[country],
+      created_by: session?.email || "unknown",
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  // Restore a past version: replaces (not merges) the live file with that
+  // version's data, and records the restore itself as a new working version
+  // so it shows up in history rather than looking like a silent edit.
+  async function restoreVersion(country, version) {
+    const restored = version.data;
+    setCountryCache((prev) => ({ ...prev, [country]: restored }));
+    const { error } = await supabase.from("country_data").upsert({
+      country,
+      data: restored,
+      updated_at: new Date().toISOString(),
+      updated_by: session?.email || "unknown",
+    });
+    if (error) throw new Error(error.message);
+    await recordWorkingVersion(country, restored);
   }
 
   const handleEdit = useCallback(async (path, value) => {
@@ -545,7 +608,17 @@ export default function App() {
               onSave={(updates) => saveCountryData(selectedCountry, updates)}
             />
           )}
-          {view === "results" && <Results country={selectedCountry} data={countryData} flag={flag} onEdit={handleEdit} />}
+          {view === "results" && (
+            <Results
+              country={selectedCountry}
+              data={countryData}
+              flag={flag}
+              onEdit={handleEdit}
+              canEdit={!isDemoCountry(selectedCountry)}
+              onSaveMilestone={(kind, yearLabel) => saveMilestone(selectedCountry, kind, yearLabel)}
+              onRestoreVersion={(version) => restoreVersion(selectedCountry, version)}
+            />
+          )}
           {view === "feedback" && <Feedback country={selectedCountry} email={session.email} />}
           {view === "admin"   && isAdmin && (
             <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
