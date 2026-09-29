@@ -18,13 +18,14 @@ const RESULTS_TABS = [
   { id: "history",    label: "Version History" },
 ];
 
-export default function Results({ country, data, flag, onEdit, defaultTab = "overview", canEdit, onSaveMilestone, onRestoreVersion }) {
+export default function Results({ country, data, flag, onEdit, defaultTab = "overview", canEdit, onSaveMilestone, onRestoreVersion, showHistory = true }) {
   const [activeTab, setActiveTab] = useState(defaultTab);
+  const tabs = showHistory ? RESULTS_TABS : RESULTS_TABS.filter((t) => t.id !== "history");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ display: "flex", gap: 4, overflowX: "auto", borderBottom: `1px solid #dde`, paddingBottom: 0 }}>
-        {RESULTS_TABS.map((t) => {
+        {tabs.map((t) => {
           const isActive = activeTab === t.id;
           return (
             <button
@@ -57,7 +58,7 @@ export default function Results({ country, data, flag, onEdit, defaultTab = "ove
         {activeTab === "gap"        && <GapView    country={country} data={data} flag={flag} onEdit={onEdit} />}
         {activeTab === "activities" && <Activities country={country} data={data} flag={flag} onEdit={onEdit} />}
         {activeTab === "forecast"   && <Forecast   country={country} data={data} flag={flag} onEdit={onEdit} />}
-        {activeTab === "history"    && <VersionHistory country={country} canEdit={canEdit} onSaveMilestone={onSaveMilestone} onRestore={onRestoreVersion} />}
+        {showHistory && activeTab === "history" && <VersionHistory country={country} canEdit={canEdit} onSaveMilestone={onSaveMilestone} onRestore={onRestoreVersion} />}
       </div>
     </div>
   );

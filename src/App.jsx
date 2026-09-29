@@ -10,6 +10,7 @@ import { signOut, ensureProfile } from "./auth";
 import LoginPage from "./components/LoginPage";
 import IntroPage from "./components/IntroPage";
 import Results from "./components/Results";
+import Sandbox from "./components/Sandbox";
 import GuidedWizard from "./components/GuidedWizard";
 import AdminDashboard from "./components/AdminDashboard";
 import Feedback from "./components/Feedback";
@@ -46,6 +47,7 @@ const COUNTRY_VIEWS = [
   { id: "intro",    label: "Introduction" },
   { id: "wizard",   label: "Inputs"       },
   { id: "results",  label: "Results"      },
+  { id: "sandbox",  label: "Sandbox"      },
   { id: "feedback", label: "Feedback"     },
 ];
 
@@ -606,6 +608,14 @@ export default function App() {
               country={selectedCountry}
               data={countryData}
               onSave={(updates) => saveCountryData(selectedCountry, updates)}
+            />
+          )}
+          {view === "sandbox" && !isAdmin && (
+            <Sandbox
+              country={selectedCountry}
+              flag={flag}
+              masterData={countryData}
+              canEdit={!isDemoCountry(selectedCountry)}
             />
           )}
           {view === "results" && (
