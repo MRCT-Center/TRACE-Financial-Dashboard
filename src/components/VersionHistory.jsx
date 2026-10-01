@@ -27,7 +27,7 @@ export default function VersionHistory({ country, canEdit, onSaveMilestone, onRe
     try {
       const { data, error } = await supabase
         .from("country_versions")
-        .select("id, kind, year_label, data, created_at, created_by")
+        .select("id, kind, year_label, data, created_at, created_by, summary")
         .eq("country", country)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -129,6 +129,11 @@ export default function VersionHistory({ country, canEdit, onSaveMilestone, onRe
                 {v.year_label ? `${v.year_label} · ` : ""}
                 {new Date(v.created_at).toLocaleString()}
               </span>
+              {v.summary && (
+                <span style={{ fontSize: 12, color: "#444", fontStyle: "italic" }}>
+                  "{v.summary}"
+                </span>
+              )}
               <span style={{ fontSize: 12, color: "#777" }}>{v.created_by || "unknown"}</span>
               {canEdit && (
                 confirmRestoreId === v.id ? (

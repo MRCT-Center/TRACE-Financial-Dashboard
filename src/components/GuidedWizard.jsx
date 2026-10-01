@@ -248,6 +248,10 @@ export default function GuidedWizard({ country, data, onSave }) {
   const [expSubTab, setExpSubTab] = useState("regular");
   const [revSubTab, setRevSubTab] = useState("regular");
   const [inkSubTab, setInkSubTab] = useState("regular");
+  // 1-2 sentence "what changed" note, entered on the Review/Submit step
+  // before hitting Submit. Shown later in Version History between the
+  // timestamp and the author (2026-10-01).
+  const [changeSummary, setChangeSummary] = useState(() => draft?.changeSummary || "");
 
   // Autosave every state change. Synchronous localStorage write is fast for this payload size.
   // Runs for every country, demo included (2026-09-29) -- see the hydration
@@ -262,9 +266,10 @@ export default function GuidedWizard({ country, data, onSave }) {
       revRegOtherEdits, revIrrEdits,
       ikRegRowsEdits, ikIrrRowsEdits,
       expVisitedIrregular, revVisitedIrregular, inkVisitedIrregular,
+      changeSummary,
     });
     setDraftSavedAt(new Date().toISOString());
-  }, [country, submitted, step, maxStepReached, currency.code, inputMode, unit, budgetYear, hasRisks, hasOpps, riskText, oppText, activityRows, stepSources, stepNotes, erRowsEdits, feesEdits, feesColumnsEdits, irrProjEdits, revRegOtherEdits, revIrrEdits, ikRegRowsEdits, ikIrrRowsEdits, expVisitedIrregular, revVisitedIrregular, inkVisitedIrregular]);
+  }, [country, submitted, step, maxStepReached, currency.code, inputMode, unit, budgetYear, hasRisks, hasOpps, riskText, oppText, activityRows, stepSources, stepNotes, erRowsEdits, feesEdits, feesColumnsEdits, irrProjEdits, revRegOtherEdits, revIrrEdits, ikRegRowsEdits, ikIrrRowsEdits, expVisitedIrregular, revVisitedIrregular, inkVisitedIrregular, changeSummary]);
 
   // Static exchange rate — recomputed when currency changes. Rates source: CurrencyContext map.
   useEffect(() => {
@@ -440,7 +445,7 @@ export default function GuidedWizard({ country, data, onSave }) {
               subTab={inkSubTab} setSubTab={setInkSubTab}
             />
           )}
-          {step === 5 && <StepReview  country={country} activityRows={activityRows} currency={currency} budgetYear={budgetYear} erRowsEdits={erRowsEdits} irrProjEdits={irrProjEdits} feesEdits={feesEdits} revRegOtherEdits={revRegOtherEdits} revIrrEdits={revIrrEdits} ikRegRowsEdits={ikRegRowsEdits} ikIrrRowsEdits={ikIrrRowsEdits} />}
+          {step === 5 && <StepReview  country={country} activityRows={activityRows} currency={currency} budgetYear={budgetYear} erRowsEdits={erRowsEdits} irrProjEdits={irrProjEdits} feesEdits={feesEdits} revRegOtherEdits={revRegOtherEdits} revIrrEdits={revIrrEdits} ikRegRowsEdits={ikRegRowsEdits} ikIrrRowsEdits={ikIrrRowsEdits} changeSummary={changeSummary} setChangeSummary={setChangeSummary} />}
 
           {/* Sources & Notes — required on every step except Setup (per
               Willyanne 2026-05-27 mid-day item #4) and Review. */}
@@ -590,8 +595,9 @@ export default function GuidedWizard({ country, data, onSave }) {
                 ikIrr:     ikIrrFinal,
                 ikIrrRows: ikIrrRowsEdits,
               };
-              if (onSave) await onSave(updates);
+              if (onSave) await onSave(updates, changeSummary.trim());
               clearDraft(country);
+              setChangeSummary("");
               setSaving(false);
               setSubmitted(true);
             }}
@@ -2545,7 +2551,7 @@ function ExpensesStep({ conv, erRowsEdits, setErRowsEdits, irrProjEdits, setIrrP
   );
 }
 
-function StepReview({ country, activityRows, currency, budgetYear, erRowsEdits, irrProjEdits, feesEdits, revRegOtherEdits, revIrrEdits, ikRegRowsEdits, ikIrrRowsEdits }) {
+function StepReview({ country, activityRows, currency, budgetYear, erRowsEdits, irrProjEdits, feesEdits, revRegOtherEdits, revIrrEdits, ikRegRowsEdits, ikIrrRowsEdits, changeSummary, setChangeSummary }) {
   const filledActivities = activityRows.filter((r) => r.nearTerm && r.longTerm);
   const sumRows = (rows) => (rows || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
   const totalRegExpenses = sumRows(erRowsEdits);
@@ -2585,6 +2591,16 @@ function StepReview({ country, activityRows, currency, budgetYear, erRowsEdits, 
           {activityRows.length - filledActivities.length} activities don't have both near-term and long-term selections. You can go back to complete them or submit now.
         </div>
       )}
+      <div>
+        <label style={labelStyle}>Summary of changes</label>
+        <textarea
+          value={changeSummary}
+          onChange={(e) => setChangeSummary(e.target.value)}
+          placeholder="In 1-2 sentences, describe what you changed in this submission..."
+          style={textareaStyle} rows={2}
+        />
+        <div style={{ fontSize: 11.5, color: "#999", marginTop: 4 }}>Optional, but helpful -- shows up next to this save in Version History.</div>
+      </div>
       <div style={{ fontSize: 13, color: C.blueGrey, fontStyle: "italic" }}>Click "Submit ✓" to save this wizard entry.</div>
     </div>
   );
