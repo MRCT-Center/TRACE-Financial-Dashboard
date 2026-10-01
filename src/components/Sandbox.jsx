@@ -106,8 +106,6 @@ export default function Sandbox({ country, flag, masterData, canEdit }) {
           country={country}
           data={openScenario.data}
           flag={flag}
-          canEdit={canEdit}
-          showHistory={false}
           onEdit={(path, value) => {
             const clone = JSON.parse(JSON.stringify(openScenario.data));
             const keys = path.split(".");

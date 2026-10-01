@@ -6,7 +6,6 @@ import Revenue from "./Revenue";
 import GapView from "./GapView";
 import Activities from "./Activities";
 import Forecast from "./Forecast";
-import VersionHistory from "./VersionHistory";
 
 const RESULTS_TABS = [
   { id: "overview",   label: "Overview"      },
@@ -15,12 +14,11 @@ const RESULTS_TABS = [
   { id: "gap",        label: "Gap Analysis"  },
   { id: "activities", label: "Activities"    },
   { id: "forecast",   label: "Forecast"      },
-  { id: "history",    label: "Version History" },
 ];
 
-export default function Results({ country, data, flag, onEdit, defaultTab = "overview", canEdit, onSaveMilestone, onRestoreVersion, showHistory = true }) {
+export default function Results({ country, data, flag, onEdit, defaultTab = "overview" }) {
   const [activeTab, setActiveTab] = useState(defaultTab);
-  const tabs = showHistory ? RESULTS_TABS : RESULTS_TABS.filter((t) => t.id !== "history");
+  const tabs = RESULTS_TABS;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -58,7 +56,6 @@ export default function Results({ country, data, flag, onEdit, defaultTab = "ove
         {activeTab === "gap"        && <GapView    country={country} data={data} flag={flag} onEdit={onEdit} />}
         {activeTab === "activities" && <Activities country={country} data={data} flag={flag} onEdit={onEdit} />}
         {activeTab === "forecast"   && <Forecast   country={country} data={data} flag={flag} onEdit={onEdit} />}
-        {showHistory && activeTab === "history" && <VersionHistory country={country} canEdit={canEdit} onSaveMilestone={onSaveMilestone} onRestore={onRestoreVersion} />}
       </div>
     </div>
   );

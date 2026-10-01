@@ -10,6 +10,7 @@ import { signOut, ensureProfile } from "./auth";
 import LoginPage from "./components/LoginPage";
 import IntroPage from "./components/IntroPage";
 import Results from "./components/Results";
+import VersionHistory from "./components/VersionHistory";
 import Sandbox from "./components/Sandbox";
 import GuidedWizard from "./components/GuidedWizard";
 import AdminDashboard from "./components/AdminDashboard";
@@ -37,6 +38,7 @@ function deepSet(obj, path, value) {
 
 const ADMIN_VIEWS = [
   { id: "intro",    label: "Introduction" },
+  { id: "history",  label: "Version History" },
   { id: "wizard",   label: "Inputs"       },
   { id: "results",  label: "Results"      },
   { id: "feedback", label: "Feedback"     },
@@ -45,6 +47,7 @@ const ADMIN_VIEWS = [
 
 const COUNTRY_VIEWS = [
   { id: "intro",    label: "Introduction" },
+  { id: "history",  label: "Version History" },
   { id: "wizard",   label: "Inputs"       },
   { id: "results",  label: "Results"      },
   { id: "sandbox",  label: "Sandbox"      },
@@ -610,6 +613,14 @@ export default function App() {
               onSave={(updates) => saveCountryData(selectedCountry, updates)}
             />
           )}
+          {view === "history" && (
+            <VersionHistory
+              country={selectedCountry}
+              canEdit={!isDemoCountry(selectedCountry)}
+              onSaveMilestone={(kind, yearLabel) => saveMilestone(selectedCountry, kind, yearLabel)}
+              onRestore={(version) => restoreVersion(selectedCountry, version)}
+            />
+          )}
           {view === "sandbox" && !isAdmin && (
             <Sandbox
               country={selectedCountry}
@@ -624,9 +635,6 @@ export default function App() {
               data={countryData}
               flag={flag}
               onEdit={handleEdit}
-              canEdit={!isDemoCountry(selectedCountry)}
-              onSaveMilestone={(kind, yearLabel) => saveMilestone(selectedCountry, kind, yearLabel)}
-              onRestoreVersion={(version) => restoreVersion(selectedCountry, version)}
             />
           )}
           {view === "feedback" && <Feedback country={selectedCountry} email={session.email} />}
