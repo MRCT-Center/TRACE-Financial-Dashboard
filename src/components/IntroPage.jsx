@@ -150,7 +150,7 @@ export default function IntroPage({ onNavigate, isAdmin }) {
           </p>
         </Section>
 
-        <Section title="Why this dashboard?">
+        <Section title="Why this dashboard?" collapsible defaultOpen={false}>
           <p style={{ ...bodyText, marginBottom: 14 }}>
             This dashboard was developed to help ethics systems across TRACE countries build a clear,
             shared picture of their financial situation. Specifically, it enables management teams at National Ethics Secretariats and local IRBs to:
@@ -165,7 +165,7 @@ export default function IntroPage({ onNavigate, isAdmin }) {
           </div>
         </Section>
 
-        <Section title="Dashboard structure for user Inputs">
+        <Section title="Dashboard structure for user Inputs" collapsible defaultOpen={false}>
           <p style={{ ...bodyText, marginBottom: 6 }}>
             Financial data is organized into three categories: <strong>Regular</strong> (recurring annual expenses and revenue),{" "}
             <strong>Irregular</strong> (one-time or long-term expenses and revenue), and{" "}
@@ -190,7 +190,7 @@ export default function IntroPage({ onNavigate, isAdmin }) {
           </p>
         </Section>
 
-        <Section title="How data is organized for financial inputs">
+        <Section title="How data is organized for financial inputs" collapsible defaultOpen={false}>
           <p style={{ ...bodyText, marginBottom: 14 }}>
             A few design choices shape how data is structured — understanding these makes the dashboard easier to use:
           </p>
