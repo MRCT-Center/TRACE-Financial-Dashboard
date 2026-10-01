@@ -13,6 +13,15 @@ import YearDates from "./YearDates";
 
 const KIND_LABELS = { original: "Original", midpoint: "Midpoint", final: "Final", working: "Working save" };
 const KIND_COLORS = { original: C.teal, midpoint: "#c98a1f", final: C.red || "#b3261e", working: C.blueGrey };
+// Display order (2026-10-01): Final, then Midpoint, then Original -- each
+// group newest-first -- then all working drafts, newest-first.
+const KIND_ORDER = { final: 0, midpoint: 1, original: 2, working: 3 };
+const sortVersions = (rows) =>
+  [...rows].sort((a, b) => {
+    const rankDiff = (KIND_ORDER[a.kind] ?? 99) - (KIND_ORDER[b.kind] ?? 99);
+    if (rankDiff !== 0) return rankDiff;
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
 
 export default function VersionHistory({ country, canEdit, onSaveMilestone, onRestore }) {
   const [versions, setVersions] = useState([]);
@@ -31,7 +40,7 @@ export default function VersionHistory({ country, canEdit, onSaveMilestone, onRe
         .eq("country", country)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      setVersions(data || []);
+      setVersions(sortVersions(data || []));
       setStatus("ready");
     } catch (err) {
       setErrorMsg(err.message || "Could not load version history.");
