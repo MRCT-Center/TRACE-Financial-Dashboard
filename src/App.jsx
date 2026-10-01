@@ -12,7 +12,7 @@ import IntroPage from "./components/IntroPage";
 import Results from "./components/Results";
 import VersionHistory from "./components/VersionHistory";
 import Sandbox from "./components/Sandbox";
-import GuidedWizard from "./components/GuidedWizard";
+import GuidedWizard, { clearDraft as clearWizardDraft } from "./components/GuidedWizard";
 import AdminDashboard from "./components/AdminDashboard";
 import Feedback from "./components/Feedback";
 import AdminFeedback from "./components/AdminFeedback";
@@ -522,6 +522,11 @@ export default function App() {
       updated_by: session?.email || "unknown",
     });
     if (error) throw new Error(error.message);
+    // Clear any in-progress local wizard draft for this country -- otherwise
+    // the next time someone opens Inputs, the wizard would hydrate from the
+    // stale browser-local draft (e.g. leftover Data source/Notes text)
+    // instead of the version that was just restored (2026-10-02 fix).
+    clearWizardDraft(country);
     await recordWorkingVersion(country, restored);
   }
 

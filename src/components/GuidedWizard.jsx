@@ -57,7 +57,7 @@ function loadDraft(country) {
 function saveDraft(country, payload) {
   try { localStorage.setItem(draftKey(country), JSON.stringify({ ...payload, savedAt: new Date().toISOString() })); } catch {}
 }
-function clearDraft(country) {
+export function clearDraft(country) {
   try { localStorage.removeItem(draftKey(country)); } catch {}
 }
 
@@ -167,8 +167,13 @@ export default function GuidedWizard({ country, data, onSave }) {
     });
     return migrated;
   };
-  const [stepSources, setStepSources] = useState(() => migrateStepTextMap(draft?.stepSources));
-  const [stepNotes,   setStepNotes]   = useState(() => migrateStepTextMap(draft?.stepNotes));
+  // Priority: an in-progress local draft (unsaved edits in this browser) wins;
+  // otherwise fall back to whatever was actually saved/restored for this
+  // country (data.stepSources/stepNotes), so Restore and a plain reload both
+  // show the real saved notes instead of silently keeping stale draft text
+  // that was never part of the saved version at all (2026-10-02 fix).
+  const [stepSources, setStepSources] = useState(() => migrateStepTextMap(draft?.stepSources ?? data?.stepSources));
+  const [stepNotes,   setStepNotes]   = useState(() => migrateStepTextMap(draft?.stepNotes ?? data?.stepNotes));
   // Track which Expenses sub-tabs (Regular / Irregular) the user has visited.
   // Per Willyanne 2026-05-22: country teams must visit BOTH sub-tabs before
   // advancing from Step 3 → Revenue, so Irregular doesn't get silently skipped.
@@ -636,6 +641,13 @@ export default function GuidedWizard({ country, data, onSave }) {
                 ikRegRows: ikRegRowsEdits,
                 ikIrr:     ikIrrFinal,
                 ikIrrRows: ikIrrRowsEdits,
+                // Per-page Data source / Notes boxes (2026-10-02 fix): these
+                // were previously local-draft-only and never actually saved,
+                // so Restore could never bring back the real notes for a past
+                // version -- it would just leave whatever was last typed into
+                // this browser's in-progress draft sitting there. Now part of
+                // the submitted/versioned data like everything else.
+                stepSources, stepNotes,
               };
               if (onSave) await onSave(updates, changeSummary.trim(), draftTitle.trim());
               clearDraft(country);
