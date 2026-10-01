@@ -17,6 +17,8 @@ import {
   deriveLegacyFeeFields, isLegacyFeesArray,
 } from "../data/feesModel";
 import InfoTip from "./InfoTip";
+import { supabase } from "../supabaseClient";
+import { diffCountryData, isRowChanged, isFieldChanged, changesForKeys } from "../utils/diffCountryData";
 
 const CURRENCIES = [
   { code: "USD", symbol: "$",   name: "US Dollar"        },
@@ -257,6 +259,32 @@ export default function GuidedWizard({ country, data, onSave }) {
   // for Original/Midpoint/Final milestones, reused here for drafts (2026-10-01).
   const [draftTitle, setDraftTitle] = useState(() => draft?.draftTitle || "");
 
+  // "Show changes" feature (2026-10-02): compares the two most recent saved
+  // drafts (country_versions rows) for this country and highlights what
+  // changed between them, plus a side panel explaining each change and who
+  // made it. Fetched once per country; doesn't reflect unsaved in-progress
+  // edits, only the diff between the last two actual saves.
+  const [changeList, setChangeList] = useState([]);
+  const [lastChangeMeta, setLastChangeMeta] = useState(null); // { created_by, created_at, summary }
+  const [showChanges, setShowChanges] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    async function loadRecentVersions() {
+      const { data: versions, error } = await supabase
+        .from("country_versions")
+        .select("data, created_by, created_at, summary")
+        .eq("country", country)
+        .order("created_at", { ascending: false })
+        .limit(2);
+      if (cancelled || error || !versions || versions.length < 2) return;
+      const [latest, previous] = versions;
+      setChangeList(diffCountryData(previous.data, latest.data));
+      setLastChangeMeta({ created_by: latest.created_by, created_at: latest.created_at, summary: latest.summary });
+    }
+    loadRecentVersions();
+    return () => { cancelled = true; };
+  }, [country]);
+
   // Autosave every state change. Synchronous localStorage write is fast for this payload size.
   // Runs for every country, demo included (2026-09-29) -- see the hydration
   // comment above for why this doesn't undermine the demo refresh guarantee.
@@ -406,6 +434,8 @@ export default function GuidedWizard({ country, data, onSave }) {
               exchangeRate={exchangeRate}
               unit={unit} onUnitChange={setUnit}
               budgetYear={budgetYear} onBudgetYearChange={setBudgetYear}
+              changeList={changeList} lastChangeMeta={lastChangeMeta}
+              showChanges={showChanges} setShowChanges={setShowChanges}
             />
           )}
           {step === 1 && (
@@ -415,6 +445,8 @@ export default function GuidedWizard({ country, data, onSave }) {
               riskText={riskText} setRiskText={setRiskText}
               oppText={oppText}   setOppText={setOppText}
               activityRows={activityRows} setActivityRows={setActivityRows}
+              changeList={changeList} lastChangeMeta={lastChangeMeta}
+              showChanges={showChanges} setShowChanges={setShowChanges}
             />
           )}
           {step === 2 && (
@@ -425,6 +457,8 @@ export default function GuidedWizard({ country, data, onSave }) {
               onIrregularVisited={() => setExpVisitedIrregular(true)}
               visitedIrregular={expVisitedIrregular}
               subTab={expSubTab} setSubTab={setExpSubTab}
+              changeList={changeList} lastChangeMeta={lastChangeMeta}
+              showChanges={showChanges} setShowChanges={setShowChanges}
             />
           )}
           {step === 3 && (
@@ -437,6 +471,8 @@ export default function GuidedWizard({ country, data, onSave }) {
               onIrregularVisited={() => setRevVisitedIrregular(true)}
               visitedIrregular={revVisitedIrregular}
               subTab={revSubTab} setSubTab={setRevSubTab}
+              changeList={changeList} lastChangeMeta={lastChangeMeta}
+              showChanges={showChanges} setShowChanges={setShowChanges}
             />
           )}
           {step === 4 && (
@@ -447,6 +483,8 @@ export default function GuidedWizard({ country, data, onSave }) {
               onIrregularVisited={() => setInkVisitedIrregular(true)}
               visitedIrregular={inkVisitedIrregular}
               subTab={inkSubTab} setSubTab={setInkSubTab}
+              changeList={changeList} lastChangeMeta={lastChangeMeta}
+              showChanges={showChanges} setShowChanges={setShowChanges}
             />
           )}
           {step === 5 && <StepReview  country={country} activityRows={activityRows} currency={currency} budgetYear={budgetYear} erRowsEdits={erRowsEdits} irrProjEdits={irrProjEdits} feesEdits={feesEdits} revRegOtherEdits={revRegOtherEdits} revIrrEdits={revIrrEdits} ikRegRowsEdits={ikRegRowsEdits} ikIrrRowsEdits={ikIrrRowsEdits} changeSummary={changeSummary} setChangeSummary={setChangeSummary} draftTitle={draftTitle} setDraftTitle={setDraftTitle} />}
@@ -619,14 +657,21 @@ export default function GuidedWizard({ country, data, onSave }) {
 
 // ─── Step components ──────────────────────────────────────────────────────────
 
-function StepSetup({ country, localCurrency, currency, inputMode, onInputModeChange, exchangeRate, unit, onUnitChange, budgetYear, onBudgetYearChange }) {
+function StepSetup({ country, localCurrency, currency, inputMode, onInputModeChange, exchangeRate, unit, onUnitChange, budgetYear, onBudgetYearChange, changeList, lastChangeMeta, showChanges, setShowChanges }) {
   const asOfDate = new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  const stepChanges = changesForKeys(changeList, ["unit", "budgetYear"]);
+  const unitChanged = isFieldChanged(changeList, "unit");
+  const budgetYearChanged = isFieldChanged(changeList, "budgetYear");
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div>
+        <ChangesToggle show={showChanges} onToggle={() => setShowChanges((s) => !s)} count={stepChanges.length} />
+        {showChanges && <ChangesPanel changes={stepChanges} meta={lastChangeMeta} onClose={() => setShowChanges(false)} />}
+      </div>
       {/* Unit selector — 4-button segmented control (workbook dropdown values) */}
       <div>
         <label style={labelStyle}>Unit <span style={{ color: C.red }}>*</span></label>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 0, border: `1px solid #dde`, borderRadius: 8, overflow: "hidden", marginTop: 6 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 0, border: `1px solid #dde`, borderRadius: 8, overflow: "hidden", marginTop: 6, ...(showChanges && unitChanged ? changedFieldStyle : {}) }}>
           {UNIT_OPTIONS.map((opt, i) => {
             const isActive = unit === opt;
             return (
@@ -709,7 +754,7 @@ function StepSetup({ country, localCurrency, currency, inputMode, onInputModeCha
       {/* Budget year — grey bar + free-text input per Willyanne 2026-05-27 mid-day item #3 */}
       <div>
         <label style={labelStyle}>Budget year</label>
-        <div style={{ marginTop: 6, padding: "10px 14px", background: "#f4f6f8", border: `1px solid #dde`, borderRadius: 8 }}>
+        <div style={{ marginTop: 6, padding: "10px 14px", background: "#f4f6f8", border: `1px solid #dde`, borderRadius: 8, ...(showChanges && budgetYearChanged ? changedFieldStyle : {}) }}>
           <input
             type="text"
             value={budgetYear || ""}
@@ -731,12 +776,12 @@ function StepSetup({ country, localCurrency, currency, inputMode, onInputModeCha
   );
 }
 
-function StepRisks({ hasRisks, onHasRisks, hasOpps, onHasOpps, riskText, onRiskText, oppText, onOppText }) {
+function StepRisks({ hasRisks, onHasRisks, hasOpps, onHasOpps, riskText, onRiskText, oppText, onOppText, showChanges, hasRisksChanged, riskTextChanged, hasOppsChanged, oppTextChanged }) {
   const riskNeedsDesc = hasRisks === "yes" && !riskText.trim();
   const oppNeedsDesc  = hasOpps  === "yes" && !oppText.trim();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      <div>
+      <div style={showChanges && hasRisksChanged ? { ...changedFieldStyle, padding: 10 } : {}}>
         <label style={labelStyle}>Do you expect major financial risks in the next year? <span style={{ color: C.red }}>*</span></label>
         <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
           {["Yes", "No"].map((opt) => (
@@ -751,12 +796,12 @@ function StepRisks({ hasRisks, onHasRisks, hasOpps, onHasOpps, riskText, onRiskT
             <label style={{ ...labelStyle, marginTop: 12, fontWeight: 500 }}>Describe the risks <span style={{ color: C.red }}>*</span></label>
             <textarea value={riskText} onChange={(e) => onRiskText(e.target.value)}
               placeholder="Describe the risks and how significantly you think they will impact ethics review..."
-              style={{ ...textareaStyle, marginTop: 4, borderColor: riskNeedsDesc ? C.red : "#ccc" }} rows={3} />
+              style={{ ...textareaStyle, marginTop: 4, borderColor: riskNeedsDesc ? C.red : (showChanges && riskTextChanged ? CHANGE_PURPLE : "#ccc") }} rows={3} />
             {riskNeedsDesc && <div style={{ fontSize: 11, color: C.red, fontStyle: "italic", marginTop: 4 }}>A description is required when "Yes" is selected.</div>}
           </>
         )}
       </div>
-      <div>
+      <div style={showChanges && hasOppsChanged ? { ...changedFieldStyle, padding: 10 } : {}}>
         <label style={labelStyle}>Do you expect major financial opportunities in the next year? <span style={{ color: C.red }}>*</span></label>
         <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
           {["Yes", "No"].map((opt) => (
@@ -771,7 +816,7 @@ function StepRisks({ hasRisks, onHasRisks, hasOpps, onHasOpps, riskText, onRiskT
             <label style={{ ...labelStyle, marginTop: 12, fontWeight: 500 }}>Describe the opportunities <span style={{ color: C.red }}>*</span></label>
             <textarea value={oppText} onChange={(e) => onOppText(e.target.value)}
               placeholder="Describe the opportunities and how significantly you think they will impact ethics review..."
-              style={{ ...textareaStyle, marginTop: 4, borderColor: oppNeedsDesc ? C.red : "#ccc" }} rows={3} />
+              style={{ ...textareaStyle, marginTop: 4, borderColor: oppNeedsDesc ? C.red : (showChanges && oppTextChanged ? CHANGE_PURPLE : "#ccc") }} rows={3} />
             {oppNeedsDesc && <div style={{ fontSize: 11, color: C.red, fontStyle: "italic", marginTop: 4 }}>A description is required when "Yes" is selected.</div>}
           </>
         )}
@@ -887,7 +932,7 @@ function EditableDescription({ value, label, onChange }) {
   );
 }
 
-function StepExpensesRegular({ conv, erRowsEdits, setErRowsEdits }) {
+function StepExpensesRegular({ conv, erRowsEdits, setErRowsEdits, changeList = [] }) {
   // Safety net: if rows are missing or in legacy shape, hydrate from defaults.
   // App.jsx's merge guard handles this on load too.
   useEffect(() => {
@@ -981,7 +1026,7 @@ function StepExpensesRegular({ conv, erRowsEdits, setErRowsEdits }) {
                     </tr>
                   )}
                   {rowsInCat.map(({ row, idx }) => (
-                    <tr key={row.key || idx} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top" }}>
+                    <tr key={row.key || idx} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top", ...(isRowChanged(changeList, "erRows", idx) ? changedRowStyle : {}) }}>
                       <td style={{ padding: "8px 10px" }}>
                         <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
@@ -1175,7 +1220,7 @@ function IrregularTextInput({ value, onChange, placeholder, type = "text" }) {
   );
 }
 
-function StepExpensesIrregular({ conv, irrProjEdits, setIrrProjEdits }) {
+function StepExpensesIrregular({ conv, irrProjEdits, setIrrProjEdits, changeList = [] }) {
   // Hydrate to workbook defaults if irrProjEdits is empty or in legacy shape.
   // (App.jsx's merge guard handles this on load; this is a safety net.)
   useEffect(() => {
@@ -1265,7 +1310,7 @@ function StepExpensesIrregular({ conv, irrProjEdits, setIrrProjEdits }) {
                     </tr>
                   )}
                   {rowsInCat.map(({ row, idx }) => (
-                    <tr key={idx} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top" }}>
+                    <tr key={idx} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top", ...(isRowChanged(changeList, "irrProj", idx) ? changedRowStyle : {}) }}>
                       <td style={{ padding: "8px 10px" }}>
                         <IrregularItemCell
                           value={row.item}
@@ -1371,14 +1416,20 @@ function StepExpensesIrregular({ conv, irrProjEdits, setIrrProjEdits }) {
 // rental/investment/other). Irregular has 4 categories (Grant, Contract,
 // Other 1-time payment, Deferred reserves) plus a Payment status dropdown
 // column unique to Irregular Revenue.
-function StepRevenue({ conv, feesEdits, setFeesEdits, feesColumnsEdits, setFeesColumnsEdits, revRegOtherEdits, setRevRegOtherEdits, revIrrEdits, setRevIrrEdits, onIrregularVisited, visitedIrregular, subTab, setSubTab }) {
+function StepRevenue({ conv, feesEdits, setFeesEdits, feesColumnsEdits, setFeesColumnsEdits, revRegOtherEdits, setRevRegOtherEdits, revIrrEdits, setRevIrrEdits, onIrregularVisited, visitedIrregular, subTab, setSubTab, changeList, lastChangeMeta, showChanges, setShowChanges }) {
   const sub = subTab;
   const handleSub = (id) => {
     setSubTab(id);
     if (id === "irregular" && onIrregularVisited) onIrregularVisited();
   };
+  const stepChanges = changesForKeys(changeList, ["fees", "feesColumns", "revFees", "revRegOther", "revOther", "revIrr", "ri"]);
+  const activeChangeList = showChanges ? changeList : [];
   return (
     <div>
+      <div>
+        <ChangesToggle show={showChanges} onToggle={() => setShowChanges((s) => !s)} count={stepChanges.length} />
+        {showChanges && <ChangesPanel changes={stepChanges} meta={lastChangeMeta} onClose={() => setShowChanges(false)} />}
+      </div>
       <SubTabs
         tabs={[
           { id: "regular",   label: "Regular" },
@@ -1392,12 +1443,14 @@ function StepRevenue({ conv, feesEdits, setFeesEdits, feesColumnsEdits, setFeesC
           feesEdits={feesEdits} setFeesEdits={setFeesEdits}
           feesColumnsEdits={feesColumnsEdits} setFeesColumnsEdits={setFeesColumnsEdits}
           revRegOtherEdits={revRegOtherEdits} setRevRegOtherEdits={setRevRegOtherEdits}
+          changeList={activeChangeList}
         />
       )}
       {sub === "irregular" && (
         <StepRevenueIrregular
           conv={conv}
           revIrrEdits={revIrrEdits} setRevIrrEdits={setRevIrrEdits}
+          changeList={activeChangeList}
         />
       )}
     </div>
@@ -1440,7 +1493,7 @@ function CollapsibleSection({ title, defaultOpen = true, children }) {
   );
 }
 
-function StepRevenueRegular({ conv, feesEdits, setFeesEdits, feesColumnsEdits, setFeesColumnsEdits, revRegOtherEdits, setRevRegOtherEdits }) {
+function StepRevenueRegular({ conv, feesEdits, setFeesEdits, feesColumnsEdits, setFeesColumnsEdits, revRegOtherEdits, setRevRegOtherEdits, changeList = [] }) {
   // Safety net: if rows are missing or in a legacy shape, hydrate from defaults.
   // App.jsx's merge guard handles this on load too.
   useEffect(() => {
@@ -1461,6 +1514,7 @@ function StepRevenueRegular({ conv, feesEdits, setFeesEdits, feesColumnsEdits, s
           conv={conv}
           feesEdits={feesEdits} setFeesEdits={setFeesEdits}
           feesColumnsEdits={feesColumnsEdits} setFeesColumnsEdits={setFeesColumnsEdits}
+          changeList={changeList}
         />
       </CollapsibleSection>
 
@@ -1472,6 +1526,7 @@ function StepRevenueRegular({ conv, feesEdits, setFeesEdits, feesColumnsEdits, s
           categories={REVENUE_REGULAR_OTHER_CATEGORIES}
           withPaymentStatus={false}
           intro="Subsidies and recurring non-fee income, organized by category. Each row captures the funder, amount, and start/end dates. Use + Add item to extend a category."
+          arrayKey="revRegOther" changeList={changeList}
         />
       </CollapsibleSection>
 
@@ -1485,7 +1540,7 @@ function StepRevenueRegular({ conv, feesEdits, setFeesEdits, feesColumnsEdits, s
   );
 }
 
-function StepRevenueIrregular({ conv, revIrrEdits, setRevIrrEdits }) {
+function StepRevenueIrregular({ conv, revIrrEdits, setRevIrrEdits, changeList = [] }) {
   useEffect(() => {
     if (!Array.isArray(revIrrEdits) || revIrrEdits.length === 0 ||
         revIrrEdits.some((r) => r && r.category === undefined)) {
@@ -1504,6 +1559,7 @@ function StepRevenueIrregular({ conv, revIrrEdits, setRevIrrEdits }) {
         setRows={setRevIrrEdits}
         categories={REVENUE_IRREGULAR_CATEGORIES}
         withPaymentStatus={true}
+        arrayKey="revIrr" changeList={changeList}
       />
       <div style={{ background: C.navy, color: "#fff", padding: "12px 18px", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontSize: 13, fontWeight: 600 }}>Total irregular revenue ({conv.displayCode})</span>
@@ -1519,7 +1575,7 @@ function StepRevenueIrregular({ conv, revIrrEdits, setRevIrrEdits }) {
 // label, ⓘ description, funder, USD amount (+ alt-currency display when
 // applicable), start/end dates, optional Payment status dropdown, and a
 // × delete per row. "+ Add item" appends a new blank row to a category.
-function RevenueCategoryCards({ conv, rows, setRows, categories, withPaymentStatus = false, intro }) {
+function RevenueCategoryCards({ conv, rows, setRows, categories, withPaymentStatus = false, intro, arrayKey, changeList = [] }) {
   const updateRow = (idx, patch) => {
     setRows((rs) => rs.map((r, i) => i === idx ? { ...r, ...patch } : r));
   };
@@ -1583,7 +1639,7 @@ function RevenueCategoryCards({ conv, rows, setRows, categories, withPaymentStat
                     </tr>
                   )}
                   {rowsInCat.map(({ row, idx }) => (
-                    <tr key={idx} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top" }}>
+                    <tr key={idx} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top", ...(isRowChanged(changeList, arrayKey, idx) ? changedRowStyle : {}) }}>
                       <td style={{ padding: "8px 10px" }}>
                         <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
@@ -1703,7 +1759,7 @@ function RevenueCategoryCards({ conv, rows, setRows, categories, withPaymentStat
 // Column headers + row labels are editable; rows can be added or removed.
 // Revenue auto-calculated per row (Σ amount × count across 9 cells) and
 // summed for grand total. Table is horizontally scrollable via minWidth.
-function StepRevenueFees({ conv, feesEdits, setFeesEdits, feesColumnsEdits, setFeesColumnsEdits }) {
+function StepRevenueFees({ conv, feesEdits, setFeesEdits, feesColumnsEdits, setFeesColumnsEdits, changeList = [] }) {
   // Cell update: amount inputs go through conv.fromDisplay for currency
   // conversion (stored in USD internally); count inputs are integers.
   const updateCell = (rowIdx, colKey, field, raw) => {
@@ -1808,9 +1864,10 @@ function StepRevenueFees({ conv, feesEdits, setFeesEdits, feesColumnsEdits, setF
           <tbody>
             {feesEdits.map((row, ri) => {
               const rev = rowRevenue(row);
+              const rowChanged = isRowChanged(changeList, "fees", ri);
               return (
-                <tr key={ri} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                  <td style={{ padding: "6px 8px", position: "sticky", left: 0, background: "#fff", zIndex: 1, borderRight: "1px solid #dde" }}>
+                <tr key={ri} style={{ borderBottom: "1px solid #f0f0f0", ...(rowChanged ? changedRowStyle : {}) }}>
+                  <td style={{ padding: "6px 8px", position: "sticky", left: 0, background: rowChanged ? CHANGE_PURPLE_BG : "#fff", zIndex: 1, borderRight: "1px solid #dde" }}>
                     <input
                       type="text"
                       value={row.type || ""}
@@ -1984,14 +2041,20 @@ function FundingSourceSelect({ value, onChange }) {
   );
 }
 
-function InKindStep({ conv, ikRegRowsEdits, setIkRegRowsEdits, ikIrrRowsEdits, setIkIrrRowsEdits, onIrregularVisited, visitedIrregular, subTab, setSubTab }) {
+function InKindStep({ conv, ikRegRowsEdits, setIkRegRowsEdits, ikIrrRowsEdits, setIkIrrRowsEdits, onIrregularVisited, visitedIrregular, subTab, setSubTab, changeList, lastChangeMeta, showChanges, setShowChanges }) {
   const sub = subTab;
   const handleSubChange = (id) => {
     setSubTab(id);
     if (id === "irregular" && onIrregularVisited) onIrregularVisited();
   };
+  const stepChanges = changesForKeys(changeList, ["ikReg", "ikRegRows", "ikIrr", "ikIrrRows"]);
+  const activeChangeList = showChanges ? changeList : [];
   return (
     <div>
+      <div>
+        <ChangesToggle show={showChanges} onToggle={() => setShowChanges((s) => !s)} count={stepChanges.length} />
+        {showChanges && <ChangesPanel changes={stepChanges} meta={lastChangeMeta} onClose={() => setShowChanges(false)} />}
+      </div>
       <SubTabs
         tabs={[
           { id: "regular",   label: "Regular" },
@@ -2000,10 +2063,10 @@ function InKindStep({ conv, ikRegRowsEdits, setIkRegRowsEdits, ikIrrRowsEdits, s
         active={sub} onChange={handleSubChange}
       />
       {sub === "regular" && (
-        <StepInKindRegular conv={conv} ikRegRowsEdits={ikRegRowsEdits} setIkRegRowsEdits={setIkRegRowsEdits} />
+        <StepInKindRegular conv={conv} ikRegRowsEdits={ikRegRowsEdits} setIkRegRowsEdits={setIkRegRowsEdits} changeList={activeChangeList} />
       )}
       {sub === "irregular" && (
-        <StepInKindIrregular conv={conv} ikIrrRowsEdits={ikIrrRowsEdits} setIkIrrRowsEdits={setIkIrrRowsEdits} />
+        <StepInKindIrregular conv={conv} ikIrrRowsEdits={ikIrrRowsEdits} setIkIrrRowsEdits={setIkIrrRowsEdits} changeList={activeChangeList} />
       )}
     </div>
   );
@@ -2040,7 +2103,7 @@ function InKindFunderSubtotals({ rows, conv }) {
   );
 }
 
-function StepInKindRegular({ conv, ikRegRowsEdits, setIkRegRowsEdits }) {
+function StepInKindRegular({ conv, ikRegRowsEdits, setIkRegRowsEdits, changeList = [] }) {
   useEffect(() => {
     if (!Array.isArray(ikRegRowsEdits) || ikRegRowsEdits.length === 0) {
       setIkRegRowsEdits(JSON.parse(JSON.stringify(IN_KIND_REGULAR_DEFAULTS)));
@@ -2102,7 +2165,7 @@ function StepInKindRegular({ conv, ikRegRowsEdits, setIkRegRowsEdits }) {
                     </tr>
                   )}
                   {rowsInCat.map(({ row, idx }) => (
-                    <tr key={idx} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top" }}>
+                    <tr key={idx} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top", ...(isRowChanged(changeList, "ikRegRows", idx) ? changedRowStyle : {}) }}>
                       <td style={{ padding: "8px 10px" }}>
                         <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
@@ -2190,7 +2253,7 @@ function StepInKindRegular({ conv, ikRegRowsEdits, setIkRegRowsEdits }) {
   );
 }
 
-function StepInKindIrregular({ conv, ikIrrRowsEdits, setIkIrrRowsEdits }) {
+function StepInKindIrregular({ conv, ikIrrRowsEdits, setIkIrrRowsEdits, changeList = [] }) {
   useEffect(() => {
     if (!Array.isArray(ikIrrRowsEdits) || ikIrrRowsEdits.length === 0) {
       setIkIrrRowsEdits(JSON.parse(JSON.stringify(IN_KIND_IRREGULAR_DEFAULTS)));
@@ -2254,7 +2317,7 @@ function StepInKindIrregular({ conv, ikIrrRowsEdits, setIkIrrRowsEdits }) {
                     </tr>
                   )}
                   {rowsInCat.map(({ row, idx }) => (
-                    <tr key={idx} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top" }}>
+                    <tr key={idx} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top", ...(isRowChanged(changeList, "ikIrrRows", idx) ? changedRowStyle : {}) }}>
                       <td style={{ padding: "8px 10px" }}>
                         <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
@@ -2503,10 +2566,15 @@ function SubTabs({ tabs, active, onChange }) {
 
 // ─── Step 2: Key Considerations (sub-tabs: Risks & Opps | Activities) ─────────
 
-function KeyConsiderationsStep({ hasRisks, setHasRisks, hasOpps, setHasOpps, riskText, setRiskText, oppText, setOppText, activityRows, setActivityRows }) {
+function KeyConsiderationsStep({ hasRisks, setHasRisks, hasOpps, setHasOpps, riskText, setRiskText, oppText, setOppText, activityRows, setActivityRows, changeList, lastChangeMeta, showChanges, setShowChanges }) {
   const [sub, setSub] = useState("risks");
+  const stepChanges = changesForKeys(changeList, ["hasRisks", "riskText", "hasOpps", "oppText", "activities"]);
   return (
     <div>
+      <div>
+        <ChangesToggle show={showChanges} onToggle={() => setShowChanges((s) => !s)} count={stepChanges.length} />
+        {showChanges && <ChangesPanel changes={stepChanges} meta={lastChangeMeta} onClose={() => setShowChanges(false)} />}
+      </div>
       <SubTabs
         tabs={[
           { id: "risks",      label: "Risks & Opportunities" },
@@ -2520,6 +2588,11 @@ function KeyConsiderationsStep({ hasRisks, setHasRisks, hasOpps, setHasOpps, ris
           hasOpps={hasOpps}   onHasOpps={setHasOpps}
           riskText={riskText} onRiskText={setRiskText}
           oppText={oppText}   onOppText={setOppText}
+          showChanges={showChanges}
+          hasRisksChanged={isFieldChanged(changeList, "hasRisks")}
+          riskTextChanged={isFieldChanged(changeList, "riskText")}
+          hasOppsChanged={isFieldChanged(changeList, "hasOpps")}
+          oppTextChanged={isFieldChanged(changeList, "oppText")}
         />
       )}
       {sub === "activities" && (
@@ -2531,14 +2604,19 @@ function KeyConsiderationsStep({ hasRisks, setHasRisks, hasOpps, setHasOpps, ris
 
 // ─── Step 3: Expenses (sub-tabs: Regular | Irregular) ─────────────────────────
 
-function ExpensesStep({ conv, erRowsEdits, setErRowsEdits, irrProjEdits, setIrrProjEdits, onIrregularVisited, visitedIrregular, subTab, setSubTab }) {
+function ExpensesStep({ conv, erRowsEdits, setErRowsEdits, irrProjEdits, setIrrProjEdits, onIrregularVisited, visitedIrregular, subTab, setSubTab, changeList, lastChangeMeta, showChanges, setShowChanges }) {
   const sub = subTab;
   const handleSubChange = (id) => {
     setSubTab(id);
     if (id === "irregular" && onIrregularVisited) onIrregularVisited();
   };
+  const stepChanges = changesForKeys(changeList, ["er", "erRows", "irrProj"]);
   return (
     <div>
+      <div>
+        <ChangesToggle show={showChanges} onToggle={() => setShowChanges((s) => !s)} count={stepChanges.length} />
+        {showChanges && <ChangesPanel changes={stepChanges} meta={lastChangeMeta} onClose={() => setShowChanges(false)} />}
+      </div>
       <SubTabs
         tabs={[
           { id: "regular",   label: "Regular" },
@@ -2547,10 +2625,10 @@ function ExpensesStep({ conv, erRowsEdits, setErRowsEdits, irrProjEdits, setIrrP
         active={sub} onChange={handleSubChange}
       />
       {sub === "regular" && (
-        <StepExpensesRegular conv={conv} erRowsEdits={erRowsEdits} setErRowsEdits={setErRowsEdits} />
+        <StepExpensesRegular conv={conv} erRowsEdits={erRowsEdits} setErRowsEdits={setErRowsEdits} changeList={showChanges ? changeList : []} />
       )}
       {sub === "irregular" && (
-        <StepExpensesIrregular conv={conv} irrProjEdits={irrProjEdits} setIrrProjEdits={setIrrProjEdits} />
+        <StepExpensesIrregular conv={conv} irrProjEdits={irrProjEdits} setIrrProjEdits={setIrrProjEdits} changeList={showChanges ? changeList : []} />
       )}
     </div>
   );
@@ -2657,6 +2735,79 @@ function NumInput({ val, onChange, isCount }) {
 }
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
+
+// "Show changes" styling (2026-10-02) -- purple, distinct from the app's
+// teal/navy/red palette so a changed field or row is unmistakable.
+const CHANGE_PURPLE    = "#7c3aed";
+const CHANGE_PURPLE_BG = "#f4f0fd";
+const changedFieldStyle = { boxShadow: `0 0 0 2px ${CHANGE_PURPLE}`, background: CHANGE_PURPLE_BG, borderRadius: 6 };
+const changedRowStyle   = { background: CHANGE_PURPLE_BG, boxShadow: `inset 3px 0 0 ${CHANGE_PURPLE}` };
+
+function fmtChangeVal(v) {
+  if (v === null || v === undefined || v === "") return "(blank)";
+  if (typeof v === "object") { try { return JSON.stringify(v); } catch { return String(v); } }
+  return String(v);
+}
+
+function ChangesToggle({ show, onToggle, count }) {
+  return (
+    <button
+      onClick={onToggle}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 14,
+        padding: "6px 12px", minHeight: 32, borderRadius: 6,
+        border: `1px solid ${show ? CHANGE_PURPLE : "#ccd"}`,
+        background: show ? CHANGE_PURPLE_BG : "#fff",
+        color: show ? CHANGE_PURPLE : C.navy,
+        fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+      }}
+    >
+      {show ? "Hide changes" : "Show changes"}
+      {count > 0 && (
+        <span style={{ background: CHANGE_PURPLE, color: "#fff", borderRadius: 10, fontSize: 10.5, fontWeight: 700, padding: "1px 7px" }}>
+          {count}
+        </span>
+      )}
+    </button>
+  );
+}
+
+function ChangesPanel({ changes, meta, onClose }) {
+  return (
+    <div style={{
+      position: "fixed", top: 90, right: 16, width: 300, maxHeight: "70vh", overflowY: "auto",
+      background: "#fff", border: `1px solid ${CHANGE_PURPLE}`, borderRadius: 10,
+      boxShadow: "0 4px 18px rgba(0,0,0,0.16)", padding: 16, zIndex: 50,
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: CHANGE_PURPLE }}>What changed on this page</div>
+        <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#999", fontSize: 18, cursor: "pointer", lineHeight: 1 }}>×</button>
+      </div>
+      {meta && (
+        <div style={{ fontSize: 11.5, color: "#666", marginBottom: 12, paddingBottom: 10, borderBottom: "1px solid #eee" }}>
+          Last saved by <strong>{meta.created_by || "unknown"}</strong> on {new Date(meta.created_at).toLocaleString()}
+          {meta.summary && <div style={{ marginTop: 6, fontStyle: "italic" }}>"{meta.summary}"</div>}
+        </div>
+      )}
+      {changes.length === 0 ? (
+        <div style={{ fontSize: 12, color: "#999", fontStyle: "italic" }}>No changes on this page between the last two saves.</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {changes.map((c, i) => (
+            <div key={i} style={{ fontSize: 12, lineHeight: 1.5 }}>
+              <div style={{ fontWeight: 600, color: C.navy, marginBottom: 2 }}>{c.label}</div>
+              <div style={{ color: "#555" }}>
+                <span style={{ textDecoration: "line-through", color: "#999" }}>{fmtChangeVal(c.oldValue)}</span>
+                {" → "}
+                <span style={{ color: CHANGE_PURPLE, fontWeight: 600 }}>{fmtChangeVal(c.newValue)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const labelStyle     = { display: "block", fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 5 };
 const textareaStyle  = { width: "100%", border: "1px solid #ccc", borderRadius: 6, padding: "8px 10px", fontSize: 13, resize: "vertical", minHeight: 60 };
