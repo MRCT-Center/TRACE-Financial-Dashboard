@@ -485,7 +485,8 @@ export default function App() {
     if (error || !working) return;
     const stale = working.slice(5);
     if (stale.length > 0) {
-      await supabase.from("country_versions").delete().in("id", stale.map((w) => w.id));
+      const { error: deleteError } = await supabase.from("country_versions").delete().in("id", stale.map((w) => w.id));
+      if (deleteError) console.warn("Could not prune old working drafts:", deleteError.message);
     }
   }
 
