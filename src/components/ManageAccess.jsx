@@ -20,6 +20,13 @@ import YearDates from "./YearDates";
 
 export default function ManageAccess() {
   const [profiles, setProfiles] = useState([]);
+  // Countries granted as a SECONDARY country via profile_country_access
+  // (e.g. Nyika II, granted on top of a rep's own primary country) don't
+  // show up in `profiles.country` at all, so without this a country that
+  // only exists as a grant never got its own card here -- and admins could
+  // never see its (read-only) Year Dates, even though the rep had set them.
+  // Keyed by country -> array of granted emails (2026-10-02).
+  const [grantedAccess, setGrantedAccess] = useState({});
   const [status, setStatus] = useState("loading"); // loading | ready | error
   const [errorMsg, setErrorMsg] = useState("");
   const [busyId, setBusyId] = useState(null);
@@ -27,14 +34,28 @@ export default function ManageAccess() {
   const load = useCallback(async () => {
     setStatus("loading");
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, email, country, active, created_at")
-        .eq("role", "country")
-        .order("country", { ascending: true })
-        .order("email", { ascending: true });
+      const [{ data, error }, { data: grants, error: grantsError }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, email, country, active, created_at")
+          .eq("role", "country")
+          .order("country", { ascending: true })
+          .order("email", { ascending: true }),
+        supabase
+          .from("profile_country_access")
+          .select("country, profiles(email)"),
+      ]);
       if (error) throw error;
       setProfiles(data || []);
+      if (!grantsError) {
+        const byCountry = {};
+        (grants || []).forEach((g) => {
+          const email = g.profiles?.email;
+          if (!email) return;
+          (byCountry[g.country] = byCountry[g.country] || []).push(email);
+        });
+        setGrantedAccess(byCountry);
+      }
       setStatus("ready");
     } catch (err) {
       setErrorMsg(err.message || "Could not load access.");
@@ -65,7 +86,10 @@ export default function ManageAccess() {
     (acc[key] = acc[key] || []).push(p);
     return acc;
   }, {});
-  const countryNames = Object.keys(grouped).sort();
+  // Union of primary-country profiles and grant-only countries, so a
+  // country like Nyika II (nobody's primary country, only ever granted)
+  // still gets its own card.
+  const countryNames = Array.from(new Set([...Object.keys(grouped), ...Object.keys(grantedAccess)])).sort();
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -87,9 +111,17 @@ export default function ManageAccess() {
           <Note>No country accounts yet.</Note>
         ) : (
           countryNames.map((country) => (
-            <Card key={country} title={`${country} (${grouped[country].length})`}>
+            <Card key={country} title={`${country} (${(grouped[country] || []).length})`}>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {grouped[country].map((p) => (
+                {(grouped[country] || []).length === 0 && (
+                  <div style={{ fontSize: 12.5, color: "#777", fontStyle: "italic" }}>
+                    No one has {country} as their primary country.
+                    {grantedAccess[country]?.length > 0 && (
+                      <> Granted as a second country to: <strong>{grantedAccess[country].join(", ")}</strong> — revoke that from their primary country's card.</>
+                    )}
+                  </div>
+                )}
+                {(grouped[country] || []).map((p) => (
                   <div key={p.id} style={{ border: "1px solid #e3e8ec", borderRadius: 8, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                     <div>
                       <div style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>{p.email}</div>
