@@ -68,6 +68,14 @@ const STEPS = [
   { id: "review",    label: "6. Review",             title: "Review & Submit"            },
 ];
 
+// Storage key for the Data source / Notes box. Steps 2 (Expenses), 3 (Revenue)
+// and 4 (In-Kind) have Regular/Irregular sub-tabs that must NOT share the same
+// source/notes text -- each sub-tab gets its own independent key so entries
+// made on Regular don't carry over to Irregular (2026-10-01).
+function sourceSlotKey(step, subTab) {
+  return (step === 2 || step === 3 || step === 4) ? `${step}-${subTab}` : `${step}`;
+}
+
 export default function GuidedWizard({ country, data, onSave }) {
   // Hydrate from localStorage draft on mount (component is keyed by country in App.jsx).
   // Local drafts persist for every country, demo included (2026-09-29) -- switching
@@ -141,8 +149,24 @@ export default function GuidedWizard({ country, data, onSave }) {
     );
   });
 
-  const [stepSources, setStepSources] = useState(() => draft?.stepSources || Array(STEPS.length).fill(""));
-  const [stepNotes,   setStepNotes]   = useState(() => draft?.stepNotes   || Array(STEPS.length).fill(""));
+  const migrateStepTextMap = (raw) => {
+    if (raw && !Array.isArray(raw)) return raw; // already the per-subtab object shape
+    const legacy = Array.isArray(raw) ? raw : Array(STEPS.length).fill("");
+    const migrated = {};
+    legacy.forEach((v, i) => {
+      if (i === 2 || i === 3 || i === 4) {
+        // Old drafts had one shared value per step -- carry it into Regular
+        // only; Irregular starts blank rather than inheriting Regular's text.
+        migrated[`${i}-regular`] = v;
+        migrated[`${i}-irregular`] = "";
+      } else {
+        migrated[`${i}`] = v;
+      }
+    });
+    return migrated;
+  };
+  const [stepSources, setStepSources] = useState(() => migrateStepTextMap(draft?.stepSources));
+  const [stepNotes,   setStepNotes]   = useState(() => migrateStepTextMap(draft?.stepNotes));
   // Track which Expenses sub-tabs (Regular / Irregular) the user has visited.
   // Per Willyanne 2026-05-22: country teams must visit BOTH sub-tabs before
   // advancing from Step 3 → Revenue, so Irregular doesn't get silently skipped.
@@ -218,6 +242,12 @@ export default function GuidedWizard({ country, data, onSave }) {
   // Willyanne 2026-05-27 PM: country teams must open the Irregular In-Kind
   // sub-tab before advancing from Step 4 → Review.
   const [inkVisitedIrregular, setInkVisitedIrregular] = useState(() => !!draft?.inkVisitedIrregular);
+  // Active Regular/Irregular sub-tab per step -- lifted up here (rather than
+  // local state inside each Step component) so the Data source/Notes box
+  // below can key off which sub-tab is showing.
+  const [expSubTab, setExpSubTab] = useState("regular");
+  const [revSubTab, setRevSubTab] = useState("regular");
+  const [inkSubTab, setInkSubTab] = useState("regular");
 
   // Autosave every state change. Synchronous localStorage write is fast for this payload size.
   // Runs for every country, demo included (2026-09-29) -- see the hydration
@@ -254,10 +284,12 @@ export default function GuidedWizard({ country, data, onSave }) {
   const conv = { toDisplay, fromDisplay, displaySym, altSym, toAlt, showAlt, displayCode };
 
   const currentStep = STEPS[step];
+  const activeSubTab = step === 2 ? expSubTab : step === 3 ? revSubTab : step === 4 ? inkSubTab : null;
+  const slotKey = sourceSlotKey(step, activeSubTab);
   // Step 2 (Expenses) and Step 3 (Revenue) additionally require visiting the
-  // Irregular sub-tab — without this, Regular alone lets users skip Irregular.
+  // Irregular sub-tab -- without this, Regular alone lets users skip Irregular.
   // Setup step (0) skips the source/notes requirement per Willyanne 2026-05-27 #4.
-  const sourcesNotesOk = step === 0 || (stepSources[step].trim().length > 0 && stepNotes[step].trim().length > 0);
+  const sourcesNotesOk = step === 0 || ((stepSources[slotKey] || "").trim().length > 0 && (stepNotes[slotKey] || "").trim().length > 0);
   const expensesSubtabsOk = step !== 2 || expVisitedIrregular;
   const revenueSubtabsOk  = step !== 3 || revVisitedIrregular;
   const inKindSubtabsOk   = step !== 4 || inkVisitedIrregular;
@@ -383,6 +415,7 @@ export default function GuidedWizard({ country, data, onSave }) {
               irrProjEdits={irrProjEdits} setIrrProjEdits={setIrrProjEdits}
               onIrregularVisited={() => setExpVisitedIrregular(true)}
               visitedIrregular={expVisitedIrregular}
+              subTab={expSubTab} setSubTab={setExpSubTab}
             />
           )}
           {step === 3 && (
@@ -394,6 +427,7 @@ export default function GuidedWizard({ country, data, onSave }) {
               revIrrEdits={revIrrEdits} setRevIrrEdits={setRevIrrEdits}
               onIrregularVisited={() => setRevVisitedIrregular(true)}
               visitedIrregular={revVisitedIrregular}
+              subTab={revSubTab} setSubTab={setRevSubTab}
             />
           )}
           {step === 4 && (
@@ -403,6 +437,7 @@ export default function GuidedWizard({ country, data, onSave }) {
               ikIrrRowsEdits={ikIrrRowsEdits} setIkIrrRowsEdits={setIkIrrRowsEdits}
               onIrregularVisited={() => setInkVisitedIrregular(true)}
               visitedIrregular={inkVisitedIrregular}
+              subTab={inkSubTab} setSubTab={setInkSubTab}
             />
           )}
           {step === 5 && <StepReview  country={country} activityRows={activityRows} currency={currency} budgetYear={budgetYear} erRowsEdits={erRowsEdits} irrProjEdits={irrProjEdits} feesEdits={feesEdits} revRegOtherEdits={revRegOtherEdits} revIrrEdits={revIrrEdits} ikRegRowsEdits={ikRegRowsEdits} ikIrrRowsEdits={ikIrrRowsEdits} />}
@@ -416,8 +451,8 @@ export default function GuidedWizard({ country, data, onSave }) {
                 <div>
                   <label style={labelStyle}>Data source <span style={{ color: C.red }}>*</span></label>
                   <textarea
-                    value={stepSources[step]}
-                    onChange={(e) => setStepSources((s) => s.map((v, i) => i === step ? e.target.value : v))}
+                    value={stepSources[slotKey] || ""}
+                    onChange={(e) => setStepSources((s) => ({ ...s, [slotKey]: e.target.value }))}
                     placeholder="List your data source (document name, date, URL, or page reference)..."
                     style={textareaStyle} rows={2}
                   />
@@ -425,8 +460,8 @@ export default function GuidedWizard({ country, data, onSave }) {
                 <div>
                   <label style={labelStyle}>Notes / calculations <span style={{ color: C.red }}>*</span></label>
                   <textarea
-                    value={stepNotes[step]}
-                    onChange={(e) => setStepNotes((s) => s.map((v, i) => i === step ? e.target.value : v))}
+                    value={stepNotes[slotKey] || ""}
+                    onChange={(e) => setStepNotes((s) => ({ ...s, [slotKey]: e.target.value }))}
                     placeholder="Add any notes, assumptions, or calculations relevant to this step..."
                     style={textareaStyle} rows={2}
                   />
@@ -1325,10 +1360,10 @@ function StepExpensesIrregular({ conv, irrProjEdits, setIrrProjEdits }) {
 // rental/investment/other). Irregular has 4 categories (Grant, Contract,
 // Other 1-time payment, Deferred reserves) plus a Payment status dropdown
 // column unique to Irregular Revenue.
-function StepRevenue({ conv, feesEdits, setFeesEdits, feesColumnsEdits, setFeesColumnsEdits, revRegOtherEdits, setRevRegOtherEdits, revIrrEdits, setRevIrrEdits, onIrregularVisited, visitedIrregular }) {
-  const [sub, setSub] = useState("regular");
+function StepRevenue({ conv, feesEdits, setFeesEdits, feesColumnsEdits, setFeesColumnsEdits, revRegOtherEdits, setRevRegOtherEdits, revIrrEdits, setRevIrrEdits, onIrregularVisited, visitedIrregular, subTab, setSubTab }) {
+  const sub = subTab;
   const handleSub = (id) => {
-    setSub(id);
+    setSubTab(id);
     if (id === "irregular" && onIrregularVisited) onIrregularVisited();
   };
   return (
@@ -1938,10 +1973,10 @@ function FundingSourceSelect({ value, onChange }) {
   );
 }
 
-function InKindStep({ conv, ikRegRowsEdits, setIkRegRowsEdits, ikIrrRowsEdits, setIkIrrRowsEdits, onIrregularVisited, visitedIrregular }) {
-  const [sub, setSub] = useState("regular");
+function InKindStep({ conv, ikRegRowsEdits, setIkRegRowsEdits, ikIrrRowsEdits, setIkIrrRowsEdits, onIrregularVisited, visitedIrregular, subTab, setSubTab }) {
+  const sub = subTab;
   const handleSubChange = (id) => {
-    setSub(id);
+    setSubTab(id);
     if (id === "irregular" && onIrregularVisited) onIrregularVisited();
   };
   return (
@@ -2485,10 +2520,10 @@ function KeyConsiderationsStep({ hasRisks, setHasRisks, hasOpps, setHasOpps, ris
 
 // ─── Step 3: Expenses (sub-tabs: Regular | Irregular) ─────────────────────────
 
-function ExpensesStep({ conv, erRowsEdits, setErRowsEdits, irrProjEdits, setIrrProjEdits, onIrregularVisited, visitedIrregular }) {
-  const [sub, setSub] = useState("regular");
+function ExpensesStep({ conv, erRowsEdits, setErRowsEdits, irrProjEdits, setIrrProjEdits, onIrregularVisited, visitedIrregular, subTab, setSubTab }) {
+  const sub = subTab;
   const handleSubChange = (id) => {
-    setSub(id);
+    setSubTab(id);
     if (id === "irregular" && onIrregularVisited) onIrregularVisited();
   };
   return (
