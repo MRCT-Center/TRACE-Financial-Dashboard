@@ -23,7 +23,7 @@ const sortVersions = (rows) =>
     return new Date(b.created_at) - new Date(a.created_at);
   });
 
-export default function VersionHistory({ country, canEdit, onSaveMilestone, onRestore }) {
+export default function VersionHistory({ country, canEdit, onSaveMilestone, onRestore, onDelete, currentUserEmail }) {
   const [versions, setVersions] = useState([]);
   const [status, setStatus] = useState("loading"); // loading | ready | error
   const [errorMsg, setErrorMsg] = useState("");
@@ -70,6 +70,19 @@ export default function VersionHistory({ country, canEdit, onSaveMilestone, onRe
       await load();
     } catch (err) {
       setErrorMsg(err.message || "Could not restore this version.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleDelete(version) {
+    if (!window.confirm("Delete this draft? This cannot be undone.")) return;
+    setBusy(version.id);
+    try {
+      await onDelete(version);
+      await load();
+    } catch (err) {
+      setErrorMsg(err.message || "Could not delete this draft.");
     } finally {
       setBusy(null);
     }
@@ -144,6 +157,16 @@ export default function VersionHistory({ country, canEdit, onSaveMilestone, onRe
                 </span>
               )}
               <span style={{ fontSize: 12, color: "#777" }}>{v.created_by || "unknown"}</span>
+              {v.kind === "working" && v.created_by === currentUserEmail && (
+                <button
+                  onClick={() => handleDelete(v)}
+                  disabled={busy === v.id}
+                  title="Delete this draft"
+                  style={{ background: "transparent", border: "none", color: C.red, cursor: busy === v.id ? "default" : "pointer", fontSize: 16, padding: "2px 6px", lineHeight: 1, opacity: busy === v.id ? 0.5 : 1 }}
+                >
+                  ×
+                </button>
+              )}
               {canEdit && (
                 confirmRestoreId === v.id ? (
                   <span style={{ display: "flex", gap: 6 }}>

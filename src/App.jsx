@@ -500,6 +500,14 @@ export default function App() {
     if (error) throw new Error(error.message);
   }
 
+  // Delete a working draft. RLS restricts this to the row's own author
+  // (country_versions "authors can delete their own working drafts" policy) --
+  // milestones (Original/Midpoint/Final) aren't deletable by anyone.
+  async function deleteVersion(versionId) {
+    const { error } = await supabase.from("country_versions").delete().eq("id", versionId);
+    if (error) throw new Error(error.message);
+  }
+
   // Restore a past version: replaces (not merges) the live file with that
   // version's data, and records the restore itself as a new working version
   // so it shows up in history rather than looking like a silent edit.
@@ -625,6 +633,8 @@ export default function App() {
               canEdit={!isDemoCountry(selectedCountry)}
               onSaveMilestone={(kind, yearLabel) => saveMilestone(selectedCountry, kind, yearLabel)}
               onRestore={(version) => restoreVersion(selectedCountry, version)}
+              onDelete={(version) => deleteVersion(version.id)}
+              currentUserEmail={session.email}
             />
           )}
           {view === "sandbox" && !isAdmin && (
