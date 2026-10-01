@@ -430,7 +430,7 @@ export default function App() {
     if (error) console.warn("Seed failed:", error.message);
   }
 
-  async function saveCountryData(country, updates, changeSummary) {
+  async function saveCountryData(country, updates, changeSummary, draftTitle) {
     const merged = { ...countryCache[country], ...updates };
     setCountryCache((prev) => ({ ...prev, [country]: merged }));
     // Demo mode: edits update the in-memory cache only (so the UI reflects them
@@ -445,7 +445,7 @@ export default function App() {
       updated_by: session?.email || "unknown",
     });
     if (error) { console.warn("Save failed:", error.message); return; }
-    await recordWorkingVersion(country, merged, changeSummary);
+    await recordWorkingVersion(country, merged, changeSummary, draftTitle);
   }
 
   // Master version history (2026-09-29). A 'working' snapshot is recorded on
@@ -455,10 +455,11 @@ export default function App() {
   // author enters on the wizard's Review/Submit step before hitting Submit --
   // optional, only the wizard passes one; inline Results edits and restores
   // don't collect one.
-  async function recordWorkingVersion(country, data, changeSummary) {
+  async function recordWorkingVersion(country, data, changeSummary, draftTitle) {
     const { error } = await supabase.from("country_versions").insert({
       country, kind: "working", data, created_by: session?.email || "unknown",
       summary: changeSummary || null,
+      year_label: draftTitle || null,
     });
     if (error) { console.warn("Could not record version history:", error.message); return; }
     await pruneWorkingVersions(country);
@@ -615,7 +616,7 @@ export default function App() {
               key={selectedCountry}
               country={selectedCountry}
               data={countryData}
-              onSave={(updates, changeSummary) => saveCountryData(selectedCountry, updates, changeSummary)}
+              onSave={(updates, changeSummary, draftTitle) => saveCountryData(selectedCountry, updates, changeSummary, draftTitle)}
             />
           )}
           {view === "history" && (

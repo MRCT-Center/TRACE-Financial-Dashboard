@@ -252,6 +252,10 @@ export default function GuidedWizard({ country, data, onSave }) {
   // before hitting Submit. Shown later in Version History between the
   // timestamp and the author (2026-10-01).
   const [changeSummary, setChangeSummary] = useState(() => draft?.changeSummary || "");
+  // Short name for this draft/working save, shown first (next to the "Working
+  // save" badge) in Version History -- the same free-text naming pattern used
+  // for Original/Midpoint/Final milestones, reused here for drafts (2026-10-01).
+  const [draftTitle, setDraftTitle] = useState(() => draft?.draftTitle || "");
 
   // Autosave every state change. Synchronous localStorage write is fast for this payload size.
   // Runs for every country, demo included (2026-09-29) -- see the hydration
@@ -266,10 +270,10 @@ export default function GuidedWizard({ country, data, onSave }) {
       revRegOtherEdits, revIrrEdits,
       ikRegRowsEdits, ikIrrRowsEdits,
       expVisitedIrregular, revVisitedIrregular, inkVisitedIrregular,
-      changeSummary,
+      changeSummary, draftTitle,
     });
     setDraftSavedAt(new Date().toISOString());
-  }, [country, submitted, step, maxStepReached, currency.code, inputMode, unit, budgetYear, hasRisks, hasOpps, riskText, oppText, activityRows, stepSources, stepNotes, erRowsEdits, feesEdits, feesColumnsEdits, irrProjEdits, revRegOtherEdits, revIrrEdits, ikRegRowsEdits, ikIrrRowsEdits, expVisitedIrregular, revVisitedIrregular, inkVisitedIrregular, changeSummary]);
+  }, [country, submitted, step, maxStepReached, currency.code, inputMode, unit, budgetYear, hasRisks, hasOpps, riskText, oppText, activityRows, stepSources, stepNotes, erRowsEdits, feesEdits, feesColumnsEdits, irrProjEdits, revRegOtherEdits, revIrrEdits, ikRegRowsEdits, ikIrrRowsEdits, expVisitedIrregular, revVisitedIrregular, inkVisitedIrregular, changeSummary, draftTitle]);
 
   // Static exchange rate — recomputed when currency changes. Rates source: CurrencyContext map.
   useEffect(() => {
@@ -445,7 +449,7 @@ export default function GuidedWizard({ country, data, onSave }) {
               subTab={inkSubTab} setSubTab={setInkSubTab}
             />
           )}
-          {step === 5 && <StepReview  country={country} activityRows={activityRows} currency={currency} budgetYear={budgetYear} erRowsEdits={erRowsEdits} irrProjEdits={irrProjEdits} feesEdits={feesEdits} revRegOtherEdits={revRegOtherEdits} revIrrEdits={revIrrEdits} ikRegRowsEdits={ikRegRowsEdits} ikIrrRowsEdits={ikIrrRowsEdits} changeSummary={changeSummary} setChangeSummary={setChangeSummary} />}
+          {step === 5 && <StepReview  country={country} activityRows={activityRows} currency={currency} budgetYear={budgetYear} erRowsEdits={erRowsEdits} irrProjEdits={irrProjEdits} feesEdits={feesEdits} revRegOtherEdits={revRegOtherEdits} revIrrEdits={revIrrEdits} ikRegRowsEdits={ikRegRowsEdits} ikIrrRowsEdits={ikIrrRowsEdits} changeSummary={changeSummary} setChangeSummary={setChangeSummary} draftTitle={draftTitle} setDraftTitle={setDraftTitle} />}
 
           {/* Sources & Notes — required on every step except Setup (per
               Willyanne 2026-05-27 mid-day item #4) and Review. */}
@@ -595,9 +599,10 @@ export default function GuidedWizard({ country, data, onSave }) {
                 ikIrr:     ikIrrFinal,
                 ikIrrRows: ikIrrRowsEdits,
               };
-              if (onSave) await onSave(updates, changeSummary.trim());
+              if (onSave) await onSave(updates, changeSummary.trim(), draftTitle.trim());
               clearDraft(country);
               setChangeSummary("");
+              setDraftTitle("");
               setSaving(false);
               setSubmitted(true);
             }}
@@ -2551,7 +2556,7 @@ function ExpensesStep({ conv, erRowsEdits, setErRowsEdits, irrProjEdits, setIrrP
   );
 }
 
-function StepReview({ country, activityRows, currency, budgetYear, erRowsEdits, irrProjEdits, feesEdits, revRegOtherEdits, revIrrEdits, ikRegRowsEdits, ikIrrRowsEdits, changeSummary, setChangeSummary }) {
+function StepReview({ country, activityRows, currency, budgetYear, erRowsEdits, irrProjEdits, feesEdits, revRegOtherEdits, revIrrEdits, ikRegRowsEdits, ikIrrRowsEdits, changeSummary, setChangeSummary, draftTitle, setDraftTitle }) {
   const filledActivities = activityRows.filter((r) => r.nearTerm && r.longTerm);
   const sumRows = (rows) => (rows || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
   const totalRegExpenses = sumRows(erRowsEdits);
@@ -2591,6 +2596,16 @@ function StepReview({ country, activityRows, currency, budgetYear, erRowsEdits, 
           {activityRows.length - filledActivities.length} activities don't have both near-term and long-term selections. You can go back to complete them or submit now.
         </div>
       )}
+      <div>
+        <label style={labelStyle}>Name this draft</label>
+        <input
+          value={draftTitle}
+          onChange={(e) => setDraftTitle(e.target.value)}
+          placeholder="e.g. Q3 budget update, Post-review revisions..."
+          style={{ ...textareaStyle, height: "auto" }}
+        />
+        <div style={{ fontSize: 11.5, color: "#999", marginTop: 4 }}>Optional -- shows up as this save's title in Version History, same as naming an Original/Midpoint/Final.</div>
+      </div>
       <div>
         <label style={labelStyle}>Summary of changes</label>
         <textarea
