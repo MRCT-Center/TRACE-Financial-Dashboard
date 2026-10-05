@@ -16,14 +16,26 @@ export const fmt = (n) =>
 
 export const fmtPct = (n) => `${Math.round(n)}%`;
 
+// 2026-10-05 (Hayat): dropped the test-tube/petri-dish emoji for the two demo
+// countries in favor of the plain text "demo" prefix, so they read the same
+// way real countries read with their flag prefix (flag/prefix + name).
 export const COUNTRY_FLAGS = {
-  Nyika: "🧪", // fake example country (worked demo data)
-  "Nyika II": "🧫", // internal test copy of Nyika — real persistence, testers only
+  Nyika: "demo",
+  "Nyika II": "demo",
   Kenya: "🇰🇪",
   Nigeria: "🇳🇬",
   Rwanda: "🇷🇼",
   Tanzania: "🇹🇿",
   Zimbabwe: "🇿🇼",
+};
+
+// Display-only name suffixes clarifying the two demo countries' save
+// behavior, shown wherever the country name itself is rendered to a user
+// (2026-10-05). The underlying country key stays plain "Nyika"/"Nyika II"
+// everywhere else in the app -- this is a label lookup only.
+export const COUNTRY_DISPLAY_NAMES = {
+  Nyika: "Nyika (no saving)",
+  "Nyika II": "Nyika II (saves files)",
 };
 
 export const COLORS = {

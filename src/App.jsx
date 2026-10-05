@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { COUNTRY_FLAGS, COLORS as C } from "./utils/metrics";
+import { COUNTRY_FLAGS, COUNTRY_DISPLAY_NAMES, COLORS as C } from "./utils/metrics";
 import { COUNTRIES } from "./data/countries";
 import { EXPENSES_REGULAR_ROW_DEFAULTS } from "./data/expensesRegular";
 import { FEES_DEFAULT_ROWS, FEES_DEFAULT_COLUMN_LABELS, isLegacyFeesArray, isAllBlankFees, totalFeesRevenue, deriveLegacyFeeFields } from "./data/feesModel";
@@ -597,7 +597,6 @@ export default function App() {
   }
 
   const isAdmin = session.role === "admin";
-  const views = isAdmin ? ADMIN_VIEWS : COUNTRY_VIEWS;
   // Nyika is open to everyone to view/play (never saves, see DEMO_MODE); a
   // country rep also gets whatever's in grantedCountries (e.g. Nyika II) on
   // top of their own country. Admins keep the existing full COUNTRY_NAMES
@@ -607,6 +606,12 @@ export default function App() {
     : [...new Set([session.country, ...grantedCountries, "Nyika"].filter(Boolean))];
   const countryData = countryCache[selectedCountry] || COUNTRIES[selectedCountry];
   const flag = COUNTRY_FLAGS[selectedCountry] || "";
+  // Nyika never saves anything (see isDemoCountry) so there is never a Version
+  // History to show for it -- hide that tab whenever Nyika is the selected
+  // country (2026-10-05, Hayat). Nyika II and every real country keep it.
+  const views = (isAdmin ? ADMIN_VIEWS : COUNTRY_VIEWS).filter(
+    (v) => !(v.id === "history" && selectedCountry === "Nyika")
+  );
 
   return (
     <CurrencyProvider country={selectedCountry}>
@@ -616,7 +621,12 @@ export default function App() {
           selectedCountry={selectedCountry}
           flag={flag}
           countryNames={availableCountries}
-          onCountryChange={(c) => setSelectedCountry(c)}
+          onCountryChange={(c) => {
+            setSelectedCountry(c);
+            // Nyika has no Version History tab (see `views` above) -- bounce
+            // back to Introduction if that's where the user was standing.
+            if (c === "Nyika" && view === "history") setView("intro");
+          }}
           onLogout={handleLogout}
           email={session.email}
           dbStatus={dbStatus}
@@ -624,7 +634,7 @@ export default function App() {
         />
         <NavBar views={views} current={view} onSelect={setView} />
         <main style={{ flex: 1, padding: "20px 16px", maxWidth: 1200, margin: "0 auto", width: "100%" }}>
-          {view === "intro"   && <IntroPage onNavigate={setView} isAdmin={isAdmin} />}
+          {view === "intro"   && <IntroPage onNavigate={setView} isAdmin={isAdmin} selectedCountry={selectedCountry} />}
           {view === "wizard"  && (
             <GuidedWizard
               key={selectedCountry}
@@ -781,11 +791,11 @@ function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange,
             style={{ background: C.darkNavy, color: "#fff", border: `1px solid ${C.teal}`, borderRadius: 6, padding: "6px 10px", fontSize: 14, minHeight: 44 }}
           >
             {countryNames.map((c) => (
-              <option key={c} value={c}>{COUNTRY_FLAGS[c]} {c}</option>
+              <option key={c} value={c}>{COUNTRY_FLAGS[c]} {COUNTRY_DISPLAY_NAMES[c] || c}</option>
             ))}
           </select>
         ) : (
-          <div style={{ fontSize: 15, fontWeight: 600 }}>{flag} {selectedCountry}</div>
+          <div style={{ fontSize: 15, fontWeight: 600 }}>{flag} {COUNTRY_DISPLAY_NAMES[selectedCountry] || selectedCountry}</div>
         )}
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

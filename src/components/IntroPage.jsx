@@ -13,10 +13,26 @@ const DASHBOARD_SECTIONS = [
   { name: "Review", desc: "An opportunity to check over the inputs section." },
 ];
 
+// 2026-10-05 revised instructions: the "New to this tool?" box's Guided
+// Wizard entry point depends on which country is selected -- Nyika (the
+// no-save, "Nyika" demo) starts at Inputs_Setup (the wizard's own step 1),
+// while Nyika II and every real country start at the Version History
+// screen instead, since that's where creating/opening a Master file begins.
+// `view` can be either a plain string or a function of the selected country.
 const HOW_TO_START = [
-  { icon: "📝", heading: "New to this tool?", body: "Start with the Guided Wizard — it will walk you through entering your country's data step by step.", view: "wizard" },
-  { icon: "📊", heading: "Reviewing existing data?", body: "Go to Results for a high-level overview and to explore Expenses, Revenue, Gap Analysis, and Activities.", view: "results" },
-  { icon: "🌍", heading: "MRCT Center Admin?", body: "Use the country selector in the top menu to switch between countries. The Admin tab shows cross-country comparisons and data completeness.", view: "admin", adminOnly: true },
+  {
+    icon: "📝",
+    heading: "New to this tool?",
+    body: "Start by selecting 'Nyika' or 'Nyika II' and then use the Guided Wizard by clicking 'Go' to go through the tool step by step. Please note, it is helpful to review the instructions that are listed for each step.",
+    view: (country) => (country === "Nyika" ? "wizard" : "history"),
+  },
+  {
+    icon: "🌍",
+    heading: "Ready to enter country data?",
+    body: "Once you are familiar with the tool, and you are ready to enter your country's data, start by selecting your country from the drop-down list at the top left of the screen. Then use the Guided Wizard by clicking 'Go' to start at the 'Version History' page.",
+    view: "history",
+  },
+  { icon: "📊", heading: "Visualizing data?", body: "Go to Results for a high-level overview and to explore Expenses, Revenue, Gap Analysis, and Activities.", view: "results" },
 ];
 
 const WORKSTREAMS = [
@@ -62,7 +78,7 @@ const DESIGN_DECISIONS = [
   },
 ];
 
-export default function IntroPage({ onNavigate, isAdmin }) {
+export default function IntroPage({ onNavigate, isAdmin, selectedCountry }) {
   return (
     <div style={{ maxWidth: 960, margin: "0 auto", width: "100%" }}>
       <div style={{ background: C.navy, borderRadius: 10, padding: "28px 32px", color: "#fff", marginBottom: 24 }}>
@@ -205,11 +221,24 @@ export default function IntroPage({ onNavigate, isAdmin }) {
         </Section>
 
         <Section title="How to get started">
+          <p style={{ ...bodyText, marginBottom: 16 }}>
+            Your starting point in the TRACE Financial Dashboard depends upon what you would like to do.
+            If you are new to the tool would like to see how the Dashboard works before entering in your
+            country's data and creating saved files, you can play with the program by using the demo
+            country of Nyika that has pre-populated fake "dummy data." To do a basic introduction, use the
+            "Nyika" option from the country drop-down list at the top left of the screen. You can play with
+            the Nyika demo by editing the "dummy data" on these input screens, but these changes will not be
+            saved. To do an advanced introduction, use the "Nyika II" option, which allows you to test the
+            full functionality of the program, including saving and updating a Master file for each year,
+            and uploading a saved file to a "Sandbox" where you can test scenarios without altering the
+            original file. If you are familiar with the tool and you are ready to start entering your
+            country's data, select your country from the country drop-down list at the top left of the screen.
+          </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
-            {HOW_TO_START.filter((item) => !item.adminOnly || isAdmin).map((item, i) => (
+            {HOW_TO_START.map((item, i) => (
               <button
                 key={i}
-                onClick={() => onNavigate?.(item.view)}
+                onClick={() => onNavigate?.(typeof item.view === "function" ? item.view(selectedCountry) : item.view)}
                 style={{
                   flex: "1 1 220px",
                   background: "#fff",
@@ -234,8 +263,7 @@ export default function IntroPage({ onNavigate, isAdmin }) {
 
         <div style={{ background: "#fff", border: `1px solid #dde`, borderRadius: 9, padding: "18px 20px", fontSize: 13, color: C.blueGrey, lineHeight: 1.65 }}>
           <strong style={{ color: C.navy }}>Questions or feedback?</strong> Contact the MRCT Center team.
-          This prototype is being developed in close collaboration with country teams ahead of the
-          Zimbabwe meeting in June 2026.
+          This prototype is being developed in close collaboration with TRACE country teams.
         </div>
       </div>
     </div>

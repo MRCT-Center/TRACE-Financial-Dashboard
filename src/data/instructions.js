@@ -177,6 +177,33 @@ export const SUMMARY_IRREGULAR = [
   'Step 5: Look at what you entered for your long-term forecast. What would you prioritize most in the existing budget, and what would you advocate is most important for additional funding?',
 ];
 
+// 2026-10-05 revised instructions: replaces the Summary-sheet-based review
+// instructions above (which described a step that no longer exists) with
+// steps that match the actual Review & Submit screen -- checking the grey
+// Summary box, naming the draft, documenting changes, and submitting.
+export const REVIEW_SUBMIT_STEPS = [
+  'Step 1: Review the grey Summary box above, which shows a read-only overview of everything entered in this draft so far. Check it against what you intended to enter before submitting.',
+  'Step 2: In the "Name this draft" box, give this draft a short, recognizable title (guidance: 50 characters or fewer), such as "2026 Q2 budget update" or "2026 Q2 budget update_edits (1)."',
+  'Step 3: In the "Document changes" box, briefly describe the main edits made in this version (guidance: fewer than 100 characters) -- this note shows up next to this draft in Version History so others can see what changed at a glance.',
+  'Step 4: Click Submit to save this draft.',
+];
+
+// Version History page instructions (2026-10-05). Steps 3b (Midpoint file)
+// and 3c (Final file) are deliberately left as placeholders -- Hayat asked
+// to leave them blank for now and send the real text later; do not invent
+// content for these two steps.
+export const VERSION_HISTORY_STEPS = [
+  'Step 1: Set the Year dates for Original, Midpoint, and Final above. These dates don\'t have to span January 1 to December 31 -- for example, your year could start March 15, reach its midpoint September 1, and close with a Final on January 30.',
+  'Step 2: Use the open text box in the Master file section to create a title for this file, including the year (e.g., "2026" or "Ethics System Financials 2026"). Then click "Save as Original."',
+  'Step 3a: Once you open the Original and click Submit, that creates an updated draft. From then on, further edits must go through the most recent draft -- older files remain viewable but are no longer editable. The tool automatically keeps only the 5 most recent drafts since the last milestone.',
+  'Step 3b: [Placeholder -- Midpoint file instructions coming soon.]',
+  'Step 3c: [Placeholder -- Final file instructions coming soon.]',
+  'Step 4: The red × at the far right of a draft\'s row deletes that draft. Original, Midpoint, and Final files cannot be deleted.',
+];
+
+export const VERSION_HISTORY_NOTE =
+  "For the demo version Nyika II only: you will see the Original/Midpoint/Final and draft files that YOU created, but you will not be able to see the files that others create while they are testing/learning about the tool. This is because anyone with access to the Dashboard can view/edit files in Nyika II. For the country files, only authorized representatives for that country will be able to view/edit those files, and they will be able to see the files that fellow country representatives created/edited.";
+
 // Map each wizard step to the relevant sheet(s) from the workbook.
 // `note` is an optional banner shown above the instructions when the dashboard
 // step doesn't map cleanly to the workbook structure.
@@ -213,10 +240,18 @@ export const WIZARD_STEP_INSTRUCTIONS = {
   },
   review: {
     sheets: [
-      { name: "From Summary sheet (regular)", lines: SUMMARY_REGULAR },
-      { name: "From Summary sheet (irregular)", lines: SUMMARY_IRREGULAR },
+      { name: "Review & Submit", lines: REVIEW_SUBMIT_STEPS },
     ],
   },
+};
+
+// Separate from WIZARD_STEP_INSTRUCTIONS since the Version History page isn't
+// a wizard step -- consumed directly by VersionHistory.jsx.
+export const VERSION_HISTORY_STEP_INSTRUCTIONS = {
+  note: VERSION_HISTORY_NOTE,
+  sheets: [
+    { name: "Version history", lines: VERSION_HISTORY_STEPS },
+  ],
 };
 
 // Budget Forecast instructions for the Forecast Results tab. Willyanne's final

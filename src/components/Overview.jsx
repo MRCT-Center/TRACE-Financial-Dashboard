@@ -1,5 +1,5 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
-import { gm, fmtPct, COLORS as C } from "../utils/metrics";
+import { gm, fmtPct, COLORS as C, COUNTRY_DISPLAY_NAMES } from "../utils/metrics";
 import { useCurrency } from "../utils/CurrencyContext";
 import { EXPENSES_REGULAR, EXPENSES_REGULAR_ITEM_LOOKUP, NEC_KEYS } from "../data/expensesRegular";
 import InfoTip, { Def } from "./InfoTip";
@@ -37,7 +37,7 @@ function PageHeader({ country, flag, m }) {
     <div style={{ background: C.navy, borderRadius: 10, padding: "18px 24px", color: "#fff", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
       <div>
         <div style={{ fontSize: 11, opacity: 0.65, textTransform: "uppercase", letterSpacing: 1 }}>Financial Overview</div>
-        <div style={{ fontSize: 22, fontWeight: 700, marginTop: 2 }}>{flag} {country}</div>
+        <div style={{ fontSize: 22, fontWeight: 700, marginTop: 2 }}>{flag} {COUNTRY_DISPLAY_NAMES[country] || country}</div>
       </div>
       <div style={{ textAlign: "right" }}>
         <div style={{ fontSize: 12, opacity: 0.7 }}>Combined budget gap</div>

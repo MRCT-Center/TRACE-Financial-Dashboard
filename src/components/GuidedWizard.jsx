@@ -1,5 +1,5 @@
 import { useState, useEffect, Fragment } from "react";
-import { COLORS as C } from "../utils/metrics";
+import { COLORS as C, COUNTRY_DISPLAY_NAMES } from "../utils/metrics";
 import StepInstructions from "./StepInstructions";
 import { WIZARD_STEP_INSTRUCTIONS } from "../data/instructions";
 import { CURRENCIES as CURRENCY_MAP, COUNTRY_CURRENCIES } from "../utils/CurrencyContext";
@@ -377,7 +377,7 @@ export default function GuidedWizard({ country, data, onSave }) {
   return (
     <div style={{ maxWidth: 960, margin: "0 auto", width: "100%" }}>
       <div style={{ background: C.navy, borderRadius: 10, padding: "16px 22px", color: "#fff", marginBottom: 12 }}>
-        <div style={{ fontSize: 18, fontWeight: 700 }}>Guided Wizard — {country}</div>
+        <div style={{ fontSize: 18, fontWeight: 700 }}>Guided Wizard — {COUNTRY_DISPLAY_NAMES[country] || country}</div>
         <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>Enter data step by step. Data source and notes are required on each step (except Setup) before advancing.</div>
       </div>
 
@@ -2666,7 +2666,7 @@ function StepReview({ country, activityRows, currency, budgetYear, erRowsEdits, 
       <div style={{ background: C.lightBG, borderRadius: 8, padding: "14px 18px" }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 8 }}>Summary</div>
         <div style={{ fontSize: 13, color: "#444", lineHeight: 1.9 }}>
-          <div>Country: <strong>{country}</strong></div>
+          <div>Country: <strong>{COUNTRY_DISPLAY_NAMES[country] || country}</strong></div>
           <div>Currency: <strong>{currency.code} ({currency.symbol})</strong></div>
           <div>Budget year: <strong>{budgetYear || "—"}</strong></div>
           <div style={{ borderTop: `1px solid ${C.lightBorder || "#dde"}`, margin: "8px 0 4px" }} />
@@ -2691,20 +2691,22 @@ function StepReview({ country, activityRows, currency, budgetYear, erRowsEdits, 
         <input
           value={draftTitle}
           onChange={(e) => setDraftTitle(e.target.value)}
-          placeholder="e.g. Q3 budget update, Post-review revisions..."
+          placeholder="e.g., 2026 Q2 budget update, 2026 Q2 budget update_edits (1)"
           style={{ ...textareaStyle, height: "auto" }}
         />
-        <div style={{ fontSize: 11.5, color: "#999", marginTop: 4 }}>Optional -- shows up as this save's title in Version History, same as naming an Original/Midpoint/Final.</div>
+        {/* Guidance only, 2026-10-05 -- not enforced with maxLength or truncation. */}
+        <div style={{ fontSize: 11.5, color: "#999", marginTop: 4 }}>Optional -- shows up as this save's title in Version History, same as naming an Original/Midpoint/Final. Guidance: 50 characters or fewer.</div>
       </div>
       <div>
-        <label style={labelStyle}>Summary of changes</label>
+        <label style={labelStyle}>Document changes</label>
         <textarea
           value={changeSummary}
           onChange={(e) => setChangeSummary(e.target.value)}
-          placeholder="In 1-2 sentences, describe what you changed in this submission..."
+          placeholder="(<100 characters) describe principal edits in this version"
           style={textareaStyle} rows={2}
         />
-        <div style={{ fontSize: 11.5, color: "#999", marginTop: 4 }}>Optional, but helpful -- shows up next to this save in Version History.</div>
+        {/* Guidance only, 2026-10-05 -- not enforced with maxLength or truncation. */}
+        <div style={{ fontSize: 11.5, color: "#999", marginTop: 4 }}>Optional, but helpful -- shows up next to this save in Version History. Guidance: fewer than 100 characters.</div>
       </div>
       <div style={{ fontSize: 13, color: C.blueGrey, fontStyle: "italic" }}>Click "Submit ✓" to save this wizard entry.</div>
     </div>
