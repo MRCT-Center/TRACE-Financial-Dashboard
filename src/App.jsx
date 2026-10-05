@@ -647,6 +647,7 @@ export default function App() {
             <VersionHistory
               country={selectedCountry}
               canEdit={!isDemoCountry(selectedCountry)}
+              isAdmin={isAdmin}
               onSaveMilestone={(kind, yearLabel) => saveMilestone(selectedCountry, kind, yearLabel)}
               onRestore={(version) => restoreVersion(selectedCountry, version)}
               onDelete={(version) => deleteVersion(version.id)}
