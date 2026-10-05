@@ -52,13 +52,28 @@ export default function VersionHistory({ country, canEdit, onSaveMilestone, onRe
 
   useEffect(() => { load(); }, [load]);
 
+  // Only one Midpoint and one Final are allowed per cycle (everything since
+  // the country's most recent Original) -- enforced for real in the database
+  // (country_version_milestone_allowed, 2026-10-05), mirrored here so the
+  // button is disabled before a rejected save ever happens. A fresh Original
+  // starts a new cycle and re-enables both.
+  const lastOriginalAt = versions
+    .filter((v) => v.kind === "original")
+    .reduce((max, v) => (!max || v.created_at > max ? v.created_at : max), null);
+  const cycleHasMilestone = (kind) =>
+    versions.some((v) => v.kind === kind && (!lastOriginalAt || v.created_at >= lastOriginalAt));
+
   async function handleMilestone(kind) {
     setBusy(kind);
     try {
       await onSaveMilestone(kind, yearLabel.trim() || null);
       await load();
     } catch (err) {
-      setErrorMsg(err.message || "Could not save milestone.");
+      if ((kind === "midpoint" || kind === "final") && /row-level security|RLS/i.test(err.message || "")) {
+        setErrorMsg(`A ${KIND_LABELS[kind]} has already been saved for this cycle. Save a new Original to start a new cycle before saving another ${KIND_LABELS[kind]}.`);
+      } else {
+        setErrorMsg(err.message || "Could not save milestone.");
+      }
     } finally {
       setBusy(null);
     }
@@ -111,20 +126,25 @@ export default function VersionHistory({ country, canEdit, onSaveMilestone, onRe
               placeholder="Year (e.g. 2026 or FY 2026/27)"
               style={{ padding: "6px 10px", fontSize: 12.5, border: "1px solid #ccd", borderRadius: 6, minHeight: 36, width: 190 }}
             />
-            {["original", "midpoint", "final"].map((kind) => (
-              <button
-                key={kind}
-                onClick={() => handleMilestone(kind)}
-                disabled={busy === kind}
-                style={{
-                  padding: "8px 14px", minHeight: 36, borderRadius: 6, border: "none",
-                  background: KIND_COLORS[kind], color: "#fff", fontSize: 12.5, fontWeight: 600,
-                  cursor: busy === kind ? "default" : "pointer", opacity: busy === kind ? 0.6 : 1,
-                }}
-              >
-                {busy === kind ? "Saving…" : `Save as ${KIND_LABELS[kind]}`}
-              </button>
-            ))}
+            {["original", "midpoint", "final"].map((kind) => {
+              const alreadySaved = (kind === "midpoint" || kind === "final") && cycleHasMilestone(kind);
+              const disabled = busy === kind || alreadySaved;
+              return (
+                <button
+                  key={kind}
+                  onClick={() => handleMilestone(kind)}
+                  disabled={disabled}
+                  title={alreadySaved ? `A ${KIND_LABELS[kind]} has already been saved for this cycle. Save a new Original to start a new cycle.` : undefined}
+                  style={{
+                    padding: "8px 14px", minHeight: 36, borderRadius: 6, border: "none",
+                    background: KIND_COLORS[kind], color: "#fff", fontSize: 12.5, fontWeight: 600,
+                    cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.5 : 1,
+                  }}
+                >
+                  {busy === kind ? "Saving…" : alreadySaved ? `${KIND_LABELS[kind]} already saved` : `Save as ${KIND_LABELS[kind]}`}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
