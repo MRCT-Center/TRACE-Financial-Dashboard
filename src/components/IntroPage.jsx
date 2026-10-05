@@ -248,6 +248,15 @@ export default function IntroPage({ onNavigate, isAdmin, selectedCountry }) {
                   textAlign: "left",
                   cursor: "pointer",
                   transition: "box-shadow 0.15s, border-color 0.15s",
+                  // Buttons get an internal flex layout by default in some
+                  // browsers (vertically centers content), which left the
+                  // icon/title lower in shorter cards than taller ones once
+                  // the row stretched them to equal height. Force top
+                  // alignment explicitly (2026-10-05).
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  justifyContent: "flex-start",
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 0 0 2px ${C.teal}`; }}
                 onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "none"; }}
