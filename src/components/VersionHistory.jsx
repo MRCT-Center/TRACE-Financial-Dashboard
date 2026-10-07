@@ -3,7 +3,7 @@ import { COLORS as C, gm, fmt } from "../utils/metrics";
 import { supabase } from "../supabaseClient";
 import YearDates from "./YearDates";
 import StepInstructions from "./StepInstructions";
-import { VERSION_HISTORY_STEP_INSTRUCTIONS } from "../data/instructions";
+import { VERSION_HISTORY_STEP_INSTRUCTIONS, VERSION_HISTORY_NOTE } from "../data/instructions";
 
 // Best-effort totals for the read-only "View" modal (2026-10-05) -- gm()
 // expects er/ei/revFees/revOther/ri/ikReg/ikIrr to be present (they are, on
@@ -54,7 +54,9 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
   const [versions, setVersions] = useState([]);
   const [status, setStatus] = useState("loading"); // loading | ready | error
   const [errorMsg, setErrorMsg] = useState("");
-  const [yearLabel, setYearLabel] = useState(String(new Date().getFullYear()));
+  // Starts blank and only accepts a four-digit year (2026-10-07, batch 1).
+  const [yearLabel, setYearLabel] = useState("");
+  const yearValid = /^\d{4}$/.test(yearLabel);
   const [busy, setBusy] = useState(null); // version id or milestone kind currently in flight
   const [confirmRestoreId, setConfirmRestoreId] = useState(null);
   const [viewingVersion, setViewingVersion] = useState(null); // read-only "View" modal
@@ -86,8 +88,13 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
   const lastOriginalAt = versions
     .filter((v) => v.kind === "original")
     .reduce((max, v) => (!max || v.created_at > max ? v.created_at : max), null);
+  // In Nyika II everyone shares one Original, so the one-Midpoint/one-Final
+  // limit is per tester there (mirrors country_version_milestone_allowed).
   const cycleHasMilestone = (kind) =>
-    versions.some((v) => v.kind === kind && (!lastOriginalAt || v.created_at >= lastOriginalAt));
+    versions.some((v) =>
+      v.kind === kind &&
+      (!lastOriginalAt || v.created_at >= lastOriginalAt) &&
+      (country !== "Nyika II" || v.created_by === currentUserEmail));
 
   // Editing can only ever continue from whichever version is chronologically
   // newest overall (any kind -- a milestone counts too if nothing has been
@@ -104,9 +111,11 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
   )?.id ?? null;
 
   async function handleMilestone(kind) {
+    if (!yearValid) { setErrorMsg("Enter a four-digit year (for example, 2026) before saving."); return; }
+    setErrorMsg("");
     setBusy(kind);
     try {
-      await onSaveMilestone(kind, yearLabel.trim() || null);
+      await onSaveMilestone(kind, yearLabel);
       await load();
     } catch (err) {
       if ((kind === "midpoint" || kind === "final") && /row-level security|RLS/i.test(err.message || "")) {
@@ -133,13 +142,14 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
   }
 
   async function handleDelete(version) {
-    if (!window.confirm("Delete this draft? This cannot be undone.")) return;
+    const what = version.kind === "working" ? "draft" : `${KIND_LABELS[version.kind]} file`;
+    if (!window.confirm(`Delete this ${what}? This cannot be undone.`)) return;
     setBusy(version.id);
     try {
       await onDelete(version);
       await load();
     } catch (err) {
-      setErrorMsg(err.message || "Could not delete this draft.");
+      setErrorMsg(err.message || "Could not delete this file.");
     } finally {
       setBusy(null);
     }
@@ -147,9 +157,16 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <StepInstructions stepInstructions={VERSION_HISTORY_STEP_INSTRUCTIONS} />
+      <StepInstructions
+        stepInstructions={{
+          ...VERSION_HISTORY_STEP_INSTRUCTIONS,
+          // The "only for the demo version Nyika II" note is meaningless (and
+          // confusing) on a real country's page, so only show it there.
+          note: country === "Nyika II" ? VERSION_HISTORY_NOTE : undefined,
+        }}
+      />
 
-      <YearDates country={country} canEdit={canEdit} />
+      <YearDates country={country} canEdit={canEdit && (country !== "Nyika II" || isAdmin)} />
 
       <div style={{ background: "#fff", border: "1px solid #dde", borderRadius: 10, padding: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 8 }}>Master file</div>
@@ -162,26 +179,35 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginBottom: 4 }}>
             <input
               value={yearLabel}
-              onChange={(e) => setYearLabel(e.target.value)}
-              placeholder="Year (e.g. 2026 or FY 2026/27)"
-              style={{ padding: "6px 10px", fontSize: 12.5, border: "1px solid #ccd", borderRadius: 6, minHeight: 36, width: 190 }}
+              onChange={(e) => setYearLabel(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              inputMode="numeric"
+              maxLength={4}
+              placeholder="Year (e.g. 2026)"
+              style={{ padding: "6px 10px", fontSize: 12.5, border: "1px solid #ccd", borderRadius: 6, minHeight: 36, width: 150 }}
             />
             {["original", "midpoint", "final"].map((kind) => {
               const alreadySaved = (kind === "midpoint" || kind === "final") && cycleHasMilestone(kind);
-              const disabled = busy === kind || alreadySaved;
+              // Nyika II's Original is the shared demo starting point: admins only.
+              const adminOnlyOriginal = kind === "original" && country === "Nyika II" && !isAdmin;
+              const disabled = busy === kind || alreadySaved || adminOnlyOriginal || !yearValid;
               return (
                 <button
                   key={kind}
                   onClick={() => handleMilestone(kind)}
                   disabled={disabled}
-                  title={alreadySaved ? `A ${KIND_LABELS[kind]} has already been saved for this cycle. Save a new Original to start a new cycle.` : undefined}
+                  title={
+                    adminOnlyOriginal ? "Only administrators can save the Nyika II Original."
+                    : alreadySaved ? `A ${KIND_LABELS[kind]} has already been saved for this cycle. Save a new Original to start a new cycle.`
+                    : !yearValid ? "Enter a four-digit year first."
+                    : undefined
+                  }
                   style={{
                     padding: "8px 14px", minHeight: 36, borderRadius: 6, border: "none",
                     background: KIND_COLORS[kind], color: "#fff", fontSize: 12.5, fontWeight: 600,
                     cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.5 : 1,
                   }}
                 >
-                  {busy === kind ? "Saving…" : alreadySaved ? `${KIND_LABELS[kind]} already saved` : `Save as ${KIND_LABELS[kind]}`}
+                  {busy === kind ? "Saving…" : alreadySaved ? `${KIND_LABELS[kind]} already saved` : adminOnlyOriginal ? "Original set by admin" : `Save as ${KIND_LABELS[kind]}`}
                 </button>
               );
             })}
@@ -233,12 +259,14 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
               {/* Delete: any rep with access to this country can delete any working
                   draft (not just their own) -- except Nyika II, which stays scoped
                   to your own, matching its per-author privacy. Admins can always
-                  delete. Milestones are never deletable by anyone. */}
-              {v.kind === "working" && (isAdmin || country !== "Nyika II" || v.created_by === currentUserEmail) && (
+                  delete drafts, and in Nyika II only they can also delete Original/Midpoint/Final
+                  files. Everywhere else milestones are never deletable by anyone. */}
+              {((v.kind === "working" && (isAdmin || country !== "Nyika II" || v.created_by === currentUserEmail)) ||
+                (isAdmin && country === "Nyika II")) && (
                 <button
                   onClick={() => handleDelete(v)}
                   disabled={busy === v.id}
-                  title="Delete this draft"
+                  title={v.kind === "working" ? "Delete this draft" : `Delete this ${KIND_LABELS[v.kind]} file (admin, Nyika II only)`}
                   style={{ background: "transparent", border: "none", color: C.red, cursor: busy === v.id ? "default" : "pointer", fontSize: 16, padding: "2px 6px", lineHeight: 1, opacity: busy === v.id ? 0.5 : 1 }}
                 >
                   ×

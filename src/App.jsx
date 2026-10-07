@@ -278,10 +278,14 @@ export default function App() {
             // legacy-shape OR new-shape-but-all-blank (an untouched Tier 10
             // submit) so the seeded data surfaces; real entered fees are kept.
             if (isLegacyFeesArray(d?.fees) || isAllBlankFees(d?.fees)) {
-              merged.fees = JSON.parse(JSON.stringify(FEES_DEFAULT_ROWS));
-              merged.feesColumns = JSON.parse(JSON.stringify(FEES_DEFAULT_COLUMN_LABELS));
+              // Re-seed from THIS country's own seed (2026-10-07): Nyika / Nyika II
+              // seed the workbook fee schedule, the five real countries seed a
+              // blank one. Previously this always used the populated defaults,
+              // which would have refilled blank real countries with dummy fees.
+              merged.fees = JSON.parse(JSON.stringify(updated[country].fees || FEES_DEFAULT_ROWS));
+              merged.feesColumns = JSON.parse(JSON.stringify(updated[country].feesColumns || FEES_DEFAULT_COLUMN_LABELS));
             } else if (!d?.feesColumns) {
-              merged.feesColumns = JSON.parse(JSON.stringify(FEES_DEFAULT_COLUMN_LABELS));
+              merged.feesColumns = JSON.parse(JSON.stringify(updated[country].feesColumns || FEES_DEFAULT_COLUMN_LABELS));
             }
             // In-Kind aggregate guard (Willyanne 2026-05-29, Tier 12)
             if (ikIsStale(merged.ikReg)) {
@@ -369,7 +373,10 @@ export default function App() {
       }
     }
     loadFromSupabase();
-  }, []);
+    // Re-runs on login/logout (2026-10-07): the first run happens before auth
+    // resolves, when RLS returns nothing, so without this the five real
+    // countries (now persisting) would never pull in their saved data.
+  }, [session?.email]); // eslint-disable-line
 
   // Nyika II (2026-09-22): ensure its country_data row exists and pull in
   // whatever's saved, once we actually have a session. The effect above only
