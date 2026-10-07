@@ -19,7 +19,7 @@ const DATE_FIELDS = [
   { key: "final_date", label: "Final" },
 ];
 
-export default function YearDates({ country, canEdit, readOnly = false }) {
+export default function YearDates({ country, canEdit, readOnly = false, onRowsChange }) {
   const [rows, setRows] = useState([]);
   const [status, setStatus] = useState("loading");
   const [errorMsg, setErrorMsg] = useState("");
@@ -41,24 +41,21 @@ export default function YearDates({ country, canEdit, readOnly = false }) {
         .order("year_label", { ascending: false });
       if (error) throw error;
       setRows(data || []);
+      onRowsChange?.(data || []);
       setStatus("ready");
     } catch (err) {
       setErrorMsg(err.message || "Could not load dates.");
       setStatus("error");
     }
-  }, [country]);
+  }, [country]); // eslint-disable-line
 
   useEffect(() => { load(); }, [load]);
 
-  // Prefill the add/update form when the typed year matches a saved one.
-  // Kept separate from load() so typing in the Year box never reloads (and
-  // therefore never unmounts) the form mid-keystroke.
-  useEffect(() => {
-    const current = isFourDigitYear(yearLabel) ? rows.find((r) => r.year_label === yearLabel) : null;
-    setOriginal(current?.original_date || "");
-    setMidpoint(current?.midpoint_date || "");
-    setFinal(current?.final_date || "");
-  }, [yearLabel, rows]);
+  // A year that already has dates can't be entered again (2026-10-07): use
+  // "Edit" next to its dates to change them, or start a new year.
+  const yearTaken = isFourDigitYear(yearLabel) && rows.some((r) => r.year_label === yearLabel);
+  const numericYears = rows.map((r) => Number(r.year_label)).filter((n) => Number.isInteger(n) && n > 0);
+  const suggestedYear = numericYears.length ? Math.max(...numericYears) + 1 : null;
 
   async function upsertDates(year, dates) {
     const { error } = await supabase.from("country_year_dates").upsert(
@@ -73,9 +70,18 @@ export default function YearDates({ country, canEdit, readOnly = false }) {
     setSaving(true);
     setErrorMsg("");
     try {
-      await upsertDates(yearLabel, {
+      // Plain insert (not upsert) so the database itself refuses a repeat year.
+      const { error } = await supabase.from("country_year_dates").insert({
+        country, year_label: yearLabel,
         original_date: original || null, midpoint_date: midpoint || null, final_date: final || null,
       });
+      if (error) {
+        throw new Error(/duplicate|unique/i.test(error.message)
+          ? `${yearLabel} already has dates. Use Edit next to them, or enter a new year.`
+          : error.message);
+      }
+      setYearLabel(""); setOriginal(""); setMidpoint(""); setFinal("");
+      await load();
     } catch (err) {
       setErrorMsg(err.message || "Could not save dates.");
     } finally {
@@ -149,12 +155,18 @@ export default function YearDates({ country, canEdit, readOnly = false }) {
           </label>
           <button
             onClick={save}
-            disabled={saving || !isFourDigitYear(yearLabel)}
-            title={!isFourDigitYear(yearLabel) ? "Enter a four-digit year first" : undefined}
-            style={{ padding: "8px 16px", minHeight: 34, borderRadius: 6, border: "none", background: C.teal, color: "#fff", fontSize: 12.5, fontWeight: 600, cursor: saving || !isFourDigitYear(yearLabel) ? "default" : "pointer", opacity: saving || !isFourDigitYear(yearLabel) ? 0.5 : 1 }}
+            disabled={saving || !isFourDigitYear(yearLabel) || yearTaken}
+            title={!isFourDigitYear(yearLabel) ? "Enter a four-digit year first" : yearTaken ? "This year already has dates" : undefined}
+            style={{ padding: "8px 16px", minHeight: 34, borderRadius: 6, border: "none", background: C.teal, color: "#fff", fontSize: 12.5, fontWeight: 600, cursor: saving || !isFourDigitYear(yearLabel) || yearTaken ? "default" : "pointer", opacity: saving || !isFourDigitYear(yearLabel) || yearTaken ? 0.5 : 1 }}
           >
             {saving ? "Saving…" : "Save dates"}
           </button>
+        </div>
+      )}
+
+      {status !== "loading" && canWrite && yearTaken && (
+        <div style={{ fontSize: 12, color: "#b3261e", marginTop: -6, marginBottom: 12 }}>
+          {yearLabel} already has dates set. Use <strong>Edit</strong> next to them below to change a date, or enter a new year{suggestedYear ? ` (for example, ${suggestedYear})` : ""}.
         </div>
       )}
 

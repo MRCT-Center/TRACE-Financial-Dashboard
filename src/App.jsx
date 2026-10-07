@@ -516,25 +516,19 @@ export default function App() {
     if (error) throw new Error(error.message);
   }
 
-  // Restore a past version: replaces (not merges) the live file with that
-  // version's data, and records the restore itself as a new working version
-  // so it shows up in history rather than looking like a silent edit.
-  async function restoreVersion(country, version) {
-    const restored = version.data;
-    setCountryCache((prev) => ({ ...prev, [country]: restored }));
-    const { error } = await supabase.from("country_data").upsert({
-      country,
-      data: restored,
-      updated_at: new Date().toISOString(),
-      updated_by: session?.email || "unknown",
-    });
-    if (error) throw new Error(error.message);
-    // Clear any in-progress local wizard draft for this country -- otherwise
-    // the next time someone opens Inputs, the wizard would hydrate from the
-    // stale browser-local draft (e.g. leftover Data source/Notes text)
-    // instead of the version that was just restored (2026-10-02 fix).
+  // Start editing from a saved version (2026-10-07, batch 2). Loads that
+  // version's data into the wizard and opens Inputs at step 1 (Setup). It does
+  // NOT write anything to the database and does NOT create a working draft --
+  // a draft only exists once the user edits, names it, describes the changes,
+  // and clicks Submit (saveCountryData then upserts the live file and records
+  // the draft). Only the browser's in-memory copy and any stale local wizard
+  // draft change here, so abandoning the edit leaves everything untouched.
+  function startEditing(country, version) {
+    setCountryCache((prev) => ({ ...prev, [country]: version.data }));
+    // Drop any stale in-progress local wizard draft so the wizard opens at
+    // step 1 populated from this version instead of leftover typing.
     clearWizardDraft(country);
-    await recordWorkingVersion(country, restored);
+    setView("wizard");
   }
 
   const handleEdit = useCallback(async (path, value) => {
@@ -656,7 +650,7 @@ export default function App() {
               canEdit={!isDemoCountry(selectedCountry)}
               isAdmin={isAdmin}
               onSaveMilestone={(kind, yearLabel) => saveMilestone(selectedCountry, kind, yearLabel)}
-              onRestore={(version) => restoreVersion(selectedCountry, version)}
+              onRestore={(version) => startEditing(selectedCountry, version)}
               onDelete={(version) => deleteVersion(version.id)}
               currentUserEmail={session.email}
             />

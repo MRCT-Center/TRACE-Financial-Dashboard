@@ -331,7 +331,20 @@ export default function GuidedWizard({ country, data, onSave }) {
   // Step 2 (Expenses) and Step 3 (Revenue) additionally require visiting the
   // Irregular sub-tab -- without this, Regular alone lets users skip Irregular.
   // Setup step (0) skips the source/notes requirement per Willyanne 2026-05-27 #4.
-  const sourcesNotesOk = step === 0 || ((stepSources[slotKey] || "").trim().length > 0 && (stepNotes[slotKey] || "").trim().length > 0);
+  //
+  // 2026-10-07: on Expenses / Revenue / In-Kind the Data source + Notes boxes
+  // are required on BOTH the Regular and Irregular sub-tabs, no matter which
+  // tab you start on. Previously only the sub-tab you were looking at was
+  // checked, so starting on Irregular let you skip Regular's boxes entirely.
+  const slotComplete = (k) => (stepSources[k] || "").trim().length > 0 && (stepNotes[k] || "").trim().length > 0;
+  const requiredSlots = (step === 2 || step === 3 || step === 4)
+    ? [`${step}-regular`, `${step}-irregular`]
+    : [slotKey];
+  const currentSlotOk = step === 0 || slotComplete(slotKey);
+  const incompleteSlots = step === 0 ? [] : requiredSlots.filter((k) => !slotComplete(k));
+  const otherIncompleteTab = incompleteSlots.find((k) => k !== slotKey);
+  const otherIncompleteTabName = otherIncompleteTab?.endsWith("-irregular") ? "Irregular" : "Regular";
+  const sourcesNotesOk = step === 0 || incompleteSlots.length === 0;
   const expensesSubtabsOk = step !== 2 || expVisitedIrregular;
   const revenueSubtabsOk  = step !== 3 || revVisitedIrregular;
   const inKindSubtabsOk   = step !== 4 || inkVisitedIrregular;
@@ -344,7 +357,9 @@ export default function GuidedWizard({ country, data, onSave }) {
   const keyConsidOk  = step !== 1 || (riskAnswered && oppAnswered && riskDescOk && oppDescOk);
   const canAdvance = sourcesNotesOk && expensesSubtabsOk && revenueSubtabsOk && inKindSubtabsOk && keyConsidOk;
   const advanceBlockReason = !sourcesNotesOk
-    ? "Fill in data source and notes to continue"
+    ? (currentSlotOk
+        ? `Fill in data source and notes on the ${otherIncompleteTabName} sub-tab too`
+        : "Fill in data source and notes to continue")
     : !expensesSubtabsOk
       ? "Open the Irregular sub-tab before advancing"
       : !revenueSubtabsOk
@@ -520,7 +535,9 @@ export default function GuidedWizard({ country, data, onSave }) {
                 </div>
                 {!sourcesNotesOk && (
                   <div style={{ fontSize: 12, color: C.red, fontStyle: "italic" }}>
-                    Please fill in both the data source and notes to continue.
+                    {currentSlotOk
+                      ? <>Data source and notes are also required on the <strong>{otherIncompleteTabName}</strong> sub-tab. Switch to it and fill them in to continue.</>
+                      : "Please fill in both the data source and notes to continue."}
                   </div>
                 )}
                 {sourcesNotesOk && !expensesSubtabsOk && (
