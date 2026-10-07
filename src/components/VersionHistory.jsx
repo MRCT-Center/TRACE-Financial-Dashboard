@@ -23,15 +23,9 @@ import { VERSION_HISTORY_STEP_INSTRUCTIONS, VERSION_HISTORY_NOTE } from "../data
 
 const KIND_LABELS = { original: "Original", midpoint: "Midpoint", final: "Final", working: "Working save" };
 const KIND_COLORS = { original: C.teal, midpoint: "#c98a1f", final: C.red || "#b3261e", working: C.blueGrey };
-// Display order (2026-10-01): Final, then Midpoint, then Original -- each
-// group newest-first -- then all working drafts, newest-first.
-const KIND_ORDER = { final: 0, midpoint: 1, original: 2, working: 3 };
+// Display order (2026-10-08): plain chronological, newest first, whatever the kind.
 const sortVersions = (rows) =>
-  [...rows].sort((a, b) => {
-    const rankDiff = (KIND_ORDER[a.kind] ?? 99) - (KIND_ORDER[b.kind] ?? 99);
-    if (rankDiff !== 0) return rankDiff;
-    return new Date(b.created_at) - new Date(a.created_at);
-  });
+  [...rows].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
 export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilestone, onRestore, onDelete, currentUserEmail }) {
   const [versions, setVersions] = useState([]);
@@ -88,6 +82,15 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
   // (Final/Midpoint/Original groups, then working newest-first), so the
   // chronologically newest overall has to be found separately by comparing
   // created_at across all of them.
+  // "Working save-Original" / "-Midpoint" / "-Final": named after the most
+  // recent milestone saved before the draft was made.
+  const labelFor = (v) => {
+    if (v.kind !== "working") return KIND_LABELS[v.kind] || v.kind;
+    const base = versions
+      .filter((m) => m.kind !== "working" && m.created_at <= v.created_at)
+      .reduce((best, m) => (!best || m.created_at > best.created_at ? m : best), null);
+    return base ? `Working save-${KIND_LABELS[base.kind]}` : "Working save";
+  };
   const mostRecentVersionId = versions.reduce(
     (best, v) => (!best || v.created_at > best.created_at ? v : best),
     null
@@ -196,8 +199,9 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
               const alreadySaved = (kind === "midpoint" || kind === "final") && cycleHasMilestone(kind);
               // Nyika II's Original is the shared demo starting point: admins only.
               const adminOnlyOriginal = kind === "original" && country === "Nyika II" && !isAdmin;
-              const noYear = !yearFor(kind);
-              const disabled = busy === kind || alreadySaved || adminOnlyOriginal || noYear;
+              const originalDone = kind === "original" && datedYears.length > 0 && !pendingYear && !adminOnlyOriginal;
+              const noYear = !yearFor(kind) && !originalDone;
+              const disabled = busy === kind || alreadySaved || originalDone || adminOnlyOriginal || noYear;
               return (
                 <button
                   key={kind}
@@ -205,6 +209,7 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
                   disabled={disabled}
                   title={
                     adminOnlyOriginal ? "Only administrators can save the Nyika II Original."
+                    : originalDone ? "The Original for this year is already saved. Add year dates for a new year to start the next one."
                     : alreadySaved ? `A ${KIND_LABELS[kind]} has already been saved for this cycle. Save a new Original to start a new cycle.`
                     : noYear ? (kind === "original"
                         ? (datedYears.length === 0 ? "Set the year dates above first." : "The Original for every year with dates is already saved. Add year dates for a new year to start the next one.")
@@ -217,7 +222,7 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
                     cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.5 : 1,
                   }}
                 >
-                  {busy === kind ? "Saving…" : alreadySaved ? `${KIND_LABELS[kind]} already saved` : adminOnlyOriginal ? "Original set by admin" : `Save as ${KIND_LABELS[kind]}`}
+                  {busy === kind ? "Saving…" : alreadySaved || originalDone ? `${KIND_LABELS[kind]} already saved` : adminOnlyOriginal ? "Original set by admin" : `Save as ${KIND_LABELS[kind]}`}
                 </button>
               );
             })}
@@ -248,7 +253,7 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
                 fontSize: 11, fontWeight: 700, color: "#fff", background: KIND_COLORS[v.kind],
                 borderRadius: 20, padding: "3px 10px", flexShrink: 0,
               }}>
-                {KIND_LABELS[v.kind] || v.kind}
+                {labelFor(v)}
               </span>
               <span style={{ fontSize: 12.5, color: C.navy, flex: 1, minWidth: 160 }}>
                 {v.year_label ? `${v.year_label} · ` : ""}
