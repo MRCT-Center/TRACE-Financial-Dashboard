@@ -18,7 +18,7 @@ export default function InfoTip({ title, children }) {
   }, [open]);
 
   return (
-    <span ref={ref} style={{ position: "relative", display: "inline-block", verticalAlign: "middle", lineHeight: 1 }}>
+    <span ref={ref} data-keep="1" style={{ position: "relative", display: "inline-block", verticalAlign: "middle", lineHeight: 1 }}>
       <button
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
         aria-label={title || "More information"}

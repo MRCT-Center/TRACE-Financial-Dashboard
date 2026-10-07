@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, Fragment } from "react";
 import { COLORS as C, COUNTRY_DISPLAY_NAMES } from "../utils/metrics";
 import StepInstructions from "./StepInstructions";
 import { WIZARD_STEP_INSTRUCTIONS } from "../data/instructions";
@@ -78,31 +78,40 @@ function sourceSlotKey(step, subTab) {
   return (step === 2 || step === 3 || step === 4) ? `${step}-${subTab}` : `${step}`;
 }
 
-export default function GuidedWizard({ country, data, onSave }) {
+export default function GuidedWizard({ country, data, onSave, viewVersion = null, onGoToHistory }) {
+  // Read-only "View" mode (2026-10-08): when `viewVersion` is passed the wizard
+  // shows that saved version's inputs exactly as saved. It never reads or
+  // writes the browser's local draft, can't be edited, can't be submitted,
+  // and every tab is open.
+  const viewOnly = !!viewVersion;
   // Hydrate from localStorage draft on mount (component is keyed by country in App.jsx).
   // Local drafts persist for every country, demo included (2026-09-29) -- switching
   // tabs mid-wizard shouldn't wipe what you typed. A full page refresh still
   // resets demo countries to the pristine seed regardless (see the DEMO_MODE
   // localStorage-clear effect in App.jsx), so the "refresh gives everyone a
   // clean copy" guarantee holds; this only fixes losing work within one visit.
-  const draft = loadDraft(country);
+  const draft = viewOnly ? null : loadDraft(country);
 
   const [step, setStep]           = useState(() => draft?.step ?? 0);
   // Furthest step the user has reached. Once a step has been visited (advanced
   // to via Next, which enforces the per-step validation gates), the user can
   // freely jump back to it by clicking its tab — they no longer have to walk
   // forward with the Next button (Willyanne 2026-05-31 #9).
-  const [maxStepReached, setMaxStepReached] = useState(() => draft?.maxStepReached ?? draft?.step ?? 0);
+  const [maxStepReached, setMaxStepReached] = useState(() => (viewOnly ? STEPS.length - 1 : (draft?.maxStepReached ?? draft?.step ?? 0)));
   useEffect(() => { setMaxStepReached((m) => Math.max(m, step)); }, [step]);
   // Country's local currency from login — used to default the reporting currency
   // and to drive the static exchange-rate lookup.
   const localCurrencyCode = COUNTRY_CURRENCIES[country] || "USD";
   const localCurrency = CURRENCIES.find((c) => c.code === localCurrencyCode) || CURRENCIES[0];
+  // Fall back to the saved file's currency when there's no local draft, so
+  // opening a saved version shows (and re-submits) what was actually saved.
   const [currency, setCurrency]   = useState(() =>
-    CURRENCIES.find((c) => c.code === draft?.currencyCode) || localCurrency
+    CURRENCIES.find((c) => c.code === (draft?.currencyCode ?? data?.currencyCode)) || localCurrency
   );
   const [inputMode, setInputMode] = useState(() => draft?.inputMode || "usd"); // "usd" | "local"
-  const [unit, setUnit]           = useState(() => draft?.unit || "");
+  // Same fallback as currency: without it, anyone opening the file in a fresh
+  // browser saw a blank Unit, and Submit then overwrote the saved Unit with "".
+  const [unit, setUnit]           = useState(() => draft?.unit ?? data?.unit ?? "");
   // Budget year — free-text per Willyanne 2026-05-27 mid-day item #3 (e.g. "2026"
   // or "FY 2026/27"). Stored in localStorage draft + submit payload; no Supabase
   // column yet. App.jsx merge-guard pattern handles future migration.
@@ -264,37 +273,82 @@ export default function GuidedWizard({ country, data, onSave }) {
   // for Original/Midpoint/Final milestones, reused here for drafts (2026-10-01).
   const [draftTitle, setDraftTitle] = useState(() => draft?.draftTitle || "");
 
-  // "Show changes" feature (2026-10-02): compares the two most recent saved
-  // drafts (country_versions rows) for this country and highlights what
-  // changed between them, plus a side panel explaining each change and who
-  // made it. Fetched once per country; doesn't reflect unsaved in-progress
-  // edits, only the diff between the last two actual saves.
+  // "Show changes" feature (2026-10-02, extended 2026-10-08): finds the saved
+  // draft being looked at and the version saved just before it, diffs them, and
+  // highlights what that draft changed -- in purple on the actual fields, and
+  // explained in the side panel. Which draft:
+  //   - View mode: the version being viewed (compared with the one before it).
+  //   - Otherwise: the newest working draft for this country (compared with
+  //     whatever was saved just before it, any kind).
+  // The highlight turns itself on when the draft changed anything, so anyone
+  // opening the file sees the edits without having to hunt for the toggle.
+  // Doesn't reflect unsaved in-progress edits, only what was actually saved.
   const [changeList, setChangeList] = useState([]);
   const [lastChangeMeta, setLastChangeMeta] = useState(null); // { created_by, created_at, summary }
   const [showChanges, setShowChanges] = useState(false);
+  // True once at least one saved file (Original / Midpoint / Final / draft)
+  // exists for this country, which opens every Inputs tab (no more Next-only).
+  const [hasSavedFile, setHasSavedFile] = useState(false);
   useEffect(() => {
     let cancelled = false;
-    async function loadRecentVersions() {
-      const { data: versions, error } = await supabase
-        .from("country_versions")
-        .select("data, created_by, created_at, summary")
-        .eq("country", country)
-        .order("created_at", { ascending: false })
-        .limit(2);
-      if (cancelled || error || !versions || versions.length < 2) return;
-      const [latest, previous] = versions;
-      setChangeList(diffCountryData(previous.data, latest.data));
-      setLastChangeMeta({ created_by: latest.created_by, created_at: latest.created_at, summary: latest.summary });
+    async function loadChanges() {
+      try {
+        let target = null;
+        let previous = null;
+        if (viewOnly) {
+          target = viewVersion;
+          const { data: prevRows } = await supabase
+            .from("country_versions")
+            .select("id, data")
+            .eq("country", country)
+            .lt("created_at", viewVersion.created_at)
+            .order("created_at", { ascending: false })
+            .limit(1);
+          previous = prevRows?.[0] || null;
+        } else {
+          const { data: list, error } = await supabase
+            .from("country_versions")
+            .select("id, kind, created_at, created_by, summary")
+            .eq("country", country)
+            .order("created_at", { ascending: false })
+            .limit(60);
+          if (cancelled || error || !list) return;
+          if (list.length > 0) setHasSavedFile(true);
+          const idx = Math.max(0, list.findIndex((v) => v.kind === "working"));
+          const t = list[idx];
+          const pr = list[idx + 1];
+          if (!t || !pr) return;
+          const { data: rows } = await supabase.from("country_versions").select("id, data").in("id", [t.id, pr.id]);
+          const tData = rows?.find((r) => r.id === t.id)?.data;
+          const pData = rows?.find((r) => r.id === pr.id)?.data;
+          if (!tData || !pData) return;
+          target = { ...t, data: tData };
+          previous = { id: pr.id, data: pData };
+        }
+        if (cancelled || !target || !previous) return;
+        const changes = diffCountryData(previous.data, target.data);
+        setChangeList(changes);
+        setLastChangeMeta({ created_by: target.created_by, created_at: target.created_at, summary: target.summary });
+        if (changes.length > 0) setShowChanges(true);
+      } catch (err) {
+        console.warn("Could not load changes for highlighting:", err?.message || err);
+      }
     }
-    loadRecentVersions();
+    loadChanges();
     return () => { cancelled = true; };
-  }, [country]);
+  }, [country, viewVersion?.id]); // eslint-disable-line
+
+  // Once a file has been saved, every Inputs tab is open: no walking forward
+  // with Next just to reach Key Considerations / Expenses / etc.
+  useEffect(() => {
+    if (hasSavedFile) setMaxStepReached(STEPS.length - 1);
+  }, [hasSavedFile]);
 
   // Autosave every state change. Synchronous localStorage write is fast for this payload size.
   // Runs for every country, demo included (2026-09-29) -- see the hydration
   // comment above for why this doesn't undermine the demo refresh guarantee.
   useEffect(() => {
-    if (submitted) return;
+    if (submitted || viewOnly) return;
     saveDraft(country, {
       step, maxStepReached, currencyCode: currency.code, inputMode, unit, budgetYear,
       hasRisks, hasOpps, riskText, oppText,
@@ -371,6 +425,22 @@ export default function GuidedWizard({ country, data, onSave }) {
             : "";
 
 
+  // View mode: lock every control inside the content area. Inputs/selects/
+  // textareas and any button not explicitly marked data-keep (sub-tabs, the
+  // Show changes toggle, info tips, collapsible headers) get disabled after
+  // every render; pointer-events are also switched off for everything except
+  // data-keep elements (see .trace-readonly in index.css) so click-to-edit
+  // text cells can't be opened either.
+  const contentRef = useRef(null);
+  useLayoutEffect(() => {
+    if (!viewOnly || !contentRef.current) return;
+    const root = contentRef.current;
+    root.querySelectorAll("input, textarea, select").forEach((el) => { el.disabled = true; });
+    root.querySelectorAll("button").forEach((b) => {
+      if (!b.closest("[data-keep]")) b.disabled = true;
+    });
+  });
+
   if (submitted) {
     return (
       <div style={{ maxWidth: 640, margin: "40px auto", background: "#fff", borderRadius: 12, padding: "40px 32px", border: "1px solid #dde", textAlign: "center" }}>
@@ -380,24 +450,36 @@ export default function GuidedWizard({ country, data, onSave }) {
           Your responses have been recorded. Use the Overview and other tabs to review your country's data.
         </p>
         <button
-          onClick={() => { setStep(0); setSubmitted(false); }}
+          onClick={() => {
+            // Countries that have a Version History page go there; plain Nyika
+            // (a no-save demo with no Version History) just restarts the wizard.
+            if (onGoToHistory) { onGoToHistory(); return; }
+            setStep(0); setSubmitted(false);
+          }}
           style={{ marginTop: 20, background: C.teal, color: "#fff", borderRadius: 8, padding: "10px 24px", fontSize: 14, fontWeight: 600 }}
         >
-          Start over
+          {onGoToHistory ? "Go to Version History" : "Start over"}
         </button>
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 960, margin: "0 auto", width: "100%" }}>
+    <div className={viewOnly ? "trace-readonly" : undefined} style={{ maxWidth: 960, margin: "0 auto", width: "100%" }}>
+      {viewOnly && (
+        <div style={{ background: "#fff8e8", border: `1px solid ${C.yellow}`, borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 12.5, color: "#5a4000", lineHeight: 1.5 }}>
+          <strong>View only.</strong> This is exactly what was saved
+          {viewVersion.year_label ? ` in "${viewVersion.year_label}"` : ""} on {new Date(viewVersion.created_at).toLocaleString()}
+          {viewVersion.created_by ? ` by ${viewVersion.created_by}` : ""}. Nothing here can be edited. Click any tab above to look through every page.
+        </div>
+      )}
       <div style={{ background: C.navy, borderRadius: 10, padding: "16px 22px", color: "#fff", marginBottom: 12 }}>
         <div style={{ fontSize: 18, fontWeight: 700 }}>Guided Wizard — {COUNTRY_DISPLAY_NAMES[country] || country}</div>
         <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>Enter data step by step. Data source and notes are required on each step (except Setup) before advancing.</div>
       </div>
 
       {/* Autosave indicator — PROTOTYPE: local browser only; replace with server-side drafts before production */}
-      {draftSavedAt && (
+      {draftSavedAt && !viewOnly && (
         <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11, color: C.blueGrey, marginBottom: 14, padding: "0 4px" }}>
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: C.green, flexShrink: 0 }} />
           <span>
@@ -437,7 +519,7 @@ export default function GuidedWizard({ country, data, onSave }) {
         ))}
       </div>
 
-      <div style={{ background: "#fff", borderRadius: 10, border: "1px solid #dde", overflow: "hidden" }}>
+      <div ref={contentRef} style={{ background: "#fff", borderRadius: 10, border: "1px solid #dde", overflow: "hidden" }}>
         <div style={{ background: C.lightBG, padding: "12px 20px", fontSize: 15, fontWeight: 700, color: C.navy, borderBottom: "1px solid #dde" }}>
           {currentStep.title}
         </div>
@@ -513,7 +595,7 @@ export default function GuidedWizard({ country, data, onSave }) {
               Willyanne 2026-05-27 mid-day item #4) and Review. */}
           {step > 0 && step < STEPS.length - 1 && (
             <div style={{ marginTop: 24, borderTop: "1px solid #eee", paddingTop: 18 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 10 }}>Required before advancing</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 10 }}>{viewOnly ? "Data source and notes (as saved)" : "Required before advancing"}</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <div>
                   <label style={labelStyle}>Data source <span style={{ color: C.red }}>*</span></label>
@@ -574,7 +656,16 @@ export default function GuidedWizard({ country, data, onSave }) {
         >
           ← Previous
         </button>
-        {step < STEPS.length - 1 ? (
+        {viewOnly ? (
+          step < STEPS.length - 1 ? (
+            <button
+              onClick={() => setStep((s) => s + 1)}
+              style={{ ...navBtnStyle, background: C.teal, color: "#fff" }}
+            >
+              Next →
+            </button>
+          ) : <span />
+        ) : step < STEPS.length - 1 ? (
           <button
             onClick={() => canAdvance && setStep((s) => s + 1)}
             disabled={!canAdvance}
@@ -2561,7 +2652,7 @@ function TrendSelect({ val, onChange }) {
 
 function SubTabs({ tabs, active, onChange }) {
   return (
-    <div style={{ display: "flex", gap: 6, marginBottom: 18, borderBottom: `2px solid ${C.teal}`, paddingLeft: 2 }}>
+    <div data-keep="1" style={{ display: "flex", gap: 6, marginBottom: 18, borderBottom: `2px solid ${C.teal}`, paddingLeft: 2 }}>
       {tabs.map((t) => {
         const isActive = active === t.id;
         return (
@@ -2782,6 +2873,7 @@ function fmtChangeVal(v) {
 
 function ChangesToggle({ show, onToggle, count }) {
   return (
+    <span data-keep="1">
     <button
       onClick={onToggle}
       style={{
@@ -2800,12 +2892,13 @@ function ChangesToggle({ show, onToggle, count }) {
         </span>
       )}
     </button>
+    </span>
   );
 }
 
 function ChangesPanel({ changes, meta, onClose }) {
   return (
-    <div style={{
+    <div data-keep="1" style={{
       position: "fixed", top: 90, right: 16, width: 300, maxHeight: "70vh", overflowY: "auto",
       background: "#fff", border: `1px solid ${CHANGE_PURPLE}`, borderRadius: 10,
       boxShadow: "0 4px 18px rgba(0,0,0,0.16)", padding: 16, zIndex: 50,

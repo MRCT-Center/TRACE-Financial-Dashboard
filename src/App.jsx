@@ -642,6 +642,7 @@ export default function App() {
               country={selectedCountry}
               data={countryData}
               onSave={(updates, changeSummary, draftTitle) => saveCountryData(selectedCountry, updates, changeSummary, draftTitle)}
+              onGoToHistory={selectedCountry === "Nyika" ? undefined : () => setView("history")}
             />
           )}
           {view === "history" && (

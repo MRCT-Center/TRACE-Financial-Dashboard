@@ -182,7 +182,7 @@ export const SUMMARY_IRREGULAR = [
 // steps that match the actual Review & Submit screen -- checking the grey
 // Summary box, naming the draft, documenting changes, and submitting.
 export const REVIEW_SUBMIT_STEPS = [
-  'Step 1: Review the grey Summary box above, which shows a read-only overview of everything entered in this draft so far. Check it against what you intended to enter before submitting.',
+  'Step 1: Review the grey Summary box below, which shows a read-only overview of everything entered in this draft so far. Check it against what you intended to enter before submitting.',
   'Step 2: In the "Name this draft" box, give this draft a short, recognizable title (guidance: 50 characters or fewer), such as "2026 Q2 budget update" or "2026 Q2 budget update_edits (1)."',
   'Step 3: In the "Document changes" box, briefly describe the main edits made in this version (guidance: fewer than 100 characters) -- this note shows up next to this draft in Version History so others can see what changed at a glance.',
   'Step 4: Click Submit to save this draft.',

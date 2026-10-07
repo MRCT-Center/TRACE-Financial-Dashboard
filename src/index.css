@@ -27,3 +27,10 @@ input[type="number"]::-webkit-inner-spin-button {
   margin: 0;
 }
 input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
+/* View-only mode (Version History > View): block every pointer interaction
+   except elements marked data-keep (tabs, info tips, Show changes). */
+.trace-readonly input, .trace-readonly textarea, .trace-readonly select,
+.trace-readonly table { pointer-events: none; }
+.trace-readonly input:disabled, .trace-readonly textarea:disabled, .trace-readonly select:disabled { opacity: 1; color: inherit; cursor: default; }
+.trace-readonly button:disabled { cursor: default; }

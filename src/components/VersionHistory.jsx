@@ -1,27 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { COLORS as C, gm, fmt } from "../utils/metrics";
+import { COLORS as C } from "../utils/metrics";
 import { supabase } from "../supabaseClient";
 import YearDates from "./YearDates";
+import GuidedWizard from "./GuidedWizard";
 import StepInstructions from "./StepInstructions";
 import { VERSION_HISTORY_STEP_INSTRUCTIONS, VERSION_HISTORY_NOTE } from "../data/instructions";
-
-// Best-effort totals for the read-only "View" modal (2026-10-05) -- gm()
-// expects er/ei/revFees/revOther/ri/ikReg/ikIrr to be present (they are, on
-// every version saved by the wizard's Submit step), but older or partial
-// snapshots might be missing a field, so this fills in safe empty defaults
-// rather than letting Object.values(undefined) throw.
-function safeGm(d) {
-  if (!d) return null;
-  try {
-    return gm({
-      er: d.er || {}, ei: d.ei || {},
-      revFees: d.revFees || 0, revOther: d.revOther || 0,
-      ri: d.ri || {}, ikReg: d.ikReg || {}, ikIrr: d.ikIrr || {},
-    });
-  } catch {
-    return null;
-  }
-}
 
 // Master version history (2026-09-29): milestones (Original/Midpoint/Final)
 // are kept forever; 'working' versions are a rolling window of the last 5
@@ -334,80 +317,32 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
       </div>
 
       {viewingVersion && (
-        <VersionViewModal version={viewingVersion} onClose={() => setViewingVersion(null)} />
+        <VersionViewModal version={viewingVersion} country={country} onClose={() => setViewingVersion(null)} />
       )}
     </div>
   );
 }
 
-// Read-only "View" modal (2026-10-05): shows what's actually in a saved
-// version without touching the live file -- separate from "Continue
-// editing," which replaces the live file and is only ever available on the
-// single most recent version. Reuses gm() (the same totals math Results'
-// Overview tab uses) so the numbers here match what you'd see if you
-// restored this version and looked at Results.
-function VersionViewModal({ version, onClose }) {
-  const totals = safeGm(version.data);
-  const activities = version.data?.activities || [];
-  const filledActivities = activities.filter((r) => r?.nearTerm && r?.longTerm);
-
+// Read-only "View" (2026-10-08): opens the real wizard on the saved version's
+// data with every control locked, so reviewers see every input exactly as
+// saved (and any edits since the previous version in purple). It never
+// touches the live file.
+function VersionViewModal({ version, country, onClose }) {
   return (
-    <div
-      onClick={onClose}
-      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 100 }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{ background: "#fff", borderRadius: 10, padding: "20px 24px", maxWidth: 480, width: "100%", maxHeight: "85vh", overflowY: "auto" }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 100, overflowY: "auto", padding: "20px 12px" }}>
+      <div style={{ background: C.lightBG, borderRadius: 12, maxWidth: 1040, margin: "0 auto", padding: "14px 16px 24px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <span style={{
             fontSize: 11, fontWeight: 700, color: "#fff", background: KIND_COLORS[version.kind],
             borderRadius: 20, padding: "3px 10px",
           }}>
-            {KIND_LABELS[version.kind] || version.kind}
+            {KIND_LABELS[version.kind] || version.kind}{version.summary ? ` · "${version.summary}"` : ""}
           </span>
-          <button onClick={onClose} style={{ background: "transparent", border: "none", fontSize: 18, color: "#777", cursor: "pointer", padding: "2px 6px" }}>×</button>
+          <button onClick={onClose} style={{ background: C.navy, color: "#fff", border: "none", borderRadius: 6, fontSize: 13, fontWeight: 600, padding: "6px 14px", cursor: "pointer" }}>
+            Close
+          </button>
         </div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginTop: 10 }}>
-          {version.year_label || "(no title)"}
-        </div>
-        <div style={{ fontSize: 12, color: "#777", marginBottom: 4 }}>
-          {new Date(version.created_at).toLocaleString()} · {version.created_by || "unknown"}
-        </div>
-        {version.summary && (
-          <div style={{ fontSize: 12, color: "#444", fontStyle: "italic", marginBottom: 10 }}>"{version.summary}"</div>
-        )}
-
-        <div style={{ background: C.lightBG, borderRadius: 8, padding: "14px 16px", marginTop: 10 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 8 }}>Summary</div>
-          <div style={{ fontSize: 13, color: "#444", lineHeight: 1.9 }}>
-            <div>Currency: <strong>{version.data?.currencyCode || "—"}</strong></div>
-            <div>Budget year: <strong>{version.data?.budgetYear || "—"}</strong></div>
-            {totals ? (
-              <>
-                <div style={{ borderTop: "1px solid #dde", margin: "8px 0 4px" }} />
-                <div>Total regular expenses: <strong>{fmt(totals.te)}</strong></div>
-                <div>Total irregular expenses: <strong>{fmt(totals.ti)}</strong></div>
-                <div>Total regular revenue: <strong>{fmt(totals.tr)}</strong></div>
-                <div>Total irregular revenue: <strong>{fmt(totals.tri)}</strong></div>
-                <div>Total in-kind contributions: <strong>{fmt(totals.ik)}</strong></div>
-                <div style={{ borderTop: "1px solid #dde", margin: "8px 0 4px" }} />
-                <div>Regular gap: <strong>{fmt(totals.rg)}</strong></div>
-                <div>Irregular gap: <strong>{fmt(totals.ig)}</strong></div>
-                <div>Combined gap: <strong>{fmt(totals.cg)}</strong></div>
-              </>
-            ) : (
-              <div style={{ color: "#999", fontStyle: "italic", marginTop: 4 }}>Not enough data saved on this version to compute totals.</div>
-            )}
-            <div style={{ borderTop: "1px solid #dde", margin: "8px 0 4px" }} />
-            <div>Activities filled in: <strong>{filledActivities.length} / {activities.length}</strong></div>
-          </div>
-        </div>
-
-        <div style={{ fontSize: 11.5, color: "#999", marginTop: 12 }}>
-          Viewing this file does not change the live data -- use "Start editing" on the most recent file to make changes.
-        </div>
+        <GuidedWizard key={version.id} country={country} data={version.data || {}} onSave={() => {}} viewVersion={version} />
       </div>
     </div>
   );

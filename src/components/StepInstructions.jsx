@@ -8,7 +8,7 @@ export default function StepInstructions({ stepInstructions }) {
   const lineCount = sheets.reduce((s, sh) => s + sh.lines.length, 0);
 
   return (
-    <div style={{
+    <div data-keep="1" style={{
       background: "#f0f7f9",
       border: `1px solid ${C.teal}`,
       borderRadius: 8,
