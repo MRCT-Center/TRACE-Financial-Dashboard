@@ -215,7 +215,9 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
               // Nyika II's Original is the shared demo starting point: admins only.
               const adminOnlyOriginal = kind === "original" && country === "Nyika II" && !isAdmin;
               const originalDone = kind === "original" && datedYears.length > 0 && !pendingYear && !adminOnlyOriginal;
-              const noYear = !yearFor(kind) && !originalDone;
+              const dateRowForYear = dateRows.find((r) => r.year_label === cycleYear);
+              const noDate = (kind === "midpoint" || kind === "final") && !!cycleYear && !dateRowForYear?.[`${kind}_date`];
+              const noYear = (!yearFor(kind) && !originalDone) || noDate;
               const disabled = busy === kind || alreadySaved || originalDone || adminOnlyOriginal || noYear;
               return (
                 <button
@@ -224,6 +226,7 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
                   disabled={disabled}
                   title={
                     adminOnlyOriginal ? "Only administrators can save the Nyika II Original."
+                    : noDate ? `Set the ${KIND_LABELS[kind]} date for ${cycleYear} under Year dates first.`
                     : originalDone ? "The Original for this year is already saved. Add year dates for a new year to start the next one."
                     : alreadySaved ? `A ${KIND_LABELS[kind]} has already been saved for this cycle. Save a new Original to start a new cycle.`
                     : noYear ? (kind === "original"

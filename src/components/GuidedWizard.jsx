@@ -116,6 +116,21 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
   // or "FY 2026/27"). Stored in localStorage draft + submit payload; no Supabase
   // column yet. App.jsx merge-guard pattern handles future migration.
   const [budgetYear, setBudgetYear] = useState(() => draft?.budgetYear ?? data?.budgetYear ?? "");
+  // Prefill the budget year from the newest year that has year dates set in
+  // Version History (2026-10-08). Only fills an empty box; stays editable.
+  useEffect(() => {
+    if (viewOnly || budgetYear) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: rows } = await supabase.from("country_year_dates").select("year_label").eq("country", country);
+        const years = (rows || []).map((r) => r.year_label).filter((y) => /^\d{4}$/.test(y)).sort().reverse();
+        if (!cancelled && years[0]) setBudgetYear((cur) => cur || years[0]);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [country]); // eslint-disable-line
+
   // Static rate sourced from CurrencyContext (replaces the prior live fetch).
   // Rate is locked at submission time (`ratesAsOf` payload field). Country
   // teams see "as of [today]" in Setup.
