@@ -416,6 +416,15 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
   const otherIncompleteTab = incompleteSlots.find((k) => k !== slotKey);
   const otherIncompleteTabName = otherIncompleteTab?.endsWith("-irregular") ? "Irregular" : "Regular";
   const sourcesNotesOk = step === 0 || incompleteSlots.length === 0;
+  // Names only the boxes that are actually empty, per tab (2026-10-08), so a
+  // tab that is already filled in is never mentioned.
+  const slotTabName = (k) => (k.endsWith("-irregular") ? "Irregular tab" : k.endsWith("-regular") ? "Regular tab" : "this page");
+  const missingText = incompleteSlots.map((k) => {
+    const miss = [];
+    if (!(stepSources[k] || "").trim()) miss.push("Data source");
+    if (!(stepNotes[k] || "").trim()) miss.push("Notes / calculations");
+    return `${miss.join(" and ")} on the ${slotTabName(k)}`;
+  }).join("; ");
   const expensesSubtabsOk = step !== 2 || expVisitedIrregular;
   const revenueSubtabsOk  = step !== 3 || revVisitedIrregular;
   const inKindSubtabsOk   = step !== 4 || inkVisitedIrregular;
@@ -428,9 +437,7 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
   const keyConsidOk  = step !== 1 || (riskAnswered && oppAnswered && riskDescOk && oppDescOk);
   const canAdvance = sourcesNotesOk && expensesSubtabsOk && revenueSubtabsOk && inKindSubtabsOk && keyConsidOk;
   const advanceBlockReason = !sourcesNotesOk
-    ? (currentSlotOk
-        ? `Fill in data source and notes on the ${otherIncompleteTabName} sub-tab too`
-        : "Fill in data source and notes to continue")
+    ? `Still needed: ${missingText}`
     : !expensesSubtabsOk
       ? "Open the Irregular sub-tab before advancing"
       : !revenueSubtabsOk
@@ -650,9 +657,7 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
                 </div>
                 {!sourcesNotesOk && (
                   <div style={{ fontSize: 12, color: C.red, fontStyle: "italic" }}>
-                    {currentSlotOk
-                      ? <>Data source and notes are also required on the <strong>{otherIncompleteTabName}</strong> sub-tab. Switch to it and fill them in to continue.</>
-                      : "Please fill in both the data source and notes to continue."}
+                    Still needed to continue: {missingText}
                   </div>
                 )}
                 {sourcesNotesOk && !expensesSubtabsOk && (

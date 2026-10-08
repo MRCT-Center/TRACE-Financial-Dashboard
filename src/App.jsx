@@ -397,7 +397,15 @@ export default function App() {
         // Already exists — pull in whatever's saved (real edits from a
         // previous test session) rather than leaving the cache on the
         // hardcoded worked-example seed.
-        setCountryCache((prev) => ({ ...prev, "Nyika II": { ...COUNTRIES["Nyika II"], ...existing.data } }));
+        let nyikaData = existing.data;
+        // Nyika II testers (non-admins) work on their own private copy, which
+        // starts from the shared default Original (2026-10-08). Admins work on
+        // the shared default itself.
+        if (session.role !== "admin") {
+          const { data: ws } = await supabase.from("nyika_ii_workspaces").select("data").maybeSingle();
+          if (ws?.data) nyikaData = ws.data;
+        }
+        setCountryCache((prev) => ({ ...prev, "Nyika II": { ...COUNTRIES["Nyika II"], ...nyikaData } }));
         return;
       }
       const { error: seedErr } = await supabase.from("country_data").insert({
@@ -412,7 +420,7 @@ export default function App() {
         console.warn("Nyika II seed skipped (needs an admin session to create it):", seedErr.message);
       }
     })();
-  }, [session?.email]); // eslint-disable-line
+  }, [session?.email, session?.role]); // eslint-disable-line
 
   // Load this login's granted secondary countries (2026-09-25). Re-runs on
   // login the same way the Nyika II effect above does.
@@ -445,12 +453,21 @@ export default function App() {
     // stays pristine. A refresh reloads the clean data. See src/demoConfig.js.
     // Nyika II (2026-09-22) is exempt and persists for real.
     if (isDemoCountry(country)) return;
-    const { error } = await supabase.from("country_data").upsert({
-      country,
-      data: merged,
-      updated_at: new Date().toISOString(),
-      updated_by: session?.email || "unknown",
-    });
+    let error;
+    if (country === "Nyika II" && session?.role !== "admin") {
+      // Testers save to their own private copy, never the shared default.
+      const { data: { user } } = await supabase.auth.getUser();
+      ({ error } = await supabase.from("nyika_ii_workspaces").upsert({
+        user_id: user?.id, email: session?.email, data: merged, updated_at: new Date().toISOString(),
+      }));
+    } else {
+      ({ error } = await supabase.from("country_data").upsert({
+        country,
+        data: merged,
+        updated_at: new Date().toISOString(),
+        updated_by: session?.email || "unknown",
+      }));
+    }
     if (error) { console.warn("Save failed:", error.message); return; }
     await recordWorkingVersion(country, merged, changeSummary, draftTitle);
   }

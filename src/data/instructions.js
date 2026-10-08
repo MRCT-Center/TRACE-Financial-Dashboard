@@ -11,7 +11,7 @@
 export const WIZARD_SETUP_STEPS = [
   'Step 1: Select the unit that is doing the planning/budgeting from the two options: National Secretariat/mgmt. or Local IRB Secretariat/mgmt. Please note that it is these Secretariats/management units that budget for the Ethics Committees (i.e., the budget for the actual ethics committee review meetings). The Secretariat/management unit plans for, and disburses the funding (e.g., payments to reviewers) to the Ethics Committee.',
   'Step 2: Select the currency that you would like to use for the financial data entry. This is usually the currency used in your budgets. The dashboard will automatically convert local currency to USD and vice versa.',
-  'Step 3: Enter in the year for the budget data that you are entering.',
+  'Step 3: The budget year is filled in for you. It comes from the year you set under Year dates on the Version History page and cannot be changed here. To work in a different year, add that year\'s dates on the Version History page first.',
 ];
 
 // Key Considerations — Risks & Opportunities (Willyanne 2026-05-27).
@@ -184,8 +184,9 @@ export const SUMMARY_IRREGULAR = [
 export const REVIEW_SUBMIT_STEPS = [
   'Step 1: Review the grey Summary box below, which shows a read-only overview of everything entered in this draft so far. Check it against what you intended to enter before submitting.',
   'Step 2: In the "Name this draft" box, give this draft a short, recognizable title (guidance: 50 characters or fewer), such as "2026 Q2 budget update" or "2026 Q2 budget update_edits (1)."',
-  'Step 3: In the "Document changes" box, briefly describe the main edits made in this version (guidance: fewer than 100 characters) -- this note shows up next to this draft in Version History so others can see what changed at a glance.',
-  'Step 4: Click Submit to save this draft.',
+  'Step 3: In the "Document changes" box, briefly describe the main edits made in this version (guidance: fewer than 100 characters). This note shows up next to the draft in Version History so others can see what changed at a glance.',
+  'Step 4: Click Submit to save this as a new draft. When it is saved, click "Go to Version History" to see it listed under its year, labeled "New draft" with the file it was based on (for example, "New draft-Original").',
+  'Step 5: Anyone who later opens that draft with "View" in Version History will see your changes highlighted in purple on the pages where you made them. You can also click "Show changes" on any Inputs page to see what changed.',
 ];
 
 // Version History page instructions (2026-10-05). Steps 3b (Midpoint file)
@@ -193,22 +194,23 @@ export const REVIEW_SUBMIT_STEPS = [
 // to leave them blank for now and send the real text later; do not invent
 // content for these two steps.
 export const VERSION_HISTORY_STEPS = [
-  'Step 1: Set the Year dates for Original, Midpoint, and Final above: enter the four-digit year, pick the three dates, and click "Save dates." Click "Edit" next to any saved date to change it. A year that already has dates cannot be entered again -- to change it use Edit, or enter a new year such as 2027. These dates don\'t have to span January 1 to December 31 -- for example, your year could start March 15, reach its midpoint September 1, and close with a Final on January 30.',
-  'Step 2: The year in the Master file section fills in automatically from the Year dates you set above -- you cannot type a different year there. Click "Save as Original." Once an Original is saved for that year, the year box clears until you set dates for a new year.',
-  'Step 3a: Click "View" on any file to see what is in it without changing anything. "Start editing" is only available on the single most recent file -- whichever Original, Midpoint, Final, or draft was most recently saved. Clicking it opens the Inputs section at Setup with that file\'s information. Nothing is saved, and no new draft is created, until you make your edits, name the draft, describe your changes, and click Submit. Older files stay viewable but are never directly editable, which keeps edits from branching off an outdated version. The tool automatically keeps only the 5 most recent drafts since the last milestone.',
-  'Step 3b: When you are ready to check in partway through the year, click "Save as Midpoint." This takes whatever is currently in the most recent draft (or the Original, if you have not made any drafts yet) and saves it permanently as the Midpoint file, separate from the rolling working drafts. Only one Midpoint is allowed per year -- once it is saved, the "Save as Midpoint" button is disabled until a new Original is started. Editing the file after the Midpoint is saved (for example, continuing to Submit new drafts) does not change the Midpoint itself -- it only creates new working drafts on top of it. The Midpoint stays exactly as it was the moment you saved it.',
-  'Step 3c: When you are ready to close out the year, click "Save as Final." Like the Midpoint, this takes whatever is currently in the most recent draft and saves it permanently as the Final file for that year. Only one Final is allowed per year, and once it is saved, the "Save as Final" button is disabled until a new Original is started for the next year. As with the Midpoint, any edits made afterward create new working drafts -- they never change the saved Final.',
-  'Step 4: The red × at the far right of a draft\'s row deletes that draft -- any representative with access to this country can delete any draft, not only the one they created. Original, Midpoint, and Final files cannot be deleted. (The one exception is the Nyika II demo, where administrators can delete any file.)',
+  'Step 1: Set the Year dates for Original, Midpoint, and Final above: enter the four-digit year, pick the three dates, and click "Save dates." Click "Edit" next to any saved date to change it, or "Delete" to remove a whole year\'s dates (saved files for that year are not deleted). A year that already has dates cannot be entered again. To change it use Edit, or enter a new year such as 2027. These dates don\'t have to span January 1 to December 31. For example, your year could start March 15, reach its midpoint September 1, and close with a Final on January 30.',
+  'Step 2: The year in the Master file section fills in automatically from the Year dates you set above, and you cannot type a different year there. Click "Save as Original." Once an Original is saved for that year, the button is greyed out and the year box clears until you set dates for a new year. The year you set here also becomes the locked budget year on the Inputs Setup page.',
+  'Step 3a: Saved files are listed in tabs by year, newest first, and within each tab from newest to oldest. Each row shows the year, the type of file (Original, Midpoint, Final, or "New draft" followed by the file it was based on, for example "New draft-Original"), the title, the date and time, the notes, and the author. Click "View" to open everything in that file exactly as saved, on every Inputs page, without being able to change anything. Edits made in a draft show in purple. "Start editing" is only available on the single most recent file. It opens the Inputs section at Setup with that file\'s information. Nothing is saved, and no new draft is created, until you make your edits, name the draft, describe your changes, and click Submit. If you change your mind, click "Back to Version History" at the top of any Inputs page. The tool automatically keeps only the 5 most recent drafts since the last Original, Midpoint, or Final.',
+  'Step 3b: When you are ready to check in partway through the year, click "Save as Midpoint." This button stays greyed out until a Midpoint date is set for the year. If you click it before that date has arrived, nothing is saved. You will be asked to wait or to change the date. Once it is saved, the Midpoint takes whatever is currently in the most recent draft (or the Original, if you have not made any drafts yet) and keeps it permanently. Only one Midpoint is allowed per year. Editing the file afterward only creates new drafts on top of it. The Midpoint stays exactly as it was when you saved it.',
+  'Step 3c: When you are ready to close out the year, click "Save as Final." It works like the Midpoint: it stays greyed out until a Final date is set, asks you to wait or change the date if the date has not arrived, and allows only one Final per year. Any edits made afterward create new drafts and never change the saved Final.',
+  'Step 4: The red × at the far right of a draft\'s row deletes that draft. Any representative with access to this country can delete any draft, not only the one they created. Original, Midpoint, and Final files cannot be deleted. (The one exception is the Nyika II demo, where administrators can delete any file.)',
 ];
 
 export const VERSION_HISTORY_NOTE =
-  "For the demo version Nyika II only: you will see the Original/Midpoint/Final and draft files that YOU created, but you will not be able to see the files that others create while they are testing/learning about the tool. This is because anyone with access to the Dashboard can view/edit files in Nyika II. For the country files, only authorized representatives for that country will be able to view/edit those files, and they will be able to see the files that fellow country representatives created/edited.";
+  "For the demo version Nyika II only: everyone starts from the same default Original, which only administrators can change. When you start editing, you work on your own private copy, so what you enter does not affect anyone else and what others enter does not affect you. You will see the default Original and the Midpoint, Final, and draft files that YOU created, but not the files other testers create. Your Sandbox scenarios are also private to you. For the country files, only authorized representatives for that country can view/edit those files, and they can see the files and Sandbox scenarios that fellow country representatives created/edited.";
 
 // Map each wizard step to the relevant sheet(s) from the workbook.
 // `note` is an optional banner shown above the instructions when the dashboard
 // step doesn't map cleanly to the workbook structure.
 export const WIZARD_STEP_INSTRUCTIONS = {
   setup: {
+    note: 'Use "Back to Version History" at the top of any Inputs page to leave without submitting. What you have typed stays saved in this browser until you click "Clear current draft edits" (which removes only your unsubmitted typing, not files already submitted). Once a file has been submitted, you can click any tab at the top to move between pages without using Next.',
     sheets: [
       { name: "Setup", lines: WIZARD_SETUP_STEPS },
     ],
@@ -220,12 +222,14 @@ export const WIZARD_STEP_INSTRUCTIONS = {
     ],
   },
   expenses: {
+    note: 'The Data source and Notes / calculations boxes are required on both the Regular and Irregular tabs before you can click Next. The message under the boxes lists only what is still empty.',
     sheets: [
       { name: "Regular expenses", lines: EXPENSES_REGULAR },
       { name: "Irregular expenses.", lines: EXPENSES_IRREGULAR },
     ],
   },
   revenue: {
+    note: 'The Data source and Notes / calculations boxes are required on both the Regular and Irregular tabs before you can click Next. The message under the boxes lists only what is still empty.',
     sheets: [
       { name: "Regular revenue from fees", lines: FEES_MODEL_FORM },
       { name: "Regular revenue from other sources", lines: REVENUE_REGULAR_OTHER },
@@ -233,6 +237,7 @@ export const WIZARD_STEP_INSTRUCTIONS = {
     ],
   },
   inKind: {
+    note: 'The Data source and Notes / calculations boxes are required on both the Regular and Irregular tabs before you can click Next. The message under the boxes lists only what is still empty.',
     sheets: [
       { name: "Regular In-Kind Contributions", lines: IN_KIND_REGULAR },
       { name: "Irregular In-Kind Contributions", lines: IN_KIND_IRREGULAR },

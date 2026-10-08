@@ -231,7 +231,8 @@ export default function IntroPage({ onNavigate, isAdmin, selectedCountry }) {
             saved. To do an advanced introduction, use the "Nyika II" option, which allows you to test the
             full functionality of the program, including saving and updating a Master file for each year,
             and uploading a saved file to a "Sandbox" where you can test scenarios without altering the
-            original file. If you are familiar with the tool and you are ready to start entering your
+            original file. In Nyika II everyone starts from the same default Original and works on a
+            private copy of it, so your entries do not affect other testers. If you are familiar with the tool and you are ready to start entering your
             country's data, select your country from the country drop-down list at the top left of the screen.
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
