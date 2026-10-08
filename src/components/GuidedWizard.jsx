@@ -116,16 +116,18 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
   // or "FY 2026/27"). Stored in localStorage draft + submit payload; no Supabase
   // column yet. App.jsx merge-guard pattern handles future migration.
   const [budgetYear, setBudgetYear] = useState(() => draft?.budgetYear ?? data?.budgetYear ?? "");
-  // Prefill the budget year from the newest year that has year dates set in
-  // Version History (2026-10-08). Only fills an empty box; stays editable.
+  // Budget year = the newest year that has year dates set in Version History,
+  // and it is locked on the Setup page (2026-10-08). Countries with no year
+  // dates (plain Nyika) keep a free-text box.
+  const [yearLocked, setYearLocked] = useState(false);
   useEffect(() => {
-    if (viewOnly || budgetYear) return;
+    if (viewOnly) return;
     let cancelled = false;
     (async () => {
       try {
         const { data: rows } = await supabase.from("country_year_dates").select("year_label").eq("country", country);
         const years = (rows || []).map((r) => r.year_label).filter((y) => /^\d{4}$/.test(y)).sort().reverse();
-        if (!cancelled && years[0]) setBudgetYear((cur) => cur || years[0]);
+        if (!cancelled && years[0]) { setBudgetYear(years[0]); setYearLocked(true); }
       } catch {}
     })();
     return () => { cancelled = true; };
@@ -550,7 +552,7 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
               inputMode={inputMode} onInputModeChange={setInputMode}
               exchangeRate={exchangeRate}
               unit={unit} onUnitChange={setUnit}
-              budgetYear={budgetYear} onBudgetYearChange={setBudgetYear}
+              budgetYear={budgetYear} onBudgetYearChange={setBudgetYear} budgetYearLocked={yearLocked}
               changeList={changeList} lastChangeMeta={lastChangeMeta}
               showChanges={showChanges} setShowChanges={setShowChanges}
             />
@@ -792,7 +794,7 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
 
 // ─── Step components ──────────────────────────────────────────────────────────
 
-function StepSetup({ country, localCurrency, currency, inputMode, onInputModeChange, exchangeRate, unit, onUnitChange, budgetYear, onBudgetYearChange, changeList, lastChangeMeta, showChanges, setShowChanges }) {
+function StepSetup({ country, localCurrency, currency, inputMode, onInputModeChange, exchangeRate, unit, onUnitChange, budgetYear, onBudgetYearChange, budgetYearLocked, changeList, lastChangeMeta, showChanges, setShowChanges }) {
   const asOfDate = new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
   const stepChanges = changesForKeys(changeList, ["unit", "budgetYear"]);
   const unitChanged = isFieldChanged(changeList, "unit");
@@ -895,7 +897,9 @@ function StepSetup({ country, localCurrency, currency, inputMode, onInputModeCha
             value={budgetYear || ""}
             onChange={(e) => onBudgetYearChange && onBudgetYearChange(e.target.value)}
             placeholder="e.g., 2026 or FY 2026/27"
+            readOnly={!!budgetYearLocked}
             style={{
+              ...(budgetYearLocked ? { background: "#eceff2", cursor: "not-allowed" } : {}),
               width: "100%",
               padding: "6px 10px",
               background: "#fff",
@@ -905,6 +909,11 @@ function StepSetup({ country, localCurrency, currency, inputMode, onInputModeCha
               color: C.navy,
             }}
           />
+          {budgetYearLocked && (
+            <div style={{ fontSize: 11.5, color: "#666", marginTop: 6 }}>
+              Set from the year dates in Version History. To use a different year, add that year's dates there.
+            </div>
+          )}
         </div>
       </div>
     </div>
