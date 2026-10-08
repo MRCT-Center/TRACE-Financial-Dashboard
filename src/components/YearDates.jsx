@@ -89,6 +89,22 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
     }
   }
 
+  async function deleteRow(r) {
+    if (!window.confirm(`Delete the ${r.year_label} year dates? Saved files for ${r.year_label} are not deleted.`)) return;
+    setSaving(true);
+    setErrorMsg("");
+    try {
+      const { error, count } = await supabase.from("country_year_dates").delete({ count: "exact" }).eq("id", r.id);
+      if (error) throw error;
+      if (!count) throw new Error("Could not delete these dates (not permitted).");
+      await load();
+    } catch (err) {
+      setErrorMsg(err.message || "Could not delete these dates.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function saveEdit(row) {
     setSaving(true);
     setErrorMsg("");
@@ -203,6 +219,11 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
                   </span>
                 );
               })}
+              {canWrite && (
+                <button onClick={() => deleteRow(r)} disabled={saving} style={{ ...linkBtn, color: "#b3261e", marginLeft: "auto", opacity: saving ? 0.5 : 1 }}>
+                  Delete
+                </button>
+              )}
             </div>
           ))}
         </div>

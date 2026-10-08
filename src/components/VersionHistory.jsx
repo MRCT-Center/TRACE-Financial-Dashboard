@@ -21,7 +21,8 @@ import { VERSION_HISTORY_STEP_INSTRUCTIONS, VERSION_HISTORY_NOTE } from "../data
 // working drafts, deletable -- so edits can never silently branch off an old
 // draft. See mostRecentVersionId below.
 
-const KIND_LABELS = { original: "Original", midpoint: "Midpoint", final: "Final", working: "Working save" };
+const KIND_LABELS = { original: "Original", midpoint: "Midpoint", final: "Final", working: "New draft" };
+const yearOf = (label) => (String(label || "").match(/\b(\d{4})\b/) || [])[1] || "";
 const KIND_COLORS = { original: C.teal, midpoint: "#c98a1f", final: C.red || "#b3261e", working: C.blueGrey };
 // Display order (2026-10-08): plain chronological, newest first, whatever the kind.
 const sortVersions = (rows) =>
@@ -37,6 +38,7 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
   const [busy, setBusy] = useState(null); // version id or milestone kind currently in flight
   const [confirmRestoreId, setConfirmRestoreId] = useState(null);
   const [viewingVersion, setViewingVersion] = useState(null); // read-only "View" modal
+  const [selectedYear, setSelectedYear] = useState(null);
 
   const load = useCallback(async () => {
     setStatus("loading");
@@ -89,8 +91,20 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
     const base = versions
       .filter((m) => m.kind !== "working" && m.created_at <= v.created_at)
       .reduce((best, m) => (!best || m.created_at > best.created_at ? m : best), null);
-    return base ? `Working save-${KIND_LABELS[base.kind]}` : "Working save";
+    return base ? `New draft-${KIND_LABELS[base.kind]}` : "New draft";
   };
+  // Reference year of a file: milestones use their own year; a draft takes the
+  // year of the milestone it was based on (the latest one saved before it).
+  const refYearOf = (v) => {
+    if (v.kind !== "working") return yearOf(v.year_label);
+    const base = versions
+      .filter((m) => m.kind !== "working" && m.created_at <= v.created_at)
+      .reduce((best, m) => (!best || m.created_at > best.created_at ? m : best), null);
+    return yearOf(base?.year_label) || yearOf(v.year_label) || "";
+  };
+  const fileYears = [...new Set(versions.map(refYearOf))].sort().reverse();
+  const tabYear = fileYears.includes(selectedYear) ? selectedYear : (fileYears[0] ?? "");
+  const shownVersions = versions.filter((v) => refYearOf(v) === tabYear);
   const mostRecentVersionId = versions.reduce(
     (best, v) => (!best || v.created_at > best.created_at ? v : best),
     null
@@ -105,14 +119,14 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
   //    is visible to this user (e.g. a Nyika II tester, who can't save
   //    Originals), the highest year that has dates.
   const datedYears = dateRows.map((r) => r.year_label).filter((y) => /^\d{4}$/.test(y)).sort().reverse();
-  const originalYears = new Set(versions.filter((v) => v.kind === "original").map((v) => v.year_label));
+  const originalYears = new Set(versions.filter((v) => v.kind === "original").map((v) => yearOf(v.year_label)));
   // Only the newest dated year can start an Original, so an older year left
   // without one can't be picked up by accident.
   const pendingYear = datedYears[0] && !originalYears.has(datedYears[0]) ? datedYears[0] : "";
   const latestOriginal = versions
     .filter((v) => v.kind === "original")
     .reduce((best, v) => (!best || v.created_at > best.created_at ? v : best), null);
-  const cycleYear = latestOriginal?.year_label || datedYears[0] || "";
+  const cycleYear = yearOf(latestOriginal?.year_label) || datedYears[0] || "";
   const yearFor = (kind) => (kind === "original" ? pendingYear : cycleYear);
   const canSaveOriginalHere = !(country === "Nyika II" && !isAdmin);
   const displayYear = canSaveOriginalHere ? pendingYear : cycleYear;
@@ -180,7 +194,7 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
         <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 8 }}>Master file</div>
         <p style={{ fontSize: 12.5, color: "#555", lineHeight: 1.6, marginBottom: 12 }}>
           Every save keeps a working copy (last 5 are kept). Saving a milestone (Original, Midpoint, or Final)
-          keeps that snapshot permanently, separate from the rolling working saves.
+          keeps that snapshot permanently, separate from the rolling new drafts.
         </p>
 
         {canEdit && (
@@ -196,7 +210,8 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
               />
             </label>
             {["original", "midpoint", "final"].map((kind) => {
-              const alreadySaved = (kind === "midpoint" || kind === "final") && cycleHasMilestone(kind);
+              const savedForYear = versions.some((v) => v.kind === kind && yearOf(v.year_label) === cycleYear && (country !== "Nyika II" || v.created_by === currentUserEmail));
+              const alreadySaved = (kind === "midpoint" || kind === "final") && (cycleHasMilestone(kind) || (cycleYear && savedForYear));
               // Nyika II's Original is the shared demo starting point: admins only.
               const adminOnlyOriginal = kind === "original" && country === "Nyika II" && !isAdmin;
               const originalDone = kind === "original" && datedYears.length > 0 && !pendingYear && !adminOnlyOriginal;
@@ -246,24 +261,43 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
         )}
 
         {status === "ready" && versions.length > 0 && (
+        <>
+        <div style={{ display: "flex", gap: 6, marginBottom: 12, borderBottom: `2px solid ${C.teal}`, flexWrap: "wrap" }}>
+          {fileYears.map((y) => {
+            const active = y === tabYear;
+            return (
+              <button
+                key={y || "none"}
+                onClick={() => setSelectedYear(y)}
+                style={{
+                  padding: "7px 16px", minHeight: 34, border: "none", borderRadius: "6px 6px 0 0", cursor: "pointer",
+                  background: active ? C.teal : "#eef2f5", color: active ? "#fff" : C.navy, fontSize: 13, fontWeight: 700,
+                }}
+              >
+                {y || "Other"}
+              </button>
+            );
+          })}
+        </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {versions.map((v) => (
+          {shownVersions.map((v) => (
             <div key={v.id} style={{ background: "#fff", border: "1px solid #dde", borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: C.navy, width: 44, flexShrink: 0 }}>{refYearOf(v)}</span>
               <span style={{
                 fontSize: 11, fontWeight: 700, color: "#fff", background: KIND_COLORS[v.kind],
                 borderRadius: 20, padding: "3px 10px", flexShrink: 0,
               }}>
                 {labelFor(v)}
               </span>
-              <span style={{ fontSize: 12.5, color: C.navy, flex: 1, minWidth: 160 }}>
-                {v.year_label ? `${v.year_label} · ` : ""}
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: C.navy, minWidth: 90, flex: "1 1 120px" }}>
+                {v.kind === "working" ? (v.year_label || "") : ""}
+              </span>
+              <span style={{ fontSize: 12, color: "#555", flexShrink: 0 }}>
                 {new Date(v.created_at).toLocaleString()}
               </span>
-              {v.summary && (
-                <span style={{ fontSize: 12, color: "#444", fontStyle: "italic" }}>
-                  "{v.summary}"
-                </span>
-              )}
+              <span style={{ fontSize: 12, color: "#444", fontStyle: v.summary ? "italic" : "normal", flex: "2 1 160px", minWidth: 100 }}>
+                {v.summary ? `"${v.summary}"` : ""}
+              </span>
               <span style={{ fontSize: 12, color: "#777" }}>{v.created_by || "unknown"}</span>
               <button
                 onClick={() => setViewingVersion(v)}
@@ -318,6 +352,7 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
             </div>
           ))}
         </div>
+        </>
         )}
       </div>
 
