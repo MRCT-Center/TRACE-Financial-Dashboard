@@ -39,6 +39,11 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
   const [confirmRestoreId, setConfirmRestoreId] = useState(null);
   const [viewingVersion, setViewingVersion] = useState(null); // read-only "View" modal
   const [selectedYear, setSelectedYear] = useState(null);
+  // Prompt shown when Midpoint/Final is clicked before its scheduled date.
+  const [earlyPrompt, setEarlyPrompt] = useState(null); // { kind, rowId, date }
+  const [newDate, setNewDate] = useState("");
+  const [datesKey, setDatesKey] = useState(0);
+  const todayStr = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, local time
 
   const load = useCallback(async () => {
     setStatus("loading");
@@ -131,6 +136,35 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
   const canSaveOriginalHere = !(country === "Nyika II" && !isAdmin);
   const displayYear = canSaveOriginalHere ? pendingYear : cycleYear;
 
+  function clickMilestone(kind) {
+    if (kind === "midpoint" || kind === "final") {
+      const row = dateRows.find((r) => r.year_label === cycleYear);
+      const date = row?.[`${kind}_date`];
+      if (date && date > todayStr) {
+        setErrorMsg("");
+        setNewDate(todayStr);
+        setEarlyPrompt({ kind, rowId: row.id, date });
+        return;
+      }
+    }
+    handleMilestone(kind);
+  }
+
+  async function changeDateAndSave() {
+    const { kind, rowId } = earlyPrompt;
+    setBusy(kind);
+    try {
+      const { error } = await supabase.from("country_year_dates").update({ [`${kind}_date`]: newDate }).eq("id", rowId);
+      if (error) throw error;
+      setEarlyPrompt(null);
+      setDatesKey((k) => k + 1);
+      await handleMilestone(kind);
+    } catch (err) {
+      setErrorMsg(err.message || "Could not change the date.");
+      setBusy(null);
+    }
+  }
+
   async function handleMilestone(kind) {
     const year = yearFor(kind);
     if (!year) { setErrorMsg("Set the year dates above first -- the Master file uses that year."); return; }
@@ -188,7 +222,7 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
         }}
       />
 
-      <YearDates country={country} canEdit={canEdit && (country !== "Nyika II" || isAdmin)} onRowsChange={setDateRows} />
+      <YearDates key={datesKey} country={country} canEdit={canEdit && (country !== "Nyika II" || isAdmin)} onRowsChange={setDateRows} />
 
       <div style={{ background: "#fff", border: "1px solid #dde", borderRadius: 10, padding: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 8 }}>Master file</div>
@@ -222,7 +256,7 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
               return (
                 <button
                   key={kind}
-                  onClick={() => handleMilestone(kind)}
+                  onClick={() => clickMilestone(kind)}
                   disabled={disabled}
                   title={
                     adminOnlyOriginal ? "Only administrators can save the Nyika II Original."
@@ -251,6 +285,28 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
       <div style={{ background: "#fff", border: "1px solid #dde", borderRadius: 10, padding: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 8 }}>File version history</div>
 
+        {earlyPrompt && (
+          <div style={{ background: "#fff8e8", border: `1px solid ${C.yellow}`, borderRadius: 8, padding: "12px 14px", marginBottom: 12, fontSize: 12.5, color: "#5a4000", lineHeight: 1.6 }}>
+            <strong>This {KIND_LABELS[earlyPrompt.kind]} isn't due yet.</strong> The {KIND_LABELS[earlyPrompt.kind]} date set for {cycleYear} is {earlyPrompt.date}. You can wait until then{canEdit && (country !== "Nyika II" || isAdmin) ? ", or change the date" : ""}.
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginTop: 8 }}>
+              {canEdit && (country !== "Nyika II" || isAdmin) && (
+                <>
+                  <input type="date" value={newDate} max={todayStr} onChange={(e) => setNewDate(e.target.value)} style={{ padding: "5px 8px", fontSize: 12.5, border: "1px solid #ccd", borderRadius: 6, minHeight: 32 }} />
+                  <button
+                    onClick={changeDateAndSave}
+                    disabled={!newDate || newDate > todayStr || busy === earlyPrompt.kind}
+                    style={{ padding: "6px 12px", minHeight: 32, borderRadius: 6, border: "none", background: C.teal, color: "#fff", fontSize: 12.5, fontWeight: 600, cursor: "pointer", opacity: !newDate || newDate > todayStr ? 0.5 : 1 }}
+                  >
+                    Change date and save {KIND_LABELS[earlyPrompt.kind]}
+                  </button>
+                </>
+              )}
+              <button onClick={() => setEarlyPrompt(null)} style={{ padding: "6px 12px", minHeight: 32, borderRadius: 6, border: "1px solid #ccd", background: "#fff", color: C.navy, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                I'll wait
+              </button>
+            </div>
+          </div>
+        )}
         {errorMsg && (
           <div style={{ fontSize: 12.5, color: "#b3261e", background: "#fdecea", border: "1px solid #f3c5c1", borderRadius: 8, padding: 10, marginBottom: 8 }}>
             {errorMsg}
