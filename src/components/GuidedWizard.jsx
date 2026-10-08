@@ -495,25 +495,41 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
         <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>Enter data step by step. Data source and notes are required on each step (except Setup) before advancing.</div>
       </div>
 
-      {/* Autosave indicator — PROTOTYPE: local browser only; replace with server-side drafts before production */}
-      {draftSavedAt && !viewOnly && (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11, color: C.blueGrey, marginBottom: 14, padding: "0 4px" }}>
-          <span style={{ width: 7, height: 7, borderRadius: "50%", background: C.green, flexShrink: 0 }} />
-          <span>
-            Draft autosaved at {new Date(draftSavedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
-            <span style={{ marginLeft: 8, fontStyle: "italic", color: "#999" }}>(prototype: saved to this browser only)</span>
-          </span>
-          <button
-            onClick={() => {
-              if (window.confirm("Clear your saved draft and start over? This cannot be undone.")) {
-                clearDraft(country);
-                window.location.reload();
-              }
-            }}
-            style={{ marginLeft: "auto", background: "transparent", border: "none", color: C.red, fontSize: 11, cursor: "pointer", padding: 0, textDecoration: "underline" }}
-          >
-            Clear draft
-          </button>
+      {/* Back to Version History + autosave indicator (2026-10-08) */}
+      {!viewOnly && (onGoToHistory || draftSavedAt) && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11, color: C.blueGrey, marginBottom: 14, padding: "0 4px", flexWrap: "wrap" }}>
+          {onGoToHistory && (
+            <button
+              onClick={() => {
+                if (!draftSavedAt || window.confirm("Leave without submitting? Your changes stay saved in this browser until you click \"Clear current draft edits\" or Start editing on a file.")) {
+                  onGoToHistory();
+                }
+              }}
+              style={{ background: "#fff", border: `1px solid ${C.teal}`, color: C.teal, fontSize: 12, fontWeight: 600, cursor: "pointer", padding: "5px 12px", borderRadius: 6, minHeight: 30 }}
+            >
+              ← Back to Version History
+            </button>
+          )}
+          {draftSavedAt && (
+            <>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: C.green, flexShrink: 0 }} />
+              <span>
+                Draft autosaved at {new Date(draftSavedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+                <span style={{ marginLeft: 8, fontStyle: "italic", color: "#999" }}>(prototype: saved to this browser only)</span>
+              </span>
+              <button
+                onClick={() => {
+                  if (window.confirm("Clear your current draft edits? This removes everything you have typed since the last saved file and cannot be undone. Files already submitted are not affected.")) {
+                    clearDraft(country);
+                    window.location.reload();
+                  }
+                }}
+                style={{ marginLeft: "auto", background: "transparent", border: "none", color: C.red, fontSize: 11, cursor: "pointer", padding: 0, textDecoration: "underline" }}
+              >
+                Clear current draft edits
+              </button>
+            </>
+          )}
         </div>
       )}
 
