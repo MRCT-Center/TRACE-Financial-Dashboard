@@ -446,7 +446,7 @@ export default function App() {
     if (error) console.warn("Seed failed:", error.message);
   }
 
-  async function saveCountryData(country, updates, changeSummary, draftTitle) {
+  async function saveCountryData(country, updates, changeSummary, draftTitle, originalYear) {
     const merged = { ...countryCache[country], ...updates };
     setCountryCache((prev) => ({ ...prev, [country]: merged }));
     // Demo mode: edits update the in-memory cache only (so the UI reflects them
@@ -470,6 +470,16 @@ export default function App() {
       }));
     }
     if (error) { console.warn("Save failed:", error.message); return; }
+    // First submit for a year with dates but no Original: save it as that
+    // year's Original instead of a draft.
+    if (originalYear) {
+      const { error: origErr } = await supabase.from("country_versions").insert({
+        country, kind: "original", year_label: originalYear, data: merged,
+        created_by: session?.email || "unknown", summary: changeSummary || null,
+      });
+      if (!origErr) return;
+      console.warn("Could not save as Original, saving as a draft instead:", origErr.message);
+    }
     await recordWorkingVersion(country, merged, changeSummary, draftTitle);
   }
 
@@ -661,7 +671,7 @@ export default function App() {
               data={countryData}
               onClearDraft={() => setWizardKey((k) => k + 1)}
               isAdmin={isAdmin}
-              onSave={(updates, changeSummary, draftTitle) => saveCountryData(selectedCountry, updates, changeSummary, draftTitle)}
+              onSave={(updates, changeSummary, draftTitle, originalYear) => saveCountryData(selectedCountry, updates, changeSummary, draftTitle, originalYear)}
               onGoToHistory={selectedCountry === "Nyika" ? undefined : () => setView("history")}
             />
           )}

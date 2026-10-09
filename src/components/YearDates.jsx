@@ -27,6 +27,7 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
   const [original, setOriginal] = useState("");
   const [midpoint, setMidpoint] = useState("");
   const [final, setFinal] = useState("");
+  const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   // { id, key } of the single date currently being edited in place, plus its draft value
   const [editing, setEditing] = useState(null);
@@ -36,7 +37,7 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
     try {
       const { data, error } = await supabase
         .from("country_year_dates")
-        .select("id, year_label, original_date, midpoint_date, final_date, set_by, set_at")
+        .select("id, year_label, original_date, midpoint_date, final_date, notes, set_by, set_at")
         .eq("country", country)
         .order("year_label", { ascending: false });
       if (error) throw error;
@@ -45,8 +46,17 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
       // row, so they are narrowed here to the default plus their own.
       const me = (currentUserEmail || "").toLowerCase();
       const shown = (data || []).filter((r) => country !== "Nyika II" || !isAdmin || !r.set_by || r.set_by.toLowerCase() === me);
-      setRows(shown);
-      onRowsChange?.(shown);
+      // If a tester has made their own copy of a default year (to change its
+      // Midpoint/Final dates), show their copy instead of the default.
+      const byYear = new Map();
+      shown.forEach((r) => {
+        const prev = byYear.get(r.year_label);
+        const mine = r.set_by && r.set_by.toLowerCase() === me;
+        if (!prev || (mine && !(prev.set_by && prev.set_by.toLowerCase() === me))) byYear.set(r.year_label, r);
+      });
+      const deduped = country === "Nyika II" ? [...byYear.values()].sort((a, b) => (a.year_label < b.year_label ? 1 : -1)) : shown;
+      setRows(deduped);
+      onRowsChange?.(deduped);
       setStatus("ready");
     } catch (err) {
       setErrorMsg(err.message || "Could not load dates.");
@@ -79,13 +89,14 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
       const { error } = await supabase.from("country_year_dates").insert({
         country, year_label: yearLabel,
         original_date: original || null, midpoint_date: midpoint || null, final_date: final || null,
+        notes: notes.trim() || null,
       });
       if (error) {
         throw new Error(/duplicate|unique/i.test(error.message)
           ? `${yearLabel} already has dates. Use Edit next to them, or enter a new year.`
           : error.message);
       }
-      setYearLabel(""); setOriginal(""); setMidpoint(""); setFinal("");
+      setYearLabel(""); setOriginal(""); setMidpoint(""); setFinal(""); setNotes("");
       await load();
     } catch (err) {
       setErrorMsg(err.message || "Could not save dates.");
@@ -110,17 +121,32 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
     }
   }
 
+  const isMine = (r) => !!r.set_by && r.set_by.toLowerCase() === (currentUserEmail || "").toLowerCase();
   async function saveEdit(row) {
     setSaving(true);
     setErrorMsg("");
     try {
-      await upsertDates(row.year_label, {
-        original_date: row.original_date, midpoint_date: row.midpoint_date, final_date: row.final_date,
-        [editing.key]: editValue || null,
-      });
+      const value = editing.key === "notes" ? (editValue.trim() || null) : (editValue || null);
+      const patch = { [editing.key]: value };
+      const ownRow = country !== "Nyika II" || isMine(row) || (isAdmin && !row.set_by);
+      if (ownRow) {
+        const { error, data } = await supabase.from("country_year_dates").update(patch).eq("id", row.id).select("id");
+        if (error) throw error;
+        if (!data || data.length === 0) throw new Error("Could not save this change (not permitted).");
+      } else {
+        // Nyika II tester changing a shared default year: save their own copy
+        // with the change, so nobody else's dates move.
+        const { error } = await supabase.from("country_year_dates").insert({
+          country, year_label: row.year_label,
+          original_date: row.original_date, midpoint_date: row.midpoint_date, final_date: row.final_date,
+          notes: row.notes, ...patch,
+        });
+        if (error) throw error;
+      }
+      await load();
       setEditing(null);
     } catch (err) {
-      setErrorMsg(err.message || "Could not save this date.");
+      setErrorMsg(err.message || "Could not save this change.");
     } finally {
       setSaving(false);
     }
@@ -129,11 +155,19 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
   const inputStyle = { padding: "6px 8px", fontSize: 12.5, border: "1px solid #ccd", borderRadius: 6, minHeight: 34 };
   const linkBtn = { background: "transparent", border: "none", color: C.teal, fontSize: 11.5, fontWeight: 600, cursor: "pointer", padding: "0 0 0 6px", textDecoration: "underline" };
   const canWrite = !readOnly && canEdit;
-  // Nyika II: the shared default row (no author) is only editable by admins; a tester can only change rows they created.
-  const rowEditable = (r) => canWrite && (country !== "Nyika II" || (isAdmin ? !r.set_by || r.set_by.toLowerCase() === (currentUserEmail || "").toLowerCase() : !!r.set_by && r.set_by.toLowerCase() === (currentUserEmail || "").toLowerCase()));
+  // Nyika II: admins edit the shared default; a tester edits their own years,
+  // and can change Midpoint/Final dates and notes of a default year (which saves
+  // their own copy). Nobody but an admin changes a default year's Original date.
+  const rowEditable = (r, key) => {
+    if (!canWrite) return false;
+    if (country !== "Nyika II") return true;
+    if (isAdmin) return !r.set_by || isMine(r);
+    return isMine(r) || key !== "original_date";
+  };
+  const rowDeletable = (r) => canWrite && (country !== "Nyika II" || (isAdmin ? !r.set_by || isMine(r) : isMine(r)));
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #dde", borderRadius: 10, padding: 16 }}>
+    <div id="year-dates-box" style={{ background: "#fff", border: "1px solid #dde", borderRadius: 10, padding: 16 }}>
       <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 8 }}>Year dates</div>
       <p style={{ fontSize: 12.5, color: "#555", lineHeight: 1.6, marginBottom: 12 }}>
         {readOnly
@@ -162,6 +196,15 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
               maxLength={4}
               placeholder="e.g. 2026"
               style={{ ...inputStyle, width: 100 }}
+            />
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, color: "#555", flex: "1 1 220px" }}>
+            Notes (optional)
+            <input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="e.g., The 2026 file is for fiscal year 2026, which runs April 1, 2026 through March 31, 2027"
+              style={inputStyle}
             />
           </label>
           <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, color: "#555" }}>
@@ -216,7 +259,7 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
                     ) : (
                       <>
                         {r[key] || "—"}
-                        {rowEditable(r) && (
+                        {rowEditable(r, key) && (
                           <button onClick={() => { setEditing({ id: r.id, key }); setEditValue(r[key] || ""); }} style={linkBtn}>
                             Edit
                           </button>
@@ -226,7 +269,26 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
                   </span>
                 );
               })}
-              {rowEditable(r) && (
+              {(r.notes || rowEditable(r, "notes")) && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexBasis: "100%", color: "#555" }}>
+                  Notes:{" "}
+                  {editing?.id === r.id && editing?.key === "notes" ? (
+                    <>
+                      <input value={editValue} onChange={(e) => setEditValue(e.target.value)} style={{ ...inputStyle, minHeight: 28, padding: "3px 6px", flex: 1 }} />
+                      <button onClick={() => saveEdit(r)} disabled={saving} style={{ ...linkBtn, opacity: saving ? 0.5 : 1 }}>{saving ? "Saving…" : "Save"}</button>
+                      <button onClick={() => setEditing(null)} style={{ ...linkBtn, color: "#777" }}>Cancel</button>
+                    </>
+                  ) : (
+                    <>
+                      <em>{r.notes || "none"}</em>
+                      {rowEditable(r, "notes") && (
+                        <button onClick={() => { setEditing({ id: r.id, key: "notes" }); setEditValue(r.notes || ""); }} style={linkBtn}>Edit</button>
+                      )}
+                    </>
+                  )}
+                </span>
+              )}
+              {rowDeletable(r) && (
                 <button onClick={() => deleteRow(r)} disabled={saving} style={{ ...linkBtn, color: "#b3261e", marginLeft: "auto", opacity: saving ? 0.5 : 1 }}>
                   Delete
                 </button>

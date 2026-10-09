@@ -287,23 +287,19 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
 
         {earlyPrompt && (
           <div style={{ background: "#fff8e8", border: `1px solid ${C.yellow}`, borderRadius: 8, padding: "12px 14px", marginBottom: 12, fontSize: 12.5, color: "#5a4000", lineHeight: 1.6 }}>
-            <strong>This {KIND_LABELS[earlyPrompt.kind]} isn't due yet.</strong> The {KIND_LABELS[earlyPrompt.kind]} date set for {cycleYear} is {earlyPrompt.date}. You can wait until then{canEdit ? ", or change the date" : ""}.
+            <strong>This {KIND_LABELS[earlyPrompt.kind]} isn't due yet.</strong> The {KIND_LABELS[earlyPrompt.kind]} date set for {cycleYear} is {earlyPrompt.date}. You can wait until then or edit the {KIND_LABELS[earlyPrompt.kind].toLowerCase()} date above.
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginTop: 8 }}>
-              {canEdit && (
-                <>
-                  <input type="date" value={newDate} max={todayStr} onChange={(e) => setNewDate(e.target.value)} style={{ padding: "5px 8px", fontSize: 12.5, border: "1px solid #ccd", borderRadius: 6, minHeight: 32 }} />
-                  <button
-                    onClick={changeDateAndSave}
-                    disabled={!newDate || newDate > todayStr || busy === earlyPrompt.kind}
-                    style={{ padding: "6px 12px", minHeight: 32, borderRadius: 6, border: "none", background: C.teal, color: "#fff", fontSize: 12.5, fontWeight: 600, cursor: "pointer", opacity: !newDate || newDate > todayStr ? 0.5 : 1 }}
-                  >
-                    Change date and save {KIND_LABELS[earlyPrompt.kind]}
-                  </button>
-                </>
-              )}
               <button onClick={() => setEarlyPrompt(null)} style={{ padding: "6px 12px", minHeight: 32, borderRadius: 6, border: "1px solid #ccd", background: "#fff", color: C.navy, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
                 I'll wait
               </button>
+              {canEdit && (
+                <button
+                  onClick={() => { setEarlyPrompt(null); document.getElementById("year-dates-box")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+                  style={{ padding: "6px 12px", minHeight: 32, borderRadius: 6, border: "none", background: C.teal, color: "#fff", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
+                >
+                  I'll edit the dates
+                </button>
+              )}
             </div>
           </div>
         )}

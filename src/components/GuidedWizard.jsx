@@ -120,6 +120,8 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
   // and it is locked on the Setup page (2026-10-08). Countries with no year
   // dates (plain Nyika) keep a free-text box.
   const [yearLocked, setYearLocked] = useState(false);
+  // Year that has dates but no Original yet: submitting then saves the file as that year's Original.
+  const [firstOriginalYear, setFirstOriginalYear] = useState("");
   useEffect(() => {
     if (viewOnly) return;
     let cancelled = false;
@@ -133,6 +135,9 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
         const usable = (rows || []).filter((r) => country !== "Nyika II" || !isAdmin || !r.set_by || r.set_by.toLowerCase() === me);
         const years = usable.map((r) => r.year_label).filter((y) => /^\d{4}$/.test(y)).sort().reverse();
         if (!cancelled && years[0]) { setBudgetYear(years[0]); setYearLocked(true); }
+        const { data: origs } = await supabase.from("country_versions").select("year_label").eq("country", country).eq("kind", "original");
+        const have = new Set((origs || []).map((o) => (String(o.year_label || "").match(/\b(\d{4})\b/) || [])[1]).filter(Boolean));
+        if (!cancelled && years[0] && !have.has(years[0])) setFirstOriginalYear(years[0]);
       } catch {}
     })();
     return () => { cancelled = true; };
@@ -636,7 +641,7 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
               showChanges={showChanges} setShowChanges={setShowChanges}
             />
           )}
-          {step === 5 && <StepReview  country={country} activityRows={activityRows} currency={currency} budgetYear={budgetYear} erRowsEdits={erRowsEdits} irrProjEdits={irrProjEdits} feesEdits={feesEdits} revRegOtherEdits={revRegOtherEdits} revIrrEdits={revIrrEdits} ikRegRowsEdits={ikRegRowsEdits} ikIrrRowsEdits={ikIrrRowsEdits} changeSummary={changeSummary} setChangeSummary={setChangeSummary} draftTitle={draftTitle} setDraftTitle={setDraftTitle} />}
+          {step === 5 && <StepReview  firstOriginalYear={firstOriginalYear} country={country} activityRows={activityRows} currency={currency} budgetYear={budgetYear} erRowsEdits={erRowsEdits} irrProjEdits={irrProjEdits} feesEdits={feesEdits} revRegOtherEdits={revRegOtherEdits} revIrrEdits={revIrrEdits} ikRegRowsEdits={ikRegRowsEdits} ikIrrRowsEdits={ikIrrRowsEdits} changeSummary={changeSummary} setChangeSummary={setChangeSummary} draftTitle={draftTitle} setDraftTitle={setDraftTitle} />}
 
           {/* Sources & Notes — required on every step except Setup (per
               Willyanne 2026-05-27 mid-day item #4) and Review. */}
@@ -802,7 +807,7 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
                 // the submitted/versioned data like everything else.
                 stepSources, stepNotes,
               };
-              if (onSave) await onSave(updates, changeSummary.trim(), draftTitle.trim());
+              if (onSave) await onSave(updates, changeSummary.trim(), draftTitle.trim(), firstOriginalYear || null);
               clearDraft(country);
               setChangeSummary("");
               setDraftTitle("");
@@ -812,7 +817,7 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
             disabled={saving}
             style={{ ...navBtnStyle, background: saving ? C.blueGrey : C.green, color: "#fff" }}
           >
-            {saving ? "Saving…" : "Submit ✓"}
+            {saving ? "Saving…" : firstOriginalYear ? `Submit as ${firstOriginalYear} Original ✓` : "Submit ✓"}
           </button>
         )}
       </div>
@@ -2806,7 +2811,7 @@ function ExpensesStep({ conv, erRowsEdits, setErRowsEdits, irrProjEdits, setIrrP
   );
 }
 
-function StepReview({ country, activityRows, currency, budgetYear, erRowsEdits, irrProjEdits, feesEdits, revRegOtherEdits, revIrrEdits, ikRegRowsEdits, ikIrrRowsEdits, changeSummary, setChangeSummary, draftTitle, setDraftTitle }) {
+function StepReview({ firstOriginalYear, country, activityRows, currency, budgetYear, erRowsEdits, irrProjEdits, feesEdits, revRegOtherEdits, revIrrEdits, ikRegRowsEdits, ikIrrRowsEdits, changeSummary, setChangeSummary, draftTitle, setDraftTitle }) {
   const filledActivities = activityRows.filter((r) => r.nearTerm && r.longTerm);
   const sumRows = (rows) => (rows || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
   const totalRegExpenses = sumRows(erRowsEdits);
@@ -2823,6 +2828,11 @@ function StepReview({ country, activityRows, currency, budgetYear, erRowsEdits, 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <p style={descStyle}>Review your responses before submitting. Submitting will save all changes to the TRACE database.</p>
+      {firstOriginalYear && (
+        <div style={{ background: "#eaf6f0", border: `1px solid ${C.green}`, borderRadius: 8, padding: "10px 14px", fontSize: 12.5, color: "#1c4a33", lineHeight: 1.6 }}>
+          <strong>No {firstOriginalYear} Original has been saved yet.</strong> Submitting now saves this file as the {firstOriginalYear} Original. After that, further edits are saved as new drafts based on it.
+        </div>
+      )}
       <div style={{ background: C.lightBG, borderRadius: 8, padding: "14px 18px" }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 8 }}>Summary</div>
         <div style={{ fontSize: 13, color: "#444", lineHeight: 1.9 }}>
