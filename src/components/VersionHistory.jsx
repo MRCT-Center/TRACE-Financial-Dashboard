@@ -382,7 +382,7 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
               )}
               {/* Start editing: only ever shown on the single chronologically
                   most recent version (any kind) -- see mostRecentVersionId above. */}
-              {canEdit && (v.id === mostRecentVersionId || (country === "Nyika II" && v.kind === "original")) && (
+              {canEdit && v.id === mostRecentVersionId && (
                 confirmRestoreId === v.id ? (
                   <span style={{ display: "flex", gap: 6 }}>
                     <button

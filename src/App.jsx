@@ -65,6 +65,7 @@ export default function App() {
   const [loginNotice, setLoginNotice] = useState("");
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [view, setView] = useState("intro");
+  const [wizardKey, setWizardKey] = useState(0); // bumped to remount the wizard after "Clear current draft edits"
   // Admin lands on Nyika (the worked example); country logins are set to their
   // own country in handleLogin, so this default only affects the admin view.
   const [selectedCountry, setSelectedCountry] = useState("Nyika");
@@ -655,9 +656,10 @@ export default function App() {
           {view === "intro"   && <IntroPage onNavigate={setView} isAdmin={isAdmin} selectedCountry={selectedCountry} />}
           {view === "wizard"  && (
             <GuidedWizard
-              key={selectedCountry}
+              key={`${selectedCountry}-${wizardKey}`}
               country={selectedCountry}
               data={countryData}
+              onClearDraft={() => setWizardKey((k) => k + 1)}
               onSave={(updates, changeSummary, draftTitle) => saveCountryData(selectedCountry, updates, changeSummary, draftTitle)}
               onGoToHistory={selectedCountry === "Nyika" ? undefined : () => setView("history")}
             />

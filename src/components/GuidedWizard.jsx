@@ -78,7 +78,7 @@ function sourceSlotKey(step, subTab) {
   return (step === 2 || step === 3 || step === 4) ? `${step}-${subTab}` : `${step}`;
 }
 
-export default function GuidedWizard({ country, data, onSave, viewVersion = null, onGoToHistory }) {
+export default function GuidedWizard({ country, data, onSave, viewVersion = null, onGoToHistory, onClearDraft }) {
   // Read-only "View" mode (2026-10-08): when `viewVersion` is passed the wizard
   // shows that saved version's inputs exactly as saved. It never reads or
   // writes the browser's local draft, can't be edited, can't be submitted,
@@ -425,9 +425,11 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
     if (!(stepNotes[k] || "").trim()) miss.push("Notes / calculations");
     return `${miss.join(" and ")} on the ${slotTabName(k)}`;
   }).join("; ");
-  const expensesSubtabsOk = step !== 2 || expVisitedIrregular;
-  const revenueSubtabsOk  = step !== 3 || revVisitedIrregular;
-  const inKindSubtabsOk   = step !== 4 || inkVisitedIrregular;
+  // The Irregular sub-tab counts as reviewed once it has been opened OR its
+  // Data source and Notes are already filled in (e.g. loaded from a saved file).
+  const expensesSubtabsOk = step !== 2 || expVisitedIrregular || slotComplete("2-irregular");
+  const revenueSubtabsOk  = step !== 3 || revVisitedIrregular || slotComplete("3-irregular");
+  const inKindSubtabsOk   = step !== 4 || inkVisitedIrregular || slotComplete("4-irregular");
   // Step 1 (Key Considerations) — per Willyanne 2026-05-26 #5: yes/no AND
   // description are required for both risks and opportunities.
   const riskAnswered = hasRisks === "yes" || hasRisks === "no";
@@ -528,7 +530,7 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
                 onClick={() => {
                   if (window.confirm("Clear your current draft edits? This removes everything you have typed since the last saved file and cannot be undone. Files already submitted are not affected.")) {
                     clearDraft(country);
-                    window.location.reload();
+                    if (onClearDraft) onClearDraft(); else window.location.reload();
                   }
                 }}
                 style={{ marginLeft: "auto", background: "transparent", border: "none", color: C.red, fontSize: 11, cursor: "pointer", padding: 0, textDecoration: "underline" }}
