@@ -3,211 +3,116 @@ import { COLORS as C } from "../utils/metrics";
 import { supabase } from "../supabaseClient";
 import Results from "./Results";
 
-// Sandbox (2026-09-29): what-if scenarios, copied from the current Master at
-// creation time, edited independently, shared across a country's reps.
-// Never writes back to Master (Hayat's 2026-09-25 decision) -- see
-// country_scenarios in Supabase. Admins deliberately can't see this view at
-// all (no admin RLS policy on country_scenarios, and Sandbox isn't in
-// ADMIN_VIEWS) -- spec section 7.
+// Sandbox (simplified 2026-10-09): pick any saved file (or the current live
+// file) and play with its numbers on the Results screen in real time. Nothing
+// is named, saved, or written anywhere: edits live only in this browser tab
+// and disappear when you pick another file, click Reset, or leave. The real
+// files are never touched.
 
-export default function Sandbox({ country, flag, masterData, canEdit }) {
-  const [scenarios, setScenarios] = useState([]);
+const KIND_LABELS = { original: "Original", midpoint: "Midpoint", final: "Final", working: "New draft" };
+const yearOf = (label) => (String(label || "").match(/\b(\d{4})\b/) || [])[1] || "";
+
+export default function Sandbox({ country, flag, masterData }) {
+  const [versions, setVersions] = useState([]);
   const [status, setStatus] = useState("loading");
   const [errorMsg, setErrorMsg] = useState("");
-  const [newName, setNewName] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [openId, setOpenId] = useState(null);
-  const [renamingId, setRenamingId] = useState(null);
-  const [renameValue, setRenameValue] = useState("");
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [choice, setChoice] = useState("current"); // "current" or a version id
+  const [working, setWorking] = useState(null);     // in-memory copy being played with
+  const [resetKey, setResetKey] = useState(0);
 
   const load = useCallback(async () => {
     setStatus("loading");
     try {
       const { data, error } = await supabase
-        .from("country_scenarios")
-        .select("id, name, data, created_at, created_by, updated_at, updated_by")
+        .from("country_versions")
+        .select("id, kind, year_label, data, created_at, created_by, summary")
         .eq("country", country)
-        .order("updated_at", { ascending: false });
+        .order("created_at", { ascending: false });
       if (error) throw error;
-      setScenarios(data || []);
+      setVersions(data || []);
       setStatus("ready");
     } catch (err) {
-      setErrorMsg(err.message || "Could not load scenarios.");
+      setErrorMsg(err.message || "Could not load files.");
       setStatus("error");
     }
   }, [country]);
 
-  useEffect(() => { load(); setOpenId(null); }, [load]);
+  useEffect(() => { load(); setChoice("current"); setWorking(null); }, [load]);
 
-  async function createScenario() {
-    const name = newName.trim();
-    if (!name) return;
-    setCreating(true);
-    try {
-      const { error } = await supabase.from("country_scenarios").insert({
-        country, name, data: masterData,
-      });
-      if (error) throw error;
-      setNewName("");
-      await load();
-    } catch (err) {
-      setErrorMsg(err.message || "Could not create scenario.");
-    } finally {
-      setCreating(false);
-    }
+  const sourceData = choice === "current" ? masterData : versions.find((v) => v.id === choice)?.data;
+
+  // Fresh in-memory copy whenever the chosen file (or the reset counter) changes.
+  useEffect(() => {
+    setWorking(sourceData ? JSON.parse(JSON.stringify(sourceData)) : null);
+  }, [choice, resetKey, sourceData]); // eslint-disable-line
+
+  function describe(v) {
+    const kind = KIND_LABELS[v.kind] || v.kind;
+    const year = v.kind === "working" ? yearOf(v.year_label) : yearOf(v.year_label);
+    const title = v.kind === "working" && v.year_label ? ` "${v.year_label}"` : "";
+    return `${year ? year + " " : ""}${kind}${title} · ${new Date(v.created_at).toLocaleString()}`;
   }
 
-  async function updateScenarioData(id, updates) {
-    const current = scenarios.find((s) => s.id === id);
-    if (!current) return;
-    const merged = { ...current.data, ...updates };
-    setScenarios((prev) => prev.map((s) => (s.id === id ? { ...s, data: merged } : s)));
-    const { error } = await supabase
-      .from("country_scenarios")
-      .update({ data: merged, updated_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) console.warn("Could not save scenario edit:", error.message);
-  }
-
-  async function renameScenario(id) {
-    const name = renameValue.trim();
-    if (!name) { setRenamingId(null); return; }
-    const { error } = await supabase.from("country_scenarios").update({ name }).eq("id", id);
-    if (error) { setErrorMsg(error.message); return; }
-    setRenamingId(null);
-    await load();
-  }
-
-  async function deleteScenario(id) {
-    const { error } = await supabase.from("country_scenarios").delete().eq("id", id);
-    if (error) { setErrorMsg(error.message); return; }
-    setConfirmDeleteId(null);
-    if (openId === id) setOpenId(null);
-    await load();
-  }
-
-  const openScenario = scenarios.find((s) => s.id === openId);
-
-  if (openScenario) {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #dde", borderRadius: 10, padding: "10px 14px" }}>
-          <button
-            onClick={() => setOpenId(null)}
-            style={{ padding: "6px 12px", minHeight: 32, borderRadius: 6, border: "1px solid #ccd", background: "#fff", color: C.teal, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
-          >
-            ← All scenarios
-          </button>
-          <div style={{ fontSize: 13.5, fontWeight: 700, color: C.navy }}>{openScenario.name}</div>
-          <div style={{ fontSize: 11.5, color: "#777" }}>What-if only — never affects the real {country} data</div>
-        </div>
-        <Results
-          country={country}
-          data={openScenario.data}
-          flag={flag}
-          onEdit={(path, value) => {
-            const clone = JSON.parse(JSON.stringify(openScenario.data));
-            const keys = path.split(".");
-            let cur = clone;
-            for (let i = 0; i < keys.length - 1; i++) {
-              const k = keys[i];
-              if (!(k in cur)) cur[k] = {};
-              cur = cur[k];
-            }
-            cur[keys[keys.length - 1]] = value;
-            updateScenarioData(openScenario.id, clone);
-          }}
-        />
-      </div>
-    );
+  function editWorking(path, value) {
+    setWorking((prev) => {
+      const clone = JSON.parse(JSON.stringify(prev || {}));
+      const keys = path.split(".");
+      let cur = clone;
+      for (let i = 0; i < keys.length - 1; i++) {
+        const k = keys[i];
+        if (!(k in cur)) cur[k] = {};
+        cur = cur[k];
+      }
+      cur[keys[keys.length - 1]] = value;
+      return clone;
+    });
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ background: "#fff", border: "1px solid #dde", borderRadius: 10, padding: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 8 }}>Sandbox</div>
         <p style={{ fontSize: 12.5, color: "#555", lineHeight: 1.6, marginBottom: 12 }}>
-          What-if copies of {country}'s current data. Play with the numbers here — changes stay in the
-          scenario and never touch the real Master file. Shared with every rep on {country}'s team.
+          Choose any {country} file below and try out different numbers on the results screen in real time.
+          Nothing you change here is saved, and it never affects the real files. Choosing another file,
+          clicking Reset, or leaving this page clears your changes.
         </p>
-        {canEdit && (
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Scenario name (e.g. “What if fees drop 20%”)"
-              style={{ flex: 1, padding: "8px 10px", fontSize: 12.5, border: "1px solid #ccd", borderRadius: 6, minHeight: 36 }}
-            />
-            <button
-              onClick={createScenario}
-              disabled={creating || !newName.trim()}
-              style={{ padding: "8px 16px", minHeight: 36, borderRadius: 6, border: "none", background: C.teal, color: "#fff", fontSize: 12.5, fontWeight: 600, cursor: "pointer", opacity: creating || !newName.trim() ? 0.6 : 1 }}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+          <label style={{ fontSize: 12, color: "#555" }}>Work with this file:&nbsp;
+            <select
+              value={choice}
+              onChange={(e) => setChoice(e.target.value)}
+              style={{ padding: "7px 10px", fontSize: 12.5, border: "1px solid #ccd", borderRadius: 6, minHeight: 36, maxWidth: 520 }}
             >
-              {creating ? "Creating…" : "Create scenario"}
-            </button>
-          </div>
-        )}
+              <option value="current">Current file (the live data)</option>
+              {versions.map((v) => (
+                <option key={v.id} value={v.id}>{describe(v)}</option>
+              ))}
+            </select>
+          </label>
+          <button
+            onClick={() => setResetKey((k) => k + 1)}
+            style={{ padding: "7px 14px", minHeight: 36, borderRadius: 6, border: "1px solid #ccd", background: "#fff", color: C.teal, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
+          >
+            Reset to the saved file
+          </button>
+        </div>
+        {status === "loading" && <div style={{ fontSize: 12, color: "#777", marginTop: 8 }}>Loading files…</div>}
+        {errorMsg && <div style={{ fontSize: 12.5, color: "#b3261e", marginTop: 8 }}>{errorMsg}</div>}
       </div>
 
-      {errorMsg && (
-        <div style={{ fontSize: 12.5, color: "#b3261e", background: "#fdecea", border: "1px solid #f3c5c1", borderRadius: 8, padding: 10 }}>
-          {errorMsg}
-        </div>
-      )}
+      <div style={{ background: "#fff8e8", border: `1px solid ${C.yellow}`, borderRadius: 8, padding: "8px 14px", fontSize: 12, color: "#5a4000" }}>
+        <strong>What-if only.</strong> Changes here are not saved anywhere.
+      </div>
 
-      {status === "loading" && <div style={{ fontSize: 12.5, color: "#777" }}>Loading scenarios…</div>}
-      {status === "ready" && scenarios.length === 0 && (
-        <div style={{ fontSize: 12.5, color: "#777" }}>No scenarios yet for {country}.</div>
-      )}
-
-      {status === "ready" && scenarios.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {scenarios.map((s) => (
-            <div key={s.id} style={{ background: "#fff", border: "1px solid #dde", borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-              {renamingId === s.id ? (
-                <>
-                  <input
-                    value={renameValue}
-                    onChange={(e) => setRenameValue(e.target.value)}
-                    style={{ flex: 1, padding: "5px 8px", fontSize: 12.5, border: "1px solid #ccd", borderRadius: 6, minHeight: 30 }}
-                  />
-                  <button onClick={() => renameScenario(s.id)} style={{ padding: "5px 10px", minHeight: 30, borderRadius: 6, border: "none", background: C.teal, color: "#fff", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>Save</button>
-                  <button onClick={() => setRenamingId(null)} style={{ padding: "5px 10px", minHeight: 30, borderRadius: 6, border: "1px solid #ccd", background: "#fff", color: "#555", fontSize: 11.5, cursor: "pointer" }}>Cancel</button>
-                </>
-              ) : (
-                <>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: C.navy, flex: 1, minWidth: 160 }}>{s.name}</span>
-                  <span style={{ fontSize: 11.5, color: "#777" }}>updated {new Date(s.updated_at).toLocaleString()}</span>
-                  <button
-                    onClick={() => setOpenId(s.id)}
-                    style={{ padding: "5px 12px", minHeight: 30, borderRadius: 6, border: "none", background: C.teal, color: "#fff", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
-                  >
-                    Open
-                  </button>
-                  {canEdit && (
-                    <>
-                      <button
-                        onClick={() => { setRenamingId(s.id); setRenameValue(s.name); }}
-                        style={{ padding: "5px 10px", minHeight: 30, borderRadius: 6, border: "1px solid #ccd", background: "#fff", color: "#555", fontSize: 11.5, cursor: "pointer" }}
-                      >
-                        Rename
-                      </button>
-                      {confirmDeleteId === s.id ? (
-                        <>
-                          <button onClick={() => deleteScenario(s.id)} style={{ padding: "5px 10px", minHeight: 30, borderRadius: 6, border: "none", background: "#b3261e", color: "#fff", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>Confirm delete</button>
-                          <button onClick={() => setConfirmDeleteId(null)} style={{ padding: "5px 10px", minHeight: 30, borderRadius: 6, border: "1px solid #ccd", background: "#fff", color: "#555", fontSize: 11.5, cursor: "pointer" }}>Cancel</button>
-                        </>
-                      ) : (
-                        <button onClick={() => setConfirmDeleteId(s.id)} style={{ padding: "5px 10px", minHeight: 30, borderRadius: 6, border: "1px solid #ccd", background: "#fff", color: "#b3261e", fontSize: 11.5, cursor: "pointer" }}>Delete</button>
-                      )}
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-          ))}
-        </div>
+      {working && (
+        <Results
+          key={`${choice}-${resetKey}`}
+          country={country}
+          data={working}
+          flag={flag}
+          onEdit={editWorking}
+        />
       )}
     </div>
   );

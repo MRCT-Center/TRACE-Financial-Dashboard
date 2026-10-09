@@ -373,11 +373,11 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
                   delete drafts, and in Nyika II only they can also delete Original/Midpoint/Final
                   files. Everywhere else milestones are never deletable by anyone. */}
               {((v.kind === "working" && (isAdmin || country !== "Nyika II" || v.created_by === currentUserEmail)) ||
-                (isAdmin && country === "Nyika II")) && (
+                isAdmin) && (
                 <button
                   onClick={() => handleDelete(v)}
                   disabled={busy === v.id}
-                  title={v.kind === "working" ? "Delete this draft" : `Delete this ${KIND_LABELS[v.kind]} file (admin, Nyika II only)`}
+                  title={v.kind === "working" ? "Delete this draft" : `Delete this ${KIND_LABELS[v.kind]} file (administrators only)`}
                   style={{ background: "transparent", border: "none", color: C.red, cursor: busy === v.id ? "default" : "pointer", fontSize: 16, padding: "2px 6px", lineHeight: 1, opacity: busy === v.id ? 0.5 : 1 }}
                 >
                   ×
