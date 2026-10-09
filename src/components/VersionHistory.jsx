@@ -28,6 +28,13 @@ const KIND_COLORS = { original: C.teal, midpoint: "#c98a1f", final: C.red || "#b
 const sortVersions = (rows) =>
   [...rows].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
+// 2026-12-18 -> December 18, 2026 (parsed by hand so the time zone can't shift the day)
+const prettyDate = (iso) => {
+  const [y, m, d] = String(iso || "").split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+};
+
 export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilestone, onRestore, onDelete, currentUserEmail }) {
   const [versions, setVersions] = useState([]);
   const [status, setStatus] = useState("loading"); // loading | ready | error
@@ -287,7 +294,7 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
 
         {earlyPrompt && (
           <div style={{ background: "#fff8e8", border: `1px solid ${C.yellow}`, borderRadius: 8, padding: "12px 14px", marginBottom: 12, fontSize: 12.5, color: "#5a4000", lineHeight: 1.6 }}>
-            <strong>This {KIND_LABELS[earlyPrompt.kind]} isn't due yet.</strong> The {KIND_LABELS[earlyPrompt.kind]} date set for {cycleYear} is {earlyPrompt.date}. You can wait until then or edit the {KIND_LABELS[earlyPrompt.kind].toLowerCase()} date above.
+            <strong>This {KIND_LABELS[earlyPrompt.kind]} isn't due yet.</strong> The {KIND_LABELS[earlyPrompt.kind]} date set for {cycleYear} is <strong>{prettyDate(earlyPrompt.date)}</strong>. You can wait until then or edit the {KIND_LABELS[earlyPrompt.kind].toLowerCase()} date above.
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginTop: 8 }}>
               <button onClick={() => setEarlyPrompt(null)} style={{ padding: "6px 12px", minHeight: 32, borderRadius: 6, border: "1px solid #ccd", background: "#fff", color: C.navy, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
                 I'll wait
