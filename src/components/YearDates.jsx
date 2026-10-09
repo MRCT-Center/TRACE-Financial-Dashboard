@@ -198,7 +198,7 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
               style={{ ...inputStyle, width: 100 }}
             />
           </label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, color: "#555", flex: "1 1 220px" }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, color: "#555", flex: "1 1 360px" }}>
             Notes (optional)
             <input
               value={notes}
