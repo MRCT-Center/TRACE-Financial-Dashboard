@@ -133,7 +133,7 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
     .reduce((best, v) => (!best || v.created_at > best.created_at ? v : best), null);
   const cycleYear = yearOf(latestOriginal?.year_label) || datedYears[0] || "";
   const yearFor = (kind) => (kind === "original" ? pendingYear : cycleYear);
-  const canSaveOriginalHere = !(country === "Nyika II" && !isAdmin);
+  const canSaveOriginalHere = true;
   const displayYear = canSaveOriginalHere ? pendingYear : cycleYear;
 
   function clickMilestone(kind) {
@@ -222,7 +222,7 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
         }}
       />
 
-      <YearDates key={datesKey} country={country} canEdit={canEdit && (country !== "Nyika II" || isAdmin)} onRowsChange={setDateRows} />
+      <YearDates key={datesKey} country={country} canEdit={canEdit} isAdmin={isAdmin} currentUserEmail={currentUserEmail} onRowsChange={setDateRows} />
 
       <div style={{ background: "#fff", border: "1px solid #dde", borderRadius: 10, padding: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 8 }}>Master file</div>
@@ -247,7 +247,7 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
               const savedForYear = versions.some((v) => v.kind === kind && yearOf(v.year_label) === cycleYear && (country !== "Nyika II" || v.created_by === currentUserEmail));
               const alreadySaved = (kind === "midpoint" || kind === "final") && (cycleHasMilestone(kind) || (cycleYear && savedForYear));
               // Nyika II's Original is the shared demo starting point: admins only.
-              const adminOnlyOriginal = kind === "original" && country === "Nyika II" && !isAdmin;
+              const adminOnlyOriginal = false;
               const originalDone = kind === "original" && datedYears.length > 0 && !pendingYear && !adminOnlyOriginal;
               const dateRowForYear = dateRows.find((r) => r.year_label === cycleYear);
               const noDate = (kind === "midpoint" || kind === "final") && !!cycleYear && !dateRowForYear?.[`${kind}_date`];
@@ -287,9 +287,9 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
 
         {earlyPrompt && (
           <div style={{ background: "#fff8e8", border: `1px solid ${C.yellow}`, borderRadius: 8, padding: "12px 14px", marginBottom: 12, fontSize: 12.5, color: "#5a4000", lineHeight: 1.6 }}>
-            <strong>This {KIND_LABELS[earlyPrompt.kind]} isn't due yet.</strong> The {KIND_LABELS[earlyPrompt.kind]} date set for {cycleYear} is {earlyPrompt.date}. You can wait until then{canEdit && (country !== "Nyika II" || isAdmin) ? ", or change the date" : ""}.
+            <strong>This {KIND_LABELS[earlyPrompt.kind]} isn't due yet.</strong> The {KIND_LABELS[earlyPrompt.kind]} date set for {cycleYear} is {earlyPrompt.date}. You can wait until then{canEdit ? ", or change the date" : ""}.
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginTop: 8 }}>
-              {canEdit && (country !== "Nyika II" || isAdmin) && (
+              {canEdit && (
                 <>
                   <input type="date" value={newDate} max={todayStr} onChange={(e) => setNewDate(e.target.value)} style={{ padding: "5px 8px", fontSize: 12.5, border: "1px solid #ccd", borderRadius: 6, minHeight: 32 }} />
                   <button

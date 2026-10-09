@@ -78,7 +78,7 @@ function sourceSlotKey(step, subTab) {
   return (step === 2 || step === 3 || step === 4) ? `${step}-${subTab}` : `${step}`;
 }
 
-export default function GuidedWizard({ country, data, onSave, viewVersion = null, onGoToHistory, onClearDraft }) {
+export default function GuidedWizard({ country, data, onSave, viewVersion = null, onGoToHistory, onClearDraft, isAdmin = false }) {
   // Read-only "View" mode (2026-10-08): when `viewVersion` is passed the wizard
   // shows that saved version's inputs exactly as saved. It never reads or
   // writes the browser's local draft, can't be edited, can't be submitted,
@@ -125,8 +125,13 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
     let cancelled = false;
     (async () => {
       try {
-        const { data: rows } = await supabase.from("country_year_dates").select("year_label").eq("country", country);
-        const years = (rows || []).map((r) => r.year_label).filter((y) => /^\d{4}$/.test(y)).sort().reverse();
+        const { data: rows } = await supabase.from("country_year_dates").select("year_label, set_by").eq("country", country);
+        const { data: { user } } = await supabase.auth.getUser();
+        const me = (user?.email || "").toLowerCase();
+        // Nyika II: the database already limits a tester to the default plus
+        // their own years; admins can read every tester's rows, so narrow them.
+        const usable = (rows || []).filter((r) => country !== "Nyika II" || !isAdmin || !r.set_by || r.set_by.toLowerCase() === me);
+        const years = usable.map((r) => r.year_label).filter((y) => /^\d{4}$/.test(y)).sort().reverse();
         if (!cancelled && years[0]) { setBudgetYear(years[0]); setYearLocked(true); }
       } catch {}
     })();

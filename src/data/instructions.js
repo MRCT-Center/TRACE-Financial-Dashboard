@@ -203,7 +203,7 @@ export const VERSION_HISTORY_STEPS = [
 ];
 
 export const VERSION_HISTORY_NOTE =
-  "For the demo version Nyika II only: everyone starts from the same default Original, which only administrators can change. When you start editing, you work on your own private copy, so what you enter does not affect anyone else and what others enter does not affect you. You will see the default Original and the Midpoint, Final, and draft files that YOU created, but not the files other testers create. Your Sandbox scenarios are also private to you. For the country files, only authorized representatives for that country can view/edit those files, and they can see the files and Sandbox scenarios that fellow country representatives created/edited.";
+  "For the demo version Nyika II only: everyone starts from the same default 2026 Original, which only administrators can change. You can also add year dates for other years (for example 2027) and save your own Original, Midpoint, and Final for them to practice starting a new year from a Final file. Those years and files are private to you. When you start editing, you work on your own private copy, so what you enter does not affect anyone else and what others enter does not affect you. You will see the default Original and the Midpoint, Final, and draft files that YOU created, but not the files other testers create. Your Sandbox scenarios are also private to you. For the country files, only authorized representatives for that country can view/edit those files, and they can see the files and Sandbox scenarios that fellow country representatives created/edited.";
 
 // Map each wizard step to the relevant sheet(s) from the workbook.
 // `note` is an optional banner shown above the instructions when the dashboard

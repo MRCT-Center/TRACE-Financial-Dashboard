@@ -19,7 +19,7 @@ const DATE_FIELDS = [
   { key: "final_date", label: "Final" },
 ];
 
-export default function YearDates({ country, canEdit, readOnly = false, onRowsChange }) {
+export default function YearDates({ country, canEdit, readOnly = false, onRowsChange, isAdmin = false, currentUserEmail = "" }) {
   const [rows, setRows] = useState([]);
   const [status, setStatus] = useState("loading");
   const [errorMsg, setErrorMsg] = useState("");
@@ -40,14 +40,19 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
         .eq("country", country)
         .order("year_label", { ascending: false });
       if (error) throw error;
-      setRows(data || []);
-      onRowsChange?.(data || []);
+      // Nyika II: year dates are per tester. The database already limits a
+      // tester to the shared default plus their own; admins can read every
+      // row, so they are narrowed here to the default plus their own.
+      const me = (currentUserEmail || "").toLowerCase();
+      const shown = (data || []).filter((r) => country !== "Nyika II" || !isAdmin || !r.set_by || r.set_by.toLowerCase() === me);
+      setRows(shown);
+      onRowsChange?.(shown);
       setStatus("ready");
     } catch (err) {
       setErrorMsg(err.message || "Could not load dates.");
       setStatus("error");
     }
-  }, [country]); // eslint-disable-line
+  }, [country, currentUserEmail, isAdmin]); // eslint-disable-line
 
   useEffect(() => { load(); }, [load]);
 
@@ -124,6 +129,8 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
   const inputStyle = { padding: "6px 8px", fontSize: 12.5, border: "1px solid #ccd", borderRadius: 6, minHeight: 34 };
   const linkBtn = { background: "transparent", border: "none", color: C.teal, fontSize: 11.5, fontWeight: 600, cursor: "pointer", padding: "0 0 0 6px", textDecoration: "underline" };
   const canWrite = !readOnly && canEdit;
+  // Nyika II: the shared default row (no author) is only editable by admins; a tester can only change rows they created.
+  const rowEditable = (r) => canWrite && (country !== "Nyika II" || (isAdmin ? !r.set_by || r.set_by.toLowerCase() === (currentUserEmail || "").toLowerCase() : !!r.set_by && r.set_by.toLowerCase() === (currentUserEmail || "").toLowerCase()));
 
   return (
     <div style={{ background: "#fff", border: "1px solid #dde", borderRadius: 10, padding: 16 }}>
@@ -209,7 +216,7 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
                     ) : (
                       <>
                         {r[key] || "—"}
-                        {canWrite && (
+                        {rowEditable(r) && (
                           <button onClick={() => { setEditing({ id: r.id, key }); setEditValue(r[key] || ""); }} style={linkBtn}>
                             Edit
                           </button>
@@ -219,7 +226,7 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
                   </span>
                 );
               })}
-              {canWrite && (
+              {rowEditable(r) && (
                 <button onClick={() => deleteRow(r)} disabled={saving} style={{ ...linkBtn, color: "#b3261e", marginLeft: "auto", opacity: saving ? 0.5 : 1 }}>
                   Delete
                 </button>

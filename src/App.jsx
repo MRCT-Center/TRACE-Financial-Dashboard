@@ -660,6 +660,7 @@ export default function App() {
               country={selectedCountry}
               data={countryData}
               onClearDraft={() => setWizardKey((k) => k + 1)}
+              isAdmin={isAdmin}
               onSave={(updates, changeSummary, draftTitle) => saveCountryData(selectedCountry, updates, changeSummary, draftTitle)}
               onGoToHistory={selectedCountry === "Nyika" ? undefined : () => setView("history")}
             />
