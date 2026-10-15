@@ -117,7 +117,13 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
   const fileYears = [...new Set(versions.map(refYearOf))].sort().reverse();
   const tabYear = fileYears.includes(selectedYear) ? selectedYear : (fileYears[0] ?? "");
   const shownVersions = versions.filter((v) => refYearOf(v) === tabYear);
-  const mostRecentVersionId = versions.reduce(
+  // Nyika II: everyone works on their own copy, so "most recent" only counts
+  // the default Original and the viewer's own files (admins can read every
+  // tester's files, which must not take over their Start editing button).
+  const editableCandidates = country === "Nyika II"
+    ? versions.filter((v) => v.kind === "original" || (v.created_by || "").toLowerCase() === (currentUserEmail || "").toLowerCase())
+    : versions;
+  const mostRecentVersionId = editableCandidates.reduce(
     (best, v) => (!best || v.created_at > best.created_at ? v : best),
     null
   )?.id ?? null;
