@@ -235,7 +235,7 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
         }}
       />
 
-      <YearDates key={datesKey} country={country} canEdit={canEdit} isAdmin={isAdmin} currentUserEmail={currentUserEmail} onRowsChange={setDateRows} />
+      <YearDates key={datesKey} country={country} canEdit={canEdit} isAdmin={isAdmin} currentUserEmail={currentUserEmail} onRowsChange={setDateRows} yearsWithFiles={fileYears} />
 
       <div style={{ background: "#fff", border: "1px solid #dde", borderRadius: 10, padding: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 8 }}>Master file</div>

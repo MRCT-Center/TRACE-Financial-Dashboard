@@ -19,7 +19,7 @@ const DATE_FIELDS = [
   { key: "final_date", label: "Final" },
 ];
 
-export default function YearDates({ country, canEdit, readOnly = false, onRowsChange, isAdmin = false, currentUserEmail = "" }) {
+export default function YearDates({ country, canEdit, readOnly = false, onRowsChange, isAdmin = false, currentUserEmail = "", yearsWithFiles = [] }) {
   const [rows, setRows] = useState([]);
   const [status, setStatus] = useState("loading");
   const [errorMsg, setErrorMsg] = useState("");
@@ -288,7 +288,12 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
                   )}
                 </span>
               )}
-              {rowDeletable(r) && (
+              {rowDeletable(r) && yearsWithFiles.includes(r.year_label) && (
+                <span style={{ fontSize: 11, color: "#999", marginLeft: "auto" }} title="Files are saved for this year, so its dates stay in place.">
+                  Can't delete: files saved for {r.year_label}
+                </span>
+              )}
+              {rowDeletable(r) && !yearsWithFiles.includes(r.year_label) && (
                 <button onClick={() => deleteRow(r)} disabled={saving} style={{ ...linkBtn, color: "#b3261e", marginLeft: "auto", opacity: saving ? 0.5 : 1 }}>
                   Delete
                 </button>
