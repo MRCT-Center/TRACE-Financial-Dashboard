@@ -639,7 +639,7 @@ export default function App() {
   // dropdown untouched.
   const availableCountries = isAdmin
     ? COUNTRY_NAMES
-    : [...new Set([session.country, ...grantedCountries, "Nyika"].filter(Boolean))];
+    : [...new Set([session.country, ...grantedCountries, "Nyika II", "Nyika"].filter(Boolean))];
   const countryData = countryCache[selectedCountry] || COUNTRIES[selectedCountry];
   const flag = COUNTRY_FLAGS[selectedCountry] || "";
   // Nyika never saves anything (see isDemoCountry) so there is never a Version

@@ -3,11 +3,10 @@ import { COLORS as C } from "../utils/metrics";
 import { COUNTRIES } from "../data/countries";
 import { signIn, requestAccess, checkAccessRequest, claimAccess, requestPasswordReset, verifyPasswordResetOtp, updatePassword } from "../auth";
 
-// Real country list for the request form — Nyika is the fixed worked example,
-// not something a country team requests access to. "Nyika II" IS requestable:
-// it's the internal test copy real testers (MRCT staff) request access to,
-// same flow as any real country (2026-09-22).
-const REQUESTABLE_COUNTRIES = Object.keys(COUNTRIES).filter((c) => c !== "Nyika");
+// Request form country list (2026-10-27): only the five real countries. Nyika
+// and Nyika II are practice countries that every rep gets automatically, so
+// they are not listed here (an admin can still grant anything from Admin).
+const REQUESTABLE_COUNTRIES = Object.keys(COUNTRIES).filter((c) => c !== "Nyika" && c !== "Nyika II");
 
 export default function LoginPage({ notice }) {
   const [screen, setScreen] = useState("signin"); // signin | request | claim | forgot
@@ -353,6 +352,9 @@ function RequestAccessForm({ onNavigate }) {
           <select value={country} onChange={(e) => setCountry(e.target.value)} style={inputStyle}>
             {REQUESTABLE_COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
+          <div style={{ fontSize: 11.5, color: "#777", marginTop: 4 }}>
+            Choose your one country. You also get the Nyika and Nyika II practice countries automatically.
+          </div>
         </div>
         <div>
           <label style={labelStyle}>Note (optional)</label>
