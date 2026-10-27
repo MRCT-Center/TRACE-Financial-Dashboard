@@ -70,11 +70,11 @@ export default function App() {
   // puts Version History into "choose a file for the Sandbox" mode.
   const [sandbox, setSandbox] = useState(null);
   const [pickingForSandbox, setPickingForSandbox] = useState(false);
-  useEffect(() => { setSandbox(null); setPickingForSandbox(false); }, [selectedCountry]);
   const [wizardKey, setWizardKey] = useState(0); // bumped to remount the wizard after "Clear current draft edits"
   // Admin lands on Nyika (the worked example); country logins are set to their
   // own country in handleLogin, so this default only affects the admin view.
   const [selectedCountry, setSelectedCountry] = useState("Nyika");
+  useEffect(() => { setSandbox(null); setPickingForSandbox(false); }, [selectedCountry]);
   // countryCache holds live data: either loaded from Supabase or hardcoded fallback
   const [countryCache, setCountryCache] = useState({ ...COUNTRIES });
   const [dbStatus, setDbStatus] = useState("idle"); // idle | loading | ready | error
