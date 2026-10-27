@@ -1,118 +1,72 @@
-import { useState, useEffect, useCallback } from "react";
 import { COLORS as C } from "../utils/metrics";
-import { supabase } from "../supabaseClient";
 import Results from "./Results";
+import { applySandboxEdit } from "../utils/sandboxEdit";
 
-// Sandbox (simplified 2026-10-09): pick any saved file (or the current live
-// file) and play with its numbers on the Results screen in real time. Nothing
-// is named, saved, or written anywhere: edits live only in this browser tab
-// and disappear when you pick another file, click Reset, or leave. The real
-// files are never touched.
+// Sandbox (2026-10-27): the file is chosen from Version History (so people
+// can see each file's title, date, and description of what changed), then
+// played with on the Results screens in real time. Every number can be
+// edited here, nothing is saved, and the real files are never touched.
+// While a file is open in the Sandbox the Inputs tab is locked (see App.jsx);
+// "Exit Sandbox" clears the changes and unlocks it.
+//
+// `sandbox` is { label, source, data } held by App so it survives a trip to
+// Version History to choose a file; null means no file is open yet.
 
-const KIND_LABELS = { original: "Original", midpoint: "Midpoint", final: "Final", working: "New draft" };
-const yearOf = (label) => (String(label || "").match(/\b(\d{4})\b/) || [])[1] || "";
+export default function Sandbox({ country, flag, masterData, sandbox, setSandbox, onChooseFromHistory }) {
+  const fresh = (d) => JSON.parse(JSON.stringify(d || {}));
 
-export default function Sandbox({ country, flag, masterData }) {
-  const [versions, setVersions] = useState([]);
-  const [status, setStatus] = useState("loading");
-  const [errorMsg, setErrorMsg] = useState("");
-  const [choice, setChoice] = useState("current"); // "current" or a version id
-  const [working, setWorking] = useState(null);     // in-memory copy being played with
-  const [resetKey, setResetKey] = useState(0);
-
-  const load = useCallback(async () => {
-    setStatus("loading");
-    try {
-      const { data, error } = await supabase
-        .from("country_versions")
-        .select("id, kind, year_label, data, created_at, created_by, summary")
-        .eq("country", country)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      setVersions(data || []);
-      setStatus("ready");
-    } catch (err) {
-      setErrorMsg(err.message || "Could not load files.");
-      setStatus("error");
-    }
-  }, [country]);
-
-  useEffect(() => { load(); setChoice("current"); setWorking(null); }, [load]);
-
-  const sourceData = choice === "current" ? masterData : versions.find((v) => v.id === choice)?.data;
-
-  // Fresh in-memory copy whenever the chosen file (or the reset counter) changes.
-  useEffect(() => {
-    setWorking(sourceData ? JSON.parse(JSON.stringify(sourceData)) : null);
-  }, [choice, resetKey, sourceData]); // eslint-disable-line
-
-  function describe(v) {
-    const kind = KIND_LABELS[v.kind] || v.kind;
-    const year = v.kind === "working" ? yearOf(v.year_label) : yearOf(v.year_label);
-    const title = v.kind === "working" && v.year_label ? ` "${v.year_label}"` : "";
-    return `${year ? year + " " : ""}${kind}${title} · ${new Date(v.created_at).toLocaleString()}`;
+  function useCurrent() {
+    setSandbox({ label: "Current file (the live data)", source: fresh(masterData), data: fresh(masterData) });
+  }
+  function reset() {
+    setSandbox((s) => (s ? { ...s, data: fresh(s.source) } : s));
+  }
+  function exit() {
+    if (window.confirm("Exit the Sandbox? Your what-if changes will be cleared and Inputs will unlock.")) setSandbox(null);
+  }
+  function edit(path, value) {
+    setSandbox((s) => (s ? { ...s, data: applySandboxEdit(s.data, path, value) } : s));
   }
 
-  function editWorking(path, value) {
-    setWorking((prev) => {
-      const clone = JSON.parse(JSON.stringify(prev || {}));
-      const keys = path.split(".");
-      let cur = clone;
-      for (let i = 0; i < keys.length - 1; i++) {
-        const k = keys[i];
-        if (!(k in cur)) cur[k] = {};
-        cur = cur[k];
-      }
-      cur[keys[keys.length - 1]] = value;
-      return clone;
-    });
-  }
+  const btn = (primary) => ({
+    padding: "8px 16px", minHeight: 36, borderRadius: 6, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+    border: primary ? "none" : "1px solid #ccd", background: primary ? C.teal : "#fff", color: primary ? "#fff" : C.teal,
+  });
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ background: "#fff", border: "1px solid #dde", borderRadius: 10, padding: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 8 }}>Sandbox</div>
         <p style={{ fontSize: 12.5, color: "#555", lineHeight: 1.6, marginBottom: 12 }}>
-          Choose any {country} file below and try out different numbers on the results screen in real time.
-          Nothing you change here is saved, and it never affects the real files. Choosing another file,
-          clicking Reset, or leaving this page clears your changes.
+          Try out different numbers on a saved file without changing it. Choose the file from Version History,
+          where you can see each file's title, date, and a description of what changed. You can then edit any
+          number on the Results pages (including the fee schedule and in-kind contributions) and see the totals
+          update. Nothing is saved, and while a file is open here the Inputs tab is locked so the real file cannot
+          be changed by mistake.
         </p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-          <label style={{ fontSize: 12, color: "#555" }}>Work with this file:&nbsp;
-            <select
-              value={choice}
-              onChange={(e) => setChoice(e.target.value)}
-              style={{ padding: "7px 10px", fontSize: 12.5, border: "1px solid #ccd", borderRadius: 6, minHeight: 36, maxWidth: 520 }}
-            >
-              <option value="current">Current file (the live data)</option>
-              {versions.map((v) => (
-                <option key={v.id} value={v.id}>{describe(v)}</option>
-              ))}
-            </select>
-          </label>
-          <button
-            onClick={() => setResetKey((k) => k + 1)}
-            style={{ padding: "7px 14px", minHeight: 36, borderRadius: 6, border: "1px solid #ccd", background: "#fff", color: C.teal, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
-          >
-            Reset to the saved file
-          </button>
+        {!sandbox ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+            <button onClick={onChooseFromHistory} style={btn(true)}>Choose file to use from Version History</button>
+            <button onClick={useCurrent} style={btn(false)}>Use the current file instead</button>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+            <div style={{ fontSize: 13, color: C.navy }}>Working with: <strong>{sandbox.label}</strong></div>
+            <button onClick={onChooseFromHistory} style={btn(false)}>Choose a different file from Version History</button>
+            <button onClick={reset} style={btn(false)}>Reset to the saved file</button>
+            <button onClick={exit} style={{ ...btn(false), color: "#b3261e" }}>Exit Sandbox</button>
+          </div>
+        )}
+      </div>
+
+      {sandbox && (
+        <div style={{ background: "#fff8e8", border: `1px solid ${C.yellow}`, borderRadius: 8, padding: "8px 14px", fontSize: 12, color: "#5a4000" }}>
+          <strong>What-if only.</strong> Changes here are not saved anywhere. Inputs is locked until you exit the Sandbox.
         </div>
-        {status === "loading" && <div style={{ fontSize: 12, color: "#777", marginTop: 8 }}>Loading files…</div>}
-        {errorMsg && <div style={{ fontSize: 12.5, color: "#b3261e", marginTop: 8 }}>{errorMsg}</div>}
-      </div>
+      )}
 
-      <div style={{ background: "#fff8e8", border: `1px solid ${C.yellow}`, borderRadius: 8, padding: "8px 14px", fontSize: 12, color: "#5a4000" }}>
-        <strong>What-if only.</strong> Changes here are not saved anywhere.
-      </div>
-
-      {working && (
-        <Results
-          key={`${choice}-${resetKey}`}
-          country={country}
-          data={working}
-          flag={flag}
-          onEdit={editWorking}
-        />
+      {sandbox && (
+        <Results country={country} data={sandbox.data} flag={flag} onEdit={edit} sandbox />
       )}
     </div>
   );

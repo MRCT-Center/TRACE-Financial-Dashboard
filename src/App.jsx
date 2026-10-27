@@ -65,6 +65,12 @@ export default function App() {
   const [loginNotice, setLoginNotice] = useState("");
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [view, setView] = useState("intro");
+  // Sandbox (2026-10-27): { label, source, data } while a file is open in the
+  // Sandbox (null otherwise). While set, Inputs is locked. `pickingForSandbox`
+  // puts Version History into "choose a file for the Sandbox" mode.
+  const [sandbox, setSandbox] = useState(null);
+  const [pickingForSandbox, setPickingForSandbox] = useState(false);
+  useEffect(() => { setSandbox(null); setPickingForSandbox(false); }, [selectedCountry]);
   const [wizardKey, setWizardKey] = useState(0); // bumped to remount the wizard after "Clear current draft edits"
   // Admin lands on Nyika (the worked example); country logins are set to their
   // own country in handleLogin, so this default only affects the admin view.
@@ -552,6 +558,7 @@ export default function App() {
   // the draft). Only the browser's in-memory copy and any stale local wizard
   // draft change here, so abandoning the edit leaves everything untouched.
   function startEditing(country, version) {
+    if (sandbox) { window.alert("Inputs is locked while a file is open in the Sandbox. Go to the Sandbox tab and click Exit Sandbox first."); return; }
     setCountryCache((prev) => ({ ...prev, [country]: version.data }));
     // Drop any stale in-progress local wizard draft so the wizard opens at
     // step 1 populated from this version instead of leftover typing.
@@ -638,6 +645,15 @@ export default function App() {
   // Nyika never saves anything (see isDemoCountry) so there is never a Version
   // History to show for it -- hide that tab whenever Nyika is the selected
   // country (2026-10-05, Hayat). Nyika II and every real country keep it.
+  // Navigation guard: Inputs is locked while a file is open in the Sandbox.
+  const navTo = (v) => {
+    if (sandbox && v === "wizard") {
+      window.alert("Inputs is locked while a file is open in the Sandbox. Go to the Sandbox tab and click Exit Sandbox first.");
+      return;
+    }
+    setPickingForSandbox(false);
+    setView(v);
+  };
   const views = (isAdmin ? ADMIN_VIEWS : COUNTRY_VIEWS).filter(
     (v) => !(v.id === "history" && selectedCountry === "Nyika")
   );
@@ -661,9 +677,9 @@ export default function App() {
           dbStatus={dbStatus}
           view={view}
         />
-        <NavBar views={views} current={view} onSelect={setView} />
+        <NavBar views={views} current={view} onSelect={navTo} locked={sandbox ? ["wizard"] : []} />
         <main style={{ flex: 1, padding: "20px 16px", maxWidth: 1200, margin: "0 auto", width: "100%" }}>
-          {view === "intro"   && <IntroPage onNavigate={setView} isAdmin={isAdmin} selectedCountry={selectedCountry} />}
+          {view === "intro"   && <IntroPage onNavigate={navTo} isAdmin={isAdmin} selectedCountry={selectedCountry} />}
           {view === "wizard"  && (
             <GuidedWizard
               key={`${selectedCountry}-${wizardKey}`}
@@ -684,6 +700,14 @@ export default function App() {
               onRestore={(version) => startEditing(selectedCountry, version)}
               onDelete={(version) => deleteVersion(version.id)}
               currentUserEmail={session.email}
+              pickMode={pickingForSandbox}
+              onPick={(v, label) => {
+                const base = { er: {}, ei: {}, ri: {}, ...JSON.parse(JSON.stringify(v.data || {})) };
+                setSandbox({ label, source: base, data: JSON.parse(JSON.stringify(base)) });
+                setPickingForSandbox(false);
+                setView("sandbox");
+              }}
+              onCancelPick={() => { setPickingForSandbox(false); setView("sandbox"); }}
             />
           )}
           {view === "sandbox" && !isAdmin && (
@@ -691,7 +715,9 @@ export default function App() {
               country={selectedCountry}
               flag={flag}
               masterData={countryData}
-              canEdit={!isDemoCountry(selectedCountry)}
+              sandbox={sandbox}
+              setSandbox={setSandbox}
+              onChooseFromHistory={() => { setPickingForSandbox(true); setView("history"); }}
             />
           )}
           {view === "results" && (
@@ -846,15 +872,17 @@ function Header({ isAdmin, selectedCountry, flag, countryNames, onCountryChange,
   );
 }
 
-function NavBar({ views, current, onSelect }) {
+function NavBar({ views, current, onSelect, locked = [] }) {
   return (
     <nav style={{ background: C.darkNavy, display: "flex", overflowX: "auto", borderBottom: `3px solid ${C.teal}` }}>
       {views.map((v) => (
         <button
           key={v.id}
           onClick={() => onSelect(v.id)}
+          title={locked.includes(v.id) ? "Locked while a file is open in the Sandbox. Exit the Sandbox to use Inputs." : undefined}
           style={{
-            color: current === v.id ? C.yellow : "rgba(255,255,255,0.75)",
+            color: current === v.id ? C.yellow : locked.includes(v.id) ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.75)",
+            cursor: locked.includes(v.id) ? "not-allowed" : "pointer",
             borderBottom: current === v.id ? `3px solid ${C.yellow}` : "3px solid transparent",
             padding: "12px 18px",
             fontSize: 13,
@@ -865,7 +893,7 @@ function NavBar({ views, current, onSelect }) {
             transition: "color 0.15s",
           }}
         >
-          {v.label}
+          {v.label}{locked.includes(v.id) ? " 🔒" : ""}
         </button>
       ))}
     </nav>

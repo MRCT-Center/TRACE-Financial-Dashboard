@@ -1,9 +1,10 @@
+import { Fragment } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell, LabelList } from "recharts";
 import { gm, fmtPct, COLORS as C } from "../utils/metrics";
 import { useCurrency } from "../utils/CurrencyContext";
 import EditableCell from "./EditableCell";
 import InfoTip, { Def } from "./InfoTip";
-import { PRO_KEYS, STUD_KEYS, rowRevenue } from "../data/feesModel";
+import { PRO_KEYS, STUD_KEYS, FEES_COLUMN_KEYS, FEES_DEFAULT_COLUMN_LABELS, rowRevenue } from "../data/feesModel";
 
 // Sum review count and revenue across the given fee rows, for the given set of
 // column keys (PRO_KEYS or STUD_KEYS). Revenue = Σ(amount × count) per cell.
@@ -21,7 +22,7 @@ function sumPair(rows, keys) {
   return { count, revenue };
 }
 
-export default function Revenue({ country, data: d, flag, onEdit }) {
+export default function Revenue({ country, data: d, flag, onEdit, sandbox = false }) {
   const { fmt } = useCurrency();
   const m = gm(d);
 
@@ -173,6 +174,7 @@ export default function Revenue({ country, data: d, flag, onEdit }) {
           read-only summary, or remove it as duplicative of the new "Revenue
           from Fees" bars + "Reviews by Submitter Type" boxes? See the
           2026-05-31 status .docx. */}
+      {!sandbox && (
       <Card title={<>Fee Schedule<InfoTip title="Review types and fees"><Def term="Initial review">The review process required to give ethics approval (or disapproval) for human subjects research study proposals when first submitted to an ethics committee. This review is designed to protect the rights, safety, and welfare of human participants. Conducted for studies that are either "minimal risk" or "more than minimal risk."</Def><Def term="Minimal risk">Studies where the risk of harm or discomfort is not greater than that ordinarily encountered in daily life or during routine physical or psychological examinations or tests.</Def><Def term="More than minimal risk">Includes any study greater than minimal risk.</Def><Def term="Accelerated review">A higher fee charged to complete a specific review process more quickly than the regular timeframe for that review process.</Def><Def term="Continuing review">Ethical re-evaluation that takes place at regular intervals (at least annually) during studies to ensure participant safety and ethical compliance.</Def><Def term="Major amendment">A major amendment is when there is a major change likely to affect the rights, safety, and/or well-being of the research participants or the conduct of the study, which must be reviewed — such as a change in the study protocol like the dosing of the tested medication.</Def><Def term="Minor amendment">A minor amendment is when there is a simple paperwork update, such as when a new research assistant is added to the team.</Def></InfoTip></>}>
         <p style={narrativeStyle}>
           Full fee schedule for all review types, with counts shown separately for professional and student submissions.
@@ -203,6 +205,61 @@ export default function Revenue({ country, data: d, flag, onEdit }) {
           </table>
         </div>
       </Card>
+      )}
+
+      {sandbox && (
+        <Card title="Fee Schedule: edit fees and review counts (Sandbox)">
+          <p style={narrativeStyle}>
+            Sandbox: click any fee amount or review count to change it. Totals above update right away. Nothing here is saved.
+          </p>
+          <div style={{ overflowX: "auto", marginTop: 12 }}>
+            <table style={{ borderCollapse: "collapse", fontSize: 12, minWidth: 900 }}>
+              <thead>
+                <tr style={{ background: C.lightBG }}>
+                  <th style={{ textAlign: "left", padding: "6px 8px", color: C.navy }} rowSpan={2}>Review type</th>
+                  {FEES_COLUMN_KEYS.map((k) => (
+                    <th key={k} colSpan={2} style={{ textAlign: "center", padding: "6px 8px", color: C.navy, borderLeft: "1px solid #dde" }}>
+                      {(d.feesColumns && d.feesColumns[k]) || FEES_DEFAULT_COLUMN_LABELS[k] || k}
+                    </th>
+                  ))}
+                  <th style={{ textAlign: "right", padding: "6px 8px", color: C.navy }} rowSpan={2}>Revenue</th>
+                </tr>
+                <tr style={{ background: C.lightBG }}>
+                  {FEES_COLUMN_KEYS.map((k) => (
+                    <Fragment key={k}>
+                      <th style={{ padding: "3px 8px", fontSize: 10, color: C.blueGrey, borderLeft: "1px solid #dde" }}>Fee</th>
+                      <th style={{ padding: "3px 8px", fontSize: 10, color: C.blueGrey }}>Count</th>
+                    </Fragment>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {feeRows.map((f, i) => (
+                  <tr key={i} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                    <td style={{ padding: "6px 8px", minWidth: 180 }}>{f.type}</td>
+                    {FEES_COLUMN_KEYS.map((k) => {
+                      const cell = f?.cells?.[k] || {};
+                      const amt = Number(cell.amount) || 0;
+                      const cnt = Number(cell.count) || 0;
+                      return (
+                        <Fragment key={k}>
+                          <td style={{ padding: "6px 8px", textAlign: "right", borderLeft: "1px solid #f0f0f0" }}>
+                            <EditableCell value={amt} display={fmt(amt)} path={`fees.${i}.cells.${k}.amount`} onEdit={onEdit} />
+                          </td>
+                          <td style={{ padding: "6px 8px", textAlign: "right", color: C.blueGrey }}>
+                            <EditableCell value={cnt} display={cnt.toLocaleString()} path={`fees.${i}.cells.${k}.count`} onEdit={onEdit} />
+                          </td>
+                        </Fragment>
+                      );
+                    })}
+                    <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 600, color: C.navy }}>{fmt(rowRevenue(f))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       <Card title={<>Irregular Revenue<InfoTip title="Irregular revenue">Irregular revenue includes grants, contracts, other one-time payments, and deferred reserves. It does not recur annually. Some grant awards may restrict what the funds can be used for — those funds may not be able to support excess expenses in another budget category. Countries should check whether their sources of irregular revenue allow intermingling of funds.</InfoTip></>}>
         <p style={narrativeStyle}>
@@ -233,7 +290,46 @@ export default function Revenue({ country, data: d, flag, onEdit }) {
           </strong>
         </div>
       </Card>
+
+      {sandbox && (
+        <>
+          <RowsEditCard title="Other regular revenue: edit amounts (Sandbox)" rows={d.revRegOther} arrayKey="revRegOther" fmt={fmt} onEdit={onEdit} />
+          <RowsEditCard title="Irregular revenue: edit amounts (Sandbox)" rows={d.revIrr} arrayKey="revIrr" fmt={fmt} onEdit={onEdit} />
+        </>
+      )}
     </div>
+  );
+}
+
+function RowsEditCard({ title, rows, arrayKey, fmt, onEdit }) {
+  const list = (rows || []).map((r, i) => ({ r, i })).filter(({ r }) => r && (r.category || r.item || Number(r.amount)));
+  return (
+    <Card title={title}>
+      {list.length === 0 ? (
+        <p style={narrativeStyle}>Nothing recorded in this file. Nothing to edit.</p>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginTop: 4 }}>
+          <thead>
+            <tr style={{ background: C.lightBG }}>
+              {["Category", "Item / source", "Amount"].map((h) => (
+                <th key={h} style={{ textAlign: h === "Amount" ? "right" : "left", padding: "7px 10px", color: C.navy, fontSize: 12 }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {list.map(({ r, i }) => (
+              <tr key={i} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                <td style={{ padding: "7px 10px", color: C.blueGrey, fontSize: 12 }}>{r.category}</td>
+                <td style={{ padding: "7px 10px" }}>{r.item || r.funder || "—"}</td>
+                <td style={{ padding: "7px 10px", textAlign: "right", fontWeight: 600, color: C.navy }}>
+                  <EditableCell value={Number(r.amount) || 0} display={fmt(Number(r.amount) || 0)} path={`${arrayKey}.${i}.amount`} onEdit={onEdit} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Card>
   );
 }
 

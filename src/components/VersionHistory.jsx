@@ -35,7 +35,7 @@ const prettyDate = (iso) => {
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 };
 
-export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilestone, onRestore, onDelete, currentUserEmail }) {
+export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilestone, onRestore, onDelete, currentUserEmail, pickMode = false, onPick, onCancelPick }) {
   const [versions, setVersions] = useState([]);
   const [status, setStatus] = useState("loading"); // loading | ready | error
   const [errorMsg, setErrorMsg] = useState("");
@@ -226,6 +226,12 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {pickMode && (
+        <div style={{ background: "#eaf6f0", border: `1px solid ${C.green}`, borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#1c4a33", display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+          <span><strong>Choose a file for the Sandbox.</strong> Find the file you want in the list below (its title and notes describe what changed) and click "Use in Sandbox". Nothing you do in the Sandbox changes the file.</span>
+          <button onClick={onCancelPick} style={{ marginLeft: "auto", padding: "6px 12px", minHeight: 32, borderRadius: 6, border: "1px solid #ccd", background: "#fff", color: C.navy, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+        </div>
+      )}
       <StepInstructions
         stepInstructions={{
           ...VERSION_HISTORY_STEP_INSTRUCTIONS,
@@ -373,12 +379,20 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
               >
                 View
               </button>
+              {pickMode && (
+                <button
+                  onClick={() => onPick(v, `${refYearOf(v) ? refYearOf(v) + " " : ""}${labelFor(v)}${v.kind === "working" && v.year_label ? ` "${v.year_label}"` : ""} (${new Date(v.created_at).toLocaleString()})`)}
+                  style={{ padding: "5px 12px", minHeight: 30, borderRadius: 6, border: "none", background: C.teal, color: "#fff", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
+                >
+                  Use in Sandbox
+                </button>
+              )}
               {/* Delete: any rep with access to this country can delete any working
                   draft (not just their own) -- except Nyika II, which stays scoped
                   to your own, matching its per-author privacy. Admins can always
                   delete drafts, and in Nyika II only they can also delete Original/Midpoint/Final
                   files. Everywhere else milestones are never deletable by anyone. */}
-              {((v.kind === "working" && (isAdmin || country !== "Nyika II" || v.created_by === currentUserEmail)) ||
+              {!pickMode && ((v.kind === "working" && (isAdmin || country !== "Nyika II" || v.created_by === currentUserEmail)) ||
                 isAdmin) && (
                 <button
                   onClick={() => handleDelete(v)}
@@ -391,7 +405,7 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
               )}
               {/* Start editing: only ever shown on the single chronologically
                   most recent version (any kind) -- see mostRecentVersionId above. */}
-              {canEdit && v.id === mostRecentVersionId && (
+              {!pickMode && canEdit && v.id === mostRecentVersionId && (
                 confirmRestoreId === v.id ? (
                   <span style={{ display: "flex", gap: 6 }}>
                     <button

@@ -6,17 +6,19 @@ import Revenue from "./Revenue";
 import GapView from "./GapView";
 import Activities from "./Activities";
 import Forecast from "./Forecast";
+import InKind from "./InKind";
 
 const RESULTS_TABS = [
   { id: "overview",   label: "Overview"      },
   { id: "expenses",   label: "Expenses"      },
   { id: "revenue",    label: "Revenue"       },
+  { id: "inkind",     label: "In-Kind"       },
   { id: "gap",        label: "Gap Analysis"  },
   { id: "activities", label: "Activities"    },
   { id: "forecast",   label: "Forecast"      },
 ];
 
-export default function Results({ country, data, flag, onEdit, defaultTab = "overview" }) {
+export default function Results({ country, data, flag, onEdit, defaultTab = "overview", sandbox = false }) {
   const [activeTab, setActiveTab] = useState(defaultTab);
   const tabs = RESULTS_TABS;
 
@@ -52,7 +54,8 @@ export default function Results({ country, data, flag, onEdit, defaultTab = "ove
       <div>
         {activeTab === "overview"   && <Overview   country={country} data={data} flag={flag} onEdit={onEdit} />}
         {activeTab === "expenses"   && <Expenses   country={country} data={data} flag={flag} onEdit={onEdit} />}
-        {activeTab === "revenue"    && <Revenue    country={country} data={data} flag={flag} onEdit={onEdit} />}
+        {activeTab === "revenue"    && <Revenue    country={country} data={data} flag={flag} onEdit={onEdit} sandbox={sandbox} />}
+        {activeTab === "inkind"     && <InKind     country={country} data={data} flag={flag} onEdit={onEdit} sandbox={sandbox} />}
         {activeTab === "gap"        && <GapView    country={country} data={data} flag={flag} onEdit={onEdit} />}
         {activeTab === "activities" && <Activities country={country} data={data} flag={flag} onEdit={onEdit} />}
         {activeTab === "forecast"   && <Forecast   country={country} data={data} flag={flag} onEdit={onEdit} />}
