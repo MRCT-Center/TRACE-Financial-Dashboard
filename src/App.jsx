@@ -41,6 +41,7 @@ const ADMIN_VIEWS = [
   { id: "history",  label: "Version History" },
   { id: "wizard",   label: "Inputs"       },
   { id: "results",  label: "Results"      },
+  { id: "sandbox",  label: "Sandbox"      },
   { id: "feedback", label: "Feedback"     },
   { id: "admin",    label: "Admin 🔐"     },
 ];
@@ -710,7 +711,7 @@ export default function App() {
               onCancelPick={() => { setPickingForSandbox(false); setView("sandbox"); }}
             />
           )}
-          {view === "sandbox" && !isAdmin && (
+          {view === "sandbox" && (
             <Sandbox
               country={selectedCountry}
               flag={flag}
