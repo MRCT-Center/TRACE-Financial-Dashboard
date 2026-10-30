@@ -18,7 +18,7 @@ import {
 } from "../data/feesModel";
 import InfoTip from "./InfoTip";
 import { supabase } from "../supabaseClient";
-import { fetchChangeLog, entriesForKeys, kindLabel, fmtVal } from "../utils/changeLog";
+import { fetchChangeLog, entriesForKeys, kindLabel, fmtVal, fetchYearLock } from "../utils/changeLog";
 import { diffCountryData, isRowChanged, isFieldChanged, changesForKeys } from "../utils/diffCountryData";
 
 const CURRENCIES = [
@@ -123,6 +123,15 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
   const [yearLocked, setYearLocked] = useState(false);
   // Year that has dates but no Original yet: submitting then saves the file as that year's Original.
   const [firstOriginalYear, setFirstOriginalYear] = useState("");
+  // Locked once the year's Final is saved (until it is unlocked in Version History).
+  const [yearLockedByFinal, setYearLockedByFinal] = useState(false);
+  useEffect(() => {
+    const y = String(budgetYear || "").trim();
+    if (viewOnly || !/^\d{4}$/.test(y)) { setYearLockedByFinal(false); return; }
+    let cancelled = false;
+    fetchYearLock(country, y).then((l) => { if (!cancelled) setYearLockedByFinal(l.locked); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [country, budgetYear, viewOnly]);
   useEffect(() => {
     if (viewOnly) return;
     let cancelled = false;
@@ -648,7 +657,7 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
               showChanges={showChanges} setShowChanges={setShowChanges}
             />
           )}
-          {step === 5 && <StepReview  firstOriginalYear={firstOriginalYear} country={country} activityRows={activityRows} currency={currency} budgetYear={budgetYear} erRowsEdits={erRowsEdits} irrProjEdits={irrProjEdits} feesEdits={feesEdits} revRegOtherEdits={revRegOtherEdits} revIrrEdits={revIrrEdits} ikRegRowsEdits={ikRegRowsEdits} ikIrrRowsEdits={ikIrrRowsEdits} changeSummary={changeSummary} setChangeSummary={setChangeSummary} draftTitle={draftTitle} setDraftTitle={setDraftTitle} />}
+          {step === 5 && <StepReview  yearLockedByFinal={yearLockedByFinal} firstOriginalYear={firstOriginalYear} country={country} activityRows={activityRows} currency={currency} budgetYear={budgetYear} erRowsEdits={erRowsEdits} irrProjEdits={irrProjEdits} feesEdits={feesEdits} revRegOtherEdits={revRegOtherEdits} revIrrEdits={revIrrEdits} ikRegRowsEdits={ikRegRowsEdits} ikIrrRowsEdits={ikIrrRowsEdits} changeSummary={changeSummary} setChangeSummary={setChangeSummary} draftTitle={draftTitle} setDraftTitle={setDraftTitle} />}
 
           {/* Sources & Notes — required on every step except Setup (per
               Willyanne 2026-05-27 mid-day item #4) and Review. */}
@@ -821,8 +830,9 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
               setSaving(false);
               setSubmitted(true);
             }}
-            disabled={saving}
-            style={{ ...navBtnStyle, background: saving ? C.blueGrey : C.green, color: "#fff" }}
+            disabled={saving || yearLockedByFinal}
+            title={yearLockedByFinal ? "This year is locked because its Final was saved. Unlock it in Version History first." : undefined}
+            style={{ ...navBtnStyle, background: saving || yearLockedByFinal ? C.blueGrey : C.green, color: "#fff", opacity: yearLockedByFinal ? 0.6 : 1 }}
           >
             {saving ? "Saving…" : firstOriginalYear ? `Submit as ${firstOriginalYear} Original ✓` : "Submit ✓"}
           </button>
@@ -2824,7 +2834,7 @@ function ExpensesStep({ conv, erRowsEdits, setErRowsEdits, irrProjEdits, setIrrP
   );
 }
 
-function StepReview({ firstOriginalYear, country, activityRows, currency, budgetYear, erRowsEdits, irrProjEdits, feesEdits, revRegOtherEdits, revIrrEdits, ikRegRowsEdits, ikIrrRowsEdits, changeSummary, setChangeSummary, draftTitle, setDraftTitle }) {
+function StepReview({ yearLockedByFinal, firstOriginalYear, country, activityRows, currency, budgetYear, erRowsEdits, irrProjEdits, feesEdits, revRegOtherEdits, revIrrEdits, ikRegRowsEdits, ikIrrRowsEdits, changeSummary, setChangeSummary, draftTitle, setDraftTitle }) {
   const filledActivities = activityRows.filter((r) => r.nearTerm && r.longTerm);
   const sumRows = (rows) => (rows || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
   const totalRegExpenses = sumRows(erRowsEdits);
@@ -2841,6 +2851,11 @@ function StepReview({ firstOriginalYear, country, activityRows, currency, budget
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <p style={descStyle}>Review your responses before submitting. Submitting will save all changes to the TRACE database.</p>
+      {yearLockedByFinal && (
+        <div style={{ background: "#fdf0ef", border: "1px solid #e3b4b0", borderRadius: 8, padding: "10px 14px", fontSize: 12.5, color: "#6b1d17", lineHeight: 1.6 }}>
+          <strong>This year is locked.</strong> Its Final has been saved, so Submit is turned off. To change it, go to Version History, unlock the year with a reason, then save your edits as an Updated Final.
+        </div>
+      )}
       {firstOriginalYear && (
         <div style={{ background: "#eaf6f0", border: `1px solid ${C.green}`, borderRadius: 8, padding: "10px 14px", fontSize: 12.5, color: "#1c4a33", lineHeight: 1.6 }}>
           <strong>No {firstOriginalYear} Original has been saved yet.</strong> Submitting now saves this file as the {firstOriginalYear} Original. After that, further edits are saved as new drafts based on it. To start from a different file or a blank template, go to Version History and use "Start the {firstOriginalYear} Original".

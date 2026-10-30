@@ -525,7 +525,7 @@ export default function App() {
       .from("country_versions")
       .select("created_at")
       .eq("country", country)
-      .in("kind", ["original", "midpoint", "final"])
+      .in("kind", ["original", "midpoint", "final", "final_update"])
       .order("created_at", { ascending: false })
       .limit(1);
     const since = milestones?.[0]?.created_at;
@@ -547,14 +547,14 @@ export default function App() {
 
   // Explicit milestone save (Original / Midpoint / Final) — kept forever,
   // unlike the rolling 'working' snapshots above.
-  async function saveMilestone(country, kind, yearLabel) {
+  async function saveMilestone(country, kind, yearLabel, dataOverride, title) {
     const { error } = await supabase.from("country_versions").insert({
       country, kind, year_label: yearLabel,
-      data: countryCache[country],
+      data: dataOverride || countryCache[country],
       created_by: session?.email || "unknown",
     });
     if (error) throw new Error(error.message);
-    await addChangeLog({ country, refYear: yearLabel, kind, title: kind[0].toUpperCase() + kind.slice(1), createdBy: session?.email, changes: [] });
+    await addChangeLog({ country, refYear: yearLabel, kind, title: title || kind[0].toUpperCase() + kind.slice(1), createdBy: session?.email, changes: [] });
   }
 
   // Delete a working draft. RLS restricts this to the row's own author
@@ -721,7 +721,7 @@ export default function App() {
               country={selectedCountry}
               canEdit={!isDemoCountry(selectedCountry)}
               isAdmin={isAdmin}
-              onSaveMilestone={(kind, yearLabel) => saveMilestone(selectedCountry, kind, yearLabel)}
+              onSaveMilestone={(kind, yearLabel, dataOverride, title) => saveMilestone(selectedCountry, kind, yearLabel, dataOverride, title)}
               onRestore={(version) => startEditing(selectedCountry, version)}
               onStartNewYear={(seed) => startNewYearOriginal(selectedCountry, seed)}
               onDelete={(version) => deleteVersion(version.id)}

@@ -33,7 +33,7 @@ export const entriesForKeys = (entries, keys) =>
     .map((e) => ({ ...e, changes: changesForKeys(e.changes || [], keys) }))
     .filter((e) => e.changes.length > 0);
 
-const KIND = { original: "Original", midpoint: "Midpoint", final: "Final", working: "New draft" };
+const KIND = { original: "Original", midpoint: "Midpoint", final: "Final", final_update: "Updated Final", unlock: "Year unlocked", working: "New draft" };
 export const kindLabel = (k) => KIND[k] || k;
 
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -57,4 +57,27 @@ export function exportLogToWord(country, refYear, entries) {
   a.download = `TRACE-change-log-${country.replace(/\s+/g, "-")}-${refYear || "all"}.doc`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+const yr = (label) => (String(label || "").match(/\b(\d{4})\b/) || [])[1] || "";
+
+// A year is locked once its Final is saved. An "unlock" entry (with a reason)
+// in the change log reopens it until the next Updated Final is saved.
+export function lockInfo(versions, logEntries, year) {
+  const finals = (versions || []).filter((v) => (v.kind === "final" || v.kind === "final_update") && yr(v.year_label) === year);
+  if (!year || finals.length === 0) return { hasFinal: false, locked: false, unlockEntry: null, updateCount: 0 };
+  const lastAt = finals.reduce((m, v) => (v.created_at > m ? v.created_at : m), "");
+  const unlockEntry = (logEntries || [])
+    .filter((e) => e.kind === "unlock" && e.ref_year === year && e.created_at > lastAt)
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0] || null;
+  return { hasFinal: true, locked: !unlockEntry, unlockEntry, updateCount: finals.filter((v) => v.kind === "final_update").length };
+}
+
+export async function fetchYearLock(country, year) {
+  if (!year) return { hasFinal: false, locked: false, unlockEntry: null, updateCount: 0 };
+  const [{ data: vs }, entries] = await Promise.all([
+    supabase.from("country_versions").select("id, kind, year_label, created_at").eq("country", country).in("kind", ["final", "final_update"]),
+    fetchChangeLog(country, year),
+  ]);
+  return lockInfo(vs || [], entries, year);
 }

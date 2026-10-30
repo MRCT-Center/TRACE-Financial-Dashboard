@@ -4,7 +4,7 @@ import { supabase } from "../supabaseClient";
 import YearDates from "./YearDates";
 import GuidedWizard from "./GuidedWizard";
 import StepInstructions from "./StepInstructions";
-import { fetchChangeLog, exportLogToWord, kindLabel, fmtVal } from "../utils/changeLog";
+import { fetchChangeLog, exportLogToWord, kindLabel, fmtVal, addChangeLog, lockInfo } from "../utils/changeLog";
 import { VERSION_HISTORY_STEP_INSTRUCTIONS, VERSION_HISTORY_NOTE } from "../data/instructions";
 
 // Master version history (2026-09-29): milestones (Original/Midpoint/Final)
@@ -22,9 +22,9 @@ import { VERSION_HISTORY_STEP_INSTRUCTIONS, VERSION_HISTORY_NOTE } from "../data
 // working drafts, deletable -- so edits can never silently branch off an old
 // draft. See mostRecentVersionId below.
 
-const KIND_LABELS = { original: "Original", midpoint: "Midpoint", final: "Final", working: "New draft" };
+const KIND_LABELS = { original: "Original", midpoint: "Midpoint", final: "Final", final_update: "Updated Final", working: "New draft" };
 const yearOf = (label) => (String(label || "").match(/\b(\d{4})\b/) || [])[1] || "";
-const KIND_COLORS = { original: C.teal, midpoint: "#c98a1f", final: C.red || "#b3261e", working: C.blueGrey };
+const KIND_COLORS = { original: C.teal, midpoint: "#c98a1f", final: C.red || "#b3261e", final_update: "#8a1f17", working: C.blueGrey };
 // Display order (2026-10-08): plain chronological, newest first, whatever the kind.
 const sortVersions = (rows) =>
   [...rows].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -47,6 +47,9 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
   const [confirmRestoreId, setConfirmRestoreId] = useState(null);
   const [viewingVersion, setViewingVersion] = useState(null); // read-only "View" modal
   const [selectedYear, setSelectedYear] = useState(null);
+  const [yearLog, setYearLog] = useState([]); // change-log entries for the open year tab (unlock records)
+  const [unlockOpen, setUnlockOpen] = useState(false);
+  const [unlockReason, setUnlockReason] = useState("");
   const [logOpen, setLogOpen] = useState(false);
   const [logEntries, setLogEntries] = useState(null);
   const [seedChoice, setSeedChoice] = useState(null); // file id, "blank", or null = default
@@ -102,12 +105,23 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
   // created_at across all of them.
   // "Working save-Original" / "-Midpoint" / "-Final": named after the most
   // recent milestone saved before the draft was made.
+  // Updated Finals are numbered per year in the order they were saved, and the
+  // first Final is called "Original Final" once an update exists for its year.
+  const msLabel = (v) => {
+    if (v.kind === "final_update") {
+      const same = versions.filter((x) => x.kind === "final_update" && yearOf(x.year_label) === yearOf(v.year_label))
+        .sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
+      return `Updated Final ${same.findIndex((x) => x.id === v.id) + 1}`;
+    }
+    if (v.kind === "final" && versions.some((x) => x.kind === "final_update" && yearOf(x.year_label) === yearOf(v.year_label))) return "Original Final";
+    return KIND_LABELS[v.kind] || v.kind;
+  };
   const labelFor = (v) => {
-    if (v.kind !== "working") return KIND_LABELS[v.kind] || v.kind;
+    if (v.kind !== "working") return msLabel(v);
     const base = versions
       .filter((m) => m.kind !== "working" && m.created_at <= v.created_at)
       .reduce((best, m) => (!best || m.created_at > best.created_at ? m : best), null);
-    return base ? `New draft-${KIND_LABELS[base.kind]}` : "New draft";
+    return base ? `New draft-${msLabel(base)}` : "New draft";
   };
   // Reference year of a file: milestones use their own year; a draft takes the
   // year of the milestone it was based on (the latest one saved before it).
@@ -123,6 +137,12 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
   const fileYears = [...new Set(versions.map(refYearOf))].sort().reverse();
   const tabYear = fileYears.includes(selectedYear) ? selectedYear : (fileYears[0] ?? "");
   const shownVersions = versions.filter((v) => refYearOf(v) === tabYear);
+  useEffect(() => {
+    if (!tabYear) { setYearLog([]); return; }
+    let cancelled = false;
+    fetchChangeLog(country, tabYear).then((e) => { if (!cancelled) setYearLog(e); });
+    return () => { cancelled = true; };
+  }, [country, tabYear, versions.length, busy]);
   useEffect(() => {
     if (!logOpen || !tabYear) return;
     let cancelled = false;
@@ -142,7 +162,10 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
     const y = refYearOf(v);
     if (!newestByYear[y] || v.created_at > newestByYear[y].created_at) newestByYear[y] = v;
   });
-  const editableIds = new Set(Object.values(newestByYear).map((v) => v.id));
+  const lockOf = (y) => lockInfo(versions, yearLog, y);
+  const tabLock = lockOf(tabYear);
+  // A year with a saved Final is locked (view only) until someone unlocks it.
+  const editableIds = new Set(Object.entries(newestByYear).filter(([y]) => y !== tabYear || !tabLock.locked).map(([, v]) => v.id));
 
 
   // Master file year (2026-10-07, batch 2): not typed by the user.
@@ -218,6 +241,33 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
     } finally {
       setBusy(null);
     }
+  }
+
+  async function doUnlock() {
+    if (!unlockReason.trim()) { setErrorMsg("Please enter a reason for unlocking this year."); return; }
+    setBusy("unlock"); setErrorMsg("");
+    try {
+      await addChangeLog({ country, refYear: tabYear, kind: "unlock", title: "Year unlocked", summary: unlockReason.trim(), createdBy: currentUserEmail, changes: [] });
+      setUnlockOpen(false); setUnlockReason("");
+      setYearLog(await fetchChangeLog(country, tabYear));
+    } catch (err) {
+      setErrorMsg(err.message || "Could not unlock the year.");
+    } finally { setBusy(null); }
+  }
+
+  async function saveUpdatedFinal() {
+    const n = tabLock.updateCount + 1;
+    const src = newestByYear[tabYear];
+    if (!src) { setErrorMsg("There is no file to save for this year."); return; }
+    if (!window.confirm(`Save the newest ${tabYear} file ("${labelFor(src)}") as Updated Final ${n}? The original Final stays in the list unchanged.`)) return;
+    setBusy("final_update"); setErrorMsg("");
+    try {
+      await onSaveMilestone("final_update", tabYear, src.data, `Updated Final ${n}`);
+      await load();
+      setYearLog(await fetchChangeLog(country, tabYear));
+    } catch (err) {
+      setErrorMsg(err.message || "Could not save the Updated Final.");
+    } finally { setBusy(null); }
   }
 
   async function handleRestore(version) {
@@ -352,6 +402,40 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
       <div style={{ background: "#fff", border: "1px solid #dde", borderRadius: 10, padding: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 8 }}>File version history</div>
 
+        {tabLock.hasFinal && tabLock.locked && (
+          <div style={{ background: "#fdf0ef", border: "1px solid #e3b4b0", borderRadius: 8, padding: "12px 14px", marginBottom: 12, fontSize: 12.5, color: "#6b1d17", lineHeight: 1.6 }}>
+            <strong>{tabYear} is locked.</strong> Its {tabLock.updateCount > 0 ? `Updated Final ${tabLock.updateCount}` : "Final"} has been saved, so files in this year can be viewed but not edited. If something needs to change, unlock the year, make the edits, and save them as Updated Final {tabLock.updateCount + 1}. The original Final is always kept.
+            {canEdit && !unlockOpen && (
+              <div style={{ marginTop: 8 }}>
+                <button onClick={() => setUnlockOpen(true)} style={{ padding: "6px 12px", minHeight: 32, borderRadius: 6, border: "none", background: C.navy, color: "#fff", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                  Unlock {tabYear} for updates
+                </button>
+              </div>
+            )}
+            {canEdit && unlockOpen && (
+              <div style={{ marginTop: 8 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Why does {tabYear} need to be reopened? (required)</label>
+                <textarea value={unlockReason} onChange={(e) => setUnlockReason(e.target.value)} rows={2} style={{ width: "100%", border: "1px solid #ccc", borderRadius: 6, padding: "6px 8px", fontSize: 12.5 }} />
+                <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                  <button onClick={doUnlock} disabled={busy === "unlock"} style={{ padding: "6px 12px", minHeight: 32, borderRadius: 6, border: "none", background: "#b3261e", color: "#fff", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{busy === "unlock" ? "Unlocking…" : `Unlock ${tabYear}`}</button>
+                  <button onClick={() => { setUnlockOpen(false); setUnlockReason(""); }} style={{ padding: "6px 12px", minHeight: 32, borderRadius: 6, border: "1px solid #ccd", background: "#fff", color: C.navy, fontSize: 12.5, cursor: "pointer" }}>Cancel</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {tabLock.hasFinal && !tabLock.locked && (
+          <div style={{ background: "#eaf6f0", border: `1px solid ${C.green}`, borderRadius: 8, padding: "12px 14px", marginBottom: 12, fontSize: 12.5, color: "#1c4a33", lineHeight: 1.6 }}>
+            <strong>{tabYear} is unlocked for updates.</strong> Reason given by {tabLock.unlockEntry?.created_by} on {new Date(tabLock.unlockEntry?.created_at).toLocaleDateString()}: "{tabLock.unlockEntry?.summary}". Use Start editing on the newest {tabYear} file, submit your changes, then save the result as Updated Final {tabLock.updateCount + 1}. That locks the year again.
+            {canEdit && (
+              <div style={{ marginTop: 8 }}>
+                <button onClick={saveUpdatedFinal} disabled={busy === "final_update"} style={{ padding: "6px 12px", minHeight: 32, borderRadius: 6, border: "none", background: KIND_COLORS.final_update, color: "#fff", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                  {busy === "final_update" ? "Saving…" : `Save as Updated Final ${tabLock.updateCount + 1}`}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         {earlyPrompt && (
           <div style={{ background: "#fff8e8", border: `1px solid ${C.yellow}`, borderRadius: 8, padding: "12px 14px", marginBottom: 12, fontSize: 12.5, color: "#5a4000", lineHeight: 1.6 }}>
             <strong>This {KIND_LABELS[earlyPrompt.kind]} isn't due yet.</strong> The {KIND_LABELS[earlyPrompt.kind]} date set for {cycleYear} is <strong>{prettyDate(earlyPrompt.date)}</strong>. You can wait until then or edit the {KIND_LABELS[earlyPrompt.kind].toLowerCase()} date above.
