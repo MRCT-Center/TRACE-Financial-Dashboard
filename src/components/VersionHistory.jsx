@@ -35,7 +35,7 @@ const prettyDate = (iso) => {
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 };
 
-export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilestone, onRestore, onDelete, currentUserEmail, pickMode = false, onPick, onCancelPick }) {
+export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilestone, onRestore, onStartNewYear, onDelete, currentUserEmail, pickMode = false, onPick, onCancelPick }) {
   const [versions, setVersions] = useState([]);
   const [status, setStatus] = useState("loading"); // loading | ready | error
   const [errorMsg, setErrorMsg] = useState("");
@@ -46,6 +46,7 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
   const [confirmRestoreId, setConfirmRestoreId] = useState(null);
   const [viewingVersion, setViewingVersion] = useState(null); // read-only "View" modal
   const [selectedYear, setSelectedYear] = useState(null);
+  const [seedChoice, setSeedChoice] = useState(null); // file id, "blank", or null = default
   // Prompt shown when Midpoint/Final is clicked before its scheduled date.
   const [earlyPrompt, setEarlyPrompt] = useState(null); // { kind, rowId, date }
   const [newDate, setNewDate] = useState("");
@@ -109,6 +110,8 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
   // year of the milestone it was based on (the latest one saved before it).
   const refYearOf = (v) => {
     if (v.kind !== "working") return yearOf(v.year_label);
+    const own = String(v.data?.budgetYear || "").match(/^\s*(\d{4})\s*$/);
+    if (own) return own[1];
     const base = versions
       .filter((m) => m.kind !== "working" && m.created_at <= v.created_at)
       .reduce((best, m) => (!best || m.created_at > best.created_at ? m : best), null);
@@ -120,13 +123,17 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
   // Nyika II: everyone works on their own copy, so "most recent" only counts
   // the default Original and the viewer's own files (admins can read every
   // tester's files, which must not take over their Start editing button).
-  const editableCandidates = country === "Nyika II"
+  const editableCandidates = country === "Nyika II" && !isAdmin
     ? versions.filter((v) => v.kind === "original" || (v.created_by || "").toLowerCase() === (currentUserEmail || "").toLowerCase())
     : versions;
-  const mostRecentVersionId = editableCandidates.reduce(
-    (best, v) => (!best || v.created_at > best.created_at ? v : best),
-    null
-  )?.id ?? null;
+  // One Start editing button per year tab: the newest file in each year.
+  const newestByYear = {};
+  editableCandidates.forEach((v) => {
+    const y = refYearOf(v);
+    if (!newestByYear[y] || v.created_at > newestByYear[y].created_at) newestByYear[y] = v;
+  });
+  const editableIds = new Set(Object.values(newestByYear).map((v) => v.id));
+
 
   // Master file year (2026-10-07, batch 2): not typed by the user.
   //  - Original: the highest four-digit year that has year dates set, if it
@@ -145,6 +152,12 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
     .filter((v) => v.kind === "original")
     .reduce((best, v) => (!best || v.created_at > best.created_at ? v : best), null);
   const cycleYear = yearOf(latestOriginal?.year_label) || datedYears[0] || "";
+  // Starting points for a new year's Original: any earlier-year file, or blank.
+  const seedFiles = pendingYear ? editableCandidates
+    .filter((v) => refYearOf(v) && refYearOf(v) < pendingYear)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)) : [];
+  const seedValue = seedChoice || (seedFiles[0] ? seedFiles[0].id : "blank");
+  const seedLabel = (v) => `${refYearOf(v)} ${labelFor(v)}${v.kind === "working" && v.year_label ? ` "${v.year_label}"` : ""} (${new Date(v.created_at).toLocaleString()})`;
   const yearFor = (kind) => (kind === "original" ? pendingYear : cycleYear);
   const canSaveOriginalHere = true;
   const displayYear = canSaveOriginalHere ? pendingYear : cycleYear;
@@ -250,7 +263,7 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
           keeps that snapshot permanently, separate from the rolling new drafts.
         </p>
 
-        {canEdit && (
+        {canEdit && (<>
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginBottom: 4 }}>
             <label style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 11, color: "#555" }}>
               Year (from Year dates)
@@ -298,7 +311,32 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
               );
             })}
           </div>
-        )}
+          {pendingYear && canEdit && onStartNewYear && (
+            <div style={{ marginTop: 14, background: "#f3f8fb", border: `1px solid ${C.teal}`, borderRadius: 8, padding: "12px 14px", fontSize: 12.5, color: C.navy, lineHeight: 1.6 }}>
+              <strong>Start the {pendingYear} Original.</strong> Choose what to start from, then fill in your {pendingYear} data in Inputs. Submitting saves it as the {pendingYear} Original.
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginTop: 8 }}>
+                <select
+                  value={seedValue}
+                  onChange={(e) => setSeedChoice(e.target.value)}
+                  style={{ padding: "6px 10px", fontSize: 12.5, border: "1px solid #ccd", borderRadius: 6, minHeight: 36, maxWidth: "100%" }}
+                >
+                  <option value="blank">Blank template (enter {pendingYear} data from scratch)</option>
+                  {seedFiles.map((v) => <option key={v.id} value={v.id}>{seedLabel(v)}</option>)}
+                </select>
+                <button
+                  onClick={() => {
+                    const f = seedFiles.find((v) => v.id === seedValue);
+                    onStartNewYear(f ? f.data : {}, pendingYear);
+                  }}
+                  style={{ padding: "8px 14px", minHeight: 36, borderRadius: 6, border: "none", background: C.teal, color: "#fff", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
+                >
+                  Start {pendingYear} Original
+                </button>
+              </div>
+              <div style={{ marginTop: 6, fontSize: 11.5, color: C.blueGrey }}>Importing from Excel will be added here once it is ready.</div>
+            </div>
+          )}
+        </>)}
       </div>
 
       <div style={{ background: "#fff", border: "1px solid #dde", borderRadius: 10, padding: 16 }}>
@@ -403,9 +441,9 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
                   ×
                 </button>
               )}
-              {/* Start editing: only ever shown on the single chronologically
-                  most recent version (any kind) -- see mostRecentVersionId above. */}
-              {!pickMode && canEdit && v.id === mostRecentVersionId && (
+              {/* Start editing: shown on the newest file in each year tab
+                  -- see editableIds above. */}
+              {!pickMode && canEdit && editableIds.has(v.id) && (
                 confirmRestoreId === v.id ? (
                   <span style={{ display: "flex", gap: 6 }}>
                     <button

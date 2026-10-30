@@ -70,6 +70,7 @@ export default function App() {
   // Sandbox (null otherwise). While set, Inputs is locked. `pickingForSandbox`
   // puts Version History into "choose a file for the Sandbox" mode.
   const [sandbox, setSandbox] = useState(null);
+  const [wizardSeed, setWizardSeed] = useState(null); // data a new-year Original starts from
   const [pickingForSandbox, setPickingForSandbox] = useState(false);
   const [wizardKey, setWizardKey] = useState(0); // bumped to remount the wizard after "Clear current draft edits"
   // Admin lands on Nyika (the worked example); country logins are set to their
@@ -461,6 +462,7 @@ export default function App() {
     // stays pristine. A refresh reloads the clean data. See src/demoConfig.js.
     // Nyika II (2026-09-22) is exempt and persists for real.
     if (isDemoCountry(country)) return;
+    setWizardSeed(null);
     let error;
     if (country === "Nyika II" && session?.role !== "admin") {
       // Testers save to their own private copy, never the shared default.
@@ -564,6 +566,16 @@ export default function App() {
     // Drop any stale in-progress local wizard draft so the wizard opens at
     // step 1 populated from this version instead of leftover typing.
     clearWizardDraft(country);
+    setWizardSeed(null);
+    setView("wizard");
+  }
+
+  // Start a new year's Original from a chosen earlier file, or blank ({}).
+  function startNewYearOriginal(country, seed) {
+    if (sandbox) { window.alert("Inputs is locked while a file is open in the Sandbox. Go to the Sandbox tab and click Exit Sandbox first."); return; }
+    clearWizardDraft(country);
+    setWizardSeed({ country, data: seed || {} });
+    setWizardKey((k) => k + 1);
     setView("wizard");
   }
 
@@ -685,7 +697,7 @@ export default function App() {
             <GuidedWizard
               key={`${selectedCountry}-${wizardKey}`}
               country={selectedCountry}
-              data={countryData}
+              data={wizardSeed && wizardSeed.country === selectedCountry ? wizardSeed.data : countryData}
               onClearDraft={() => setWizardKey((k) => k + 1)}
               isAdmin={isAdmin}
               onSave={(updates, changeSummary, draftTitle, originalYear) => saveCountryData(selectedCountry, updates, changeSummary, draftTitle, originalYear)}
@@ -699,6 +711,7 @@ export default function App() {
               isAdmin={isAdmin}
               onSaveMilestone={(kind, yearLabel) => saveMilestone(selectedCountry, kind, yearLabel)}
               onRestore={(version) => startEditing(selectedCountry, version)}
+              onStartNewYear={(seed) => startNewYearOriginal(selectedCountry, seed)}
               onDelete={(version) => deleteVersion(version.id)}
               currentUserEmail={session.email}
               pickMode={pickingForSandbox}

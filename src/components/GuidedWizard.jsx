@@ -134,10 +134,15 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
         // their own years; admins can read every tester's rows, so narrow them.
         const usable = (rows || []).filter((r) => country !== "Nyika II" || !isAdmin || !r.set_by || r.set_by.toLowerCase() === me);
         const years = usable.map((r) => r.year_label).filter((y) => /^\d{4}$/.test(y)).sort().reverse();
-        if (!cancelled && years[0]) { setBudgetYear(years[0]); setYearLocked(true); }
         const { data: origs } = await supabase.from("country_versions").select("year_label").eq("country", country).eq("kind", "original");
         const have = new Set((origs || []).map((o) => (String(o.year_label || "").match(/\b(\d{4})\b/) || [])[1]).filter(Boolean));
-        if (!cancelled && years[0] && !have.has(years[0])) setFirstOriginalYear(years[0]);
+        const pending = years[0] && !have.has(years[0]);
+        // A new year's Original uses the newest year; editing an existing file
+        // keeps the year that file belongs to.
+        const own = String(data?.budgetYear || "").trim();
+        const target = !pending && /^\d{4}$/.test(own) && years.includes(own) ? own : years[0];
+        if (!cancelled && target) { setBudgetYear(target); setYearLocked(true); }
+        if (!cancelled && pending) setFirstOriginalYear(years[0]);
       } catch {}
     })();
     return () => { cancelled = true; };
@@ -2830,7 +2835,7 @@ function StepReview({ firstOriginalYear, country, activityRows, currency, budget
       <p style={descStyle}>Review your responses before submitting. Submitting will save all changes to the TRACE database.</p>
       {firstOriginalYear && (
         <div style={{ background: "#eaf6f0", border: `1px solid ${C.green}`, borderRadius: 8, padding: "10px 14px", fontSize: 12.5, color: "#1c4a33", lineHeight: 1.6 }}>
-          <strong>No {firstOriginalYear} Original has been saved yet.</strong> Submitting now saves this file as the {firstOriginalYear} Original. After that, further edits are saved as new drafts based on it.
+          <strong>No {firstOriginalYear} Original has been saved yet.</strong> Submitting now saves this file as the {firstOriginalYear} Original. After that, further edits are saved as new drafts based on it. To start from a different file or a blank template, go to Version History and use "Start the {firstOriginalYear} Original".
         </div>
       )}
       <div style={{ background: C.lightBG, borderRadius: 8, padding: "14px 18px" }}>
