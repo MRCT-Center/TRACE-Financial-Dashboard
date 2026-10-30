@@ -7,6 +7,8 @@ import { CurrencyProvider, COUNTRY_CURRENCIES, CURRENCIES, useCurrency } from ".
 import { supabase } from "./supabaseClient";
 import { DEMO_MODE, isDemoCountry } from "./demoConfig";
 import { signOut, ensureProfile, recoveryFlow } from "./auth";
+import { addChangeLog } from "./utils/changeLog";
+import { diffCountryData } from "./utils/diffCountryData";
 import LoginPage from "./components/LoginPage";
 import IntroPage from "./components/IntroPage";
 import Results from "./components/Results";
@@ -454,7 +456,8 @@ export default function App() {
     if (error) console.warn("Seed failed:", error.message);
   }
 
-  async function saveCountryData(country, updates, changeSummary, draftTitle, originalYear) {
+  async function saveCountryData(country, updates, changeSummary, draftTitle, originalYear, baseData) {
+    const before = baseData ?? countryCache[country];
     const merged = { ...countryCache[country], ...updates };
     setCountryCache((prev) => ({ ...prev, [country]: merged }));
     // Demo mode: edits update the in-memory cache only (so the UI reflects them
@@ -486,10 +489,18 @@ export default function App() {
         country, kind: "original", year_label: originalYear, data: merged,
         created_by: session?.email || "unknown", summary: changeSummary || null,
       });
-      if (!origErr) return;
+      if (!origErr) {
+        await addChangeLog({ country, refYear: originalYear, kind: "original", title: "Original", summary: changeSummary, createdBy: session?.email, changes: [] });
+        return;
+      }
       console.warn("Could not save as Original, saving as a draft instead:", origErr.message);
     }
     await recordWorkingVersion(country, merged, changeSummary, draftTitle);
+    const by = String(merged?.budgetYear || "").trim();
+    await addChangeLog({
+      country, refYear: /^\d{4}$/.test(by) ? by : "", kind: "working", title: draftTitle, summary: changeSummary,
+      createdBy: session?.email, changes: diffCountryData(before || {}, merged),
+    });
   }
 
   // Master version history (2026-09-29). A 'working' snapshot is recorded on
@@ -543,6 +554,7 @@ export default function App() {
       created_by: session?.email || "unknown",
     });
     if (error) throw new Error(error.message);
+    await addChangeLog({ country, refYear: yearLabel, kind, title: kind[0].toUpperCase() + kind.slice(1), createdBy: session?.email, changes: [] });
   }
 
   // Delete a working draft. RLS restricts this to the row's own author
@@ -700,7 +712,7 @@ export default function App() {
               data={wizardSeed && wizardSeed.country === selectedCountry ? wizardSeed.data : countryData}
               onClearDraft={() => setWizardKey((k) => k + 1)}
               isAdmin={isAdmin}
-              onSave={(updates, changeSummary, draftTitle, originalYear) => saveCountryData(selectedCountry, updates, changeSummary, draftTitle, originalYear)}
+              onSave={(updates, changeSummary, draftTitle, originalYear, baseData) => saveCountryData(selectedCountry, updates, changeSummary, draftTitle, originalYear, baseData)}
               onGoToHistory={selectedCountry === "Nyika" ? undefined : () => setView("history")}
             />
           )}

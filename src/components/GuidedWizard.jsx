@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, Fragment } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, Fragment, createContext, useContext } from "react";
 import { COLORS as C, COUNTRY_DISPLAY_NAMES } from "../utils/metrics";
 import StepInstructions from "./StepInstructions";
 import { WIZARD_STEP_INSTRUCTIONS } from "../data/instructions";
@@ -18,6 +18,7 @@ import {
 } from "../data/feesModel";
 import InfoTip from "./InfoTip";
 import { supabase } from "../supabaseClient";
+import { fetchChangeLog, entriesForKeys, kindLabel, fmtVal } from "../utils/changeLog";
 import { diffCountryData, isRowChanged, isFieldChanged, changesForKeys } from "../utils/diffCountryData";
 
 const CURRENCIES = [
@@ -506,6 +507,7 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
   }
 
   return (
+    <YearLogContext.Provider value={{ country, year: /^\d{4}$/.test(String(budgetYear || "").trim()) ? String(budgetYear).trim() : "" }}>
     <div className={viewOnly ? "trace-readonly" : undefined} style={{ maxWidth: 960, margin: "0 auto", width: "100%" }}>
       {viewOnly && (
         <div style={{ background: "#fff8e8", border: `1px solid ${C.yellow}`, borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 12.5, color: "#5a4000", lineHeight: 1.5 }}>
@@ -812,7 +814,7 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
                 // the submitted/versioned data like everything else.
                 stepSources, stepNotes,
               };
-              if (onSave) await onSave(updates, changeSummary.trim(), draftTitle.trim(), firstOriginalYear || null);
+              if (onSave) await onSave(updates, changeSummary.trim(), draftTitle.trim(), firstOriginalYear || null, data);
               clearDraft(country);
               setChangeSummary("");
               setDraftTitle("");
@@ -827,6 +829,7 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
         )}
       </div>
     </div>
+    </YearLogContext.Provider>
   );
 }
 
@@ -842,6 +845,7 @@ function StepSetup({ country, localCurrency, currency, inputMode, onInputModeCha
       <div>
         <ChangesToggle show={showChanges} onToggle={() => setShowChanges((s) => !s)} count={stepChanges.length} />
         {showChanges && <ChangesPanel changes={stepChanges} meta={lastChangeMeta} onClose={() => setShowChanges(false)} />}
+        <YearLogButton keys={["unit", "budgetYear"]} />
       </div>
       {/* Unit selector — 4-button segmented control (workbook dropdown values) */}
       <div>
@@ -1611,6 +1615,7 @@ function StepRevenue({ conv, feesEdits, setFeesEdits, feesColumnsEdits, setFeesC
       <div>
         <ChangesToggle show={showChanges} onToggle={() => setShowChanges((s) => !s)} count={stepChanges.length} />
         {showChanges && <ChangesPanel changes={stepChanges} meta={lastChangeMeta} onClose={() => setShowChanges(false)} />}
+        <YearLogButton keys={["fees", "feesColumns", "revFees", "revRegOther", "revOther", "revIrr", "ri"]} />
       </div>
       <SubTabs
         tabs={[
@@ -2236,6 +2241,7 @@ function InKindStep({ conv, ikRegRowsEdits, setIkRegRowsEdits, ikIrrRowsEdits, s
       <div>
         <ChangesToggle show={showChanges} onToggle={() => setShowChanges((s) => !s)} count={stepChanges.length} />
         {showChanges && <ChangesPanel changes={stepChanges} meta={lastChangeMeta} onClose={() => setShowChanges(false)} />}
+        <YearLogButton keys={["ikReg", "ikRegRows", "ikIrr", "ikIrrRows"]} />
       </div>
       <SubTabs
         tabs={[
@@ -2756,6 +2762,7 @@ function KeyConsiderationsStep({ hasRisks, setHasRisks, hasOpps, setHasOpps, ris
       <div>
         <ChangesToggle show={showChanges} onToggle={() => setShowChanges((s) => !s)} count={stepChanges.length} />
         {showChanges && <ChangesPanel changes={stepChanges} meta={lastChangeMeta} onClose={() => setShowChanges(false)} />}
+        <YearLogButton keys={["hasRisks", "riskText", "hasOpps", "oppText", "activities"]} />
       </div>
       <SubTabs
         tabs={[
@@ -2798,6 +2805,7 @@ function ExpensesStep({ conv, erRowsEdits, setErRowsEdits, irrProjEdits, setIrrP
       <div>
         <ChangesToggle show={showChanges} onToggle={() => setShowChanges((s) => !s)} count={stepChanges.length} />
         {showChanges && <ChangesPanel changes={stepChanges} meta={lastChangeMeta} onClose={() => setShowChanges(false)} />}
+        <YearLogButton keys={["er", "erRows", "irrProj"]} />
       </div>
       <SubTabs
         tabs={[
@@ -2938,6 +2946,73 @@ function fmtChangeVal(v) {
   return String(v);
 }
 
+const YearLogContext = createContext({ country: "", year: "" });
+
+// "Show all changes this year": the permanent running log for this page
+// (date, who, notes, and each change), from the year's Original onward.
+function YearLogButton({ keys }) {
+  const { country, year } = useContext(YearLogContext);
+  const [open, setOpen] = useState(false);
+  const [entries, setEntries] = useState(null);
+  useEffect(() => {
+    if (!open || !country) return;
+    let cancelled = false;
+    fetchChangeLog(country, year).then((e) => { if (!cancelled) setEntries(e); });
+    return () => { cancelled = true; };
+  }, [open, country, year]);
+  const shown = entries ? entriesForKeys(entries, keys) : [];
+  return (
+    <span data-keep="1" style={{ marginLeft: 8 }}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 14,
+          padding: "6px 12px", minHeight: 32, borderRadius: 6,
+          border: `1px solid ${open ? C.teal : "#ccd"}`, background: open ? "#e8f4f4" : "#fff",
+          color: open ? C.teal : C.navy, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+        }}
+      >
+        {open ? "Hide all changes this year" : "Show all changes this year"}
+      </button>
+      {open && (
+        <div data-keep="1" style={{
+          position: "fixed", top: 90, left: 16, width: 340, maxHeight: "70vh", overflowY: "auto",
+          background: "#fff", border: `1px solid ${C.teal}`, borderRadius: 10,
+          boxShadow: "0 4px 18px rgba(0,0,0,0.16)", padding: 16, zIndex: 50,
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>All changes on this page{year ? `, ${year}` : ""}</div>
+            <button onClick={() => setOpen(false)} style={{ background: "transparent", border: "none", color: "#999", fontSize: 18, cursor: "pointer", lineHeight: 1 }}>×</button>
+          </div>
+          {entries === null ? (
+            <div style={{ fontSize: 12, color: "#999" }}>Loading…</div>
+          ) : shown.length === 0 ? (
+            <div style={{ fontSize: 12, color: "#999", fontStyle: "italic" }}>No changes recorded on this page yet this year. The full log, with a Word export, is in Version History.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {shown.map((e) => (
+                <div key={e.id} style={{ fontSize: 12, lineHeight: 1.5, borderBottom: "1px solid #eee", paddingBottom: 10 }}>
+                  <div style={{ fontWeight: 700, color: C.navy }}>{new Date(e.created_at).toLocaleString()}</div>
+                  <div style={{ color: "#666" }}>{e.created_by} · {kindLabel(e.kind)}{e.title ? ` "${e.title}"` : ""}</div>
+                  {e.summary && <div style={{ fontStyle: "italic", color: "#666", margin: "2px 0 4px" }}>"{e.summary}"</div>}
+                  {e.changes.map((c, i) => (
+                    <div key={i} style={{ marginTop: 4 }}>
+                      <div style={{ fontWeight: 600, color: C.navy }}>{c.label}</div>
+                      <span style={{ textDecoration: "line-through", color: "#999" }}>{fmtVal(c.oldValue)}</span>
+                      {" → "}
+                      <span style={{ color: CHANGE_PURPLE, fontWeight: 600 }}>{fmtVal(c.newValue)}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </span>
+  );
+}
+
 function ChangesToggle({ show, onToggle, count }) {
   return (
     <span data-keep="1">
@@ -2952,7 +3027,7 @@ function ChangesToggle({ show, onToggle, count }) {
         fontSize: 12.5, fontWeight: 600, cursor: "pointer",
       }}
     >
-      {show ? "Hide changes" : "Show changes"}
+      {show ? "Hide changes from last draft" : "Show changes from last draft"}
       {count > 0 && (
         <span style={{ background: CHANGE_PURPLE, color: "#fff", borderRadius: 10, fontSize: 10.5, fontWeight: 700, padding: "1px 7px" }}>
           {count}
