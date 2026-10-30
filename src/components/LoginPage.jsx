@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { COLORS as C } from "../utils/metrics";
 import { COUNTRIES } from "../data/countries";
-import { signIn, requestAccess, checkAccessRequest, claimAccess, requestPasswordReset, verifyPasswordResetOtp, updatePassword } from "../auth";
+import { signIn, requestAccess, checkAccessRequest, claimAccess, requestPasswordReset, verifyPasswordResetOtp, updatePassword, recoveryFlow } from "../auth";
 
 // Request form country list (2026-10-27): only the five real countries. Nyika
 // and Nyika II are practice countries that every rep gets automatically, so
@@ -187,8 +187,10 @@ function ForgotPasswordForm({ onNavigate }) {
     if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
     if (password !== confirm) { setError("Passwords don't match."); return; }
     setLoading(true);
+    recoveryFlow.handledInline = true;
     const verifyErr = await verifyPasswordResetOtp(email, code);
     if (verifyErr) {
+      recoveryFlow.handledInline = false;
       setLoading(false);
       setError(/expired|invalid/i.test(verifyErr)
         ? "That code is incorrect or has expired. Request a new one below."
@@ -196,6 +198,7 @@ function ForgotPasswordForm({ onNavigate }) {
       return;
     }
     const pwErr = await updatePassword(password);
+    recoveryFlow.handledInline = false;
     setLoading(false);
     if (pwErr) { setError(pwErr); return; }
     // Password is set and a real session now exists — App.jsx's auth

@@ -143,3 +143,8 @@ export async function verifyPasswordResetOtp(email, code) {
   if (error) return error.message;
   return null;
 }
+
+// Set while the Forgot-password form is finishing a reset it has already
+// collected the new password for, so App.jsx doesn't also show the separate
+// reset screen (which would ask for the password a second time).
+export const recoveryFlow = { handledInline: false };

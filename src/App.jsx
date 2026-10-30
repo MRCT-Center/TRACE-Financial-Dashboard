@@ -6,7 +6,7 @@ import { FEES_DEFAULT_ROWS, FEES_DEFAULT_COLUMN_LABELS, isLegacyFeesArray, isAll
 import { CurrencyProvider, COUNTRY_CURRENCIES, CURRENCIES, useCurrency } from "./utils/CurrencyContext";
 import { supabase } from "./supabaseClient";
 import { DEMO_MODE, isDemoCountry } from "./demoConfig";
-import { signOut, ensureProfile } from "./auth";
+import { signOut, ensureProfile, recoveryFlow } from "./auth";
 import LoginPage from "./components/LoginPage";
 import IntroPage from "./components/IntroPage";
 import Results from "./components/Results";
@@ -621,7 +621,7 @@ export default function App() {
       // already signed into a temporary session — intercept with
       // ResetPasswordScreen instead of dropping them straight into the app
       // on the old password. See requestPasswordReset() in src/auth.js.
-      if (event === "PASSWORD_RECOVERY") setPasswordRecovery(true);
+      if (event === "PASSWORD_RECOVERY" && !recoveryFlow.handledInline) setPasswordRecovery(true);
       handleAuthUser(s?.user || null);
     });
     return () => { active = false; sub.subscription.unsubscribe(); };
