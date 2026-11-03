@@ -219,7 +219,7 @@ export default function Revenue({ country, data: d, flag, onEdit, sandbox = fals
                   <th style={{ textAlign: "left", padding: "6px 8px", color: C.navy }} rowSpan={2}>Review type</th>
                   {FEES_COLUMN_KEYS.map((k) => (
                     <th key={k} colSpan={2} style={{ textAlign: "center", padding: "6px 8px", color: C.navy, borderLeft: "1px solid #dde" }}>
-                      {(d.feesColumns && d.feesColumns[k]) || FEES_DEFAULT_COLUMN_LABELS[k] || k}
+                      {String(((d.feesColumns && d.feesColumns[k]) || FEES_DEFAULT_COLUMN_LABELS[k] || {}).dollar || k).replace(/\s*\$\s*$/, "")}
                     </th>
                   ))}
                   <th style={{ textAlign: "right", padding: "6px 8px", color: C.navy }} rowSpan={2}>Revenue</th>

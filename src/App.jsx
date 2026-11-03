@@ -8,6 +8,7 @@ import { supabase } from "./supabaseClient";
 import { DEMO_MODE, isDemoCountry } from "./demoConfig";
 import { signOut, ensureProfile, recoveryFlow } from "./auth";
 import { addChangeLog } from "./utils/changeLog";
+import ErrorBoundary from "./components/ErrorBoundary";
 import { diffCountryData } from "./utils/diffCountryData";
 import LoginPage from "./components/LoginPage";
 import IntroPage from "./components/IntroPage";
@@ -704,6 +705,7 @@ export default function App() {
         />
         <NavBar views={views} current={view} onSelect={navTo} locked={sandbox ? ["wizard"] : []} />
         <main style={{ flex: 1, padding: "20px 16px", maxWidth: 1200, margin: "0 auto", width: "100%" }}>
+          <ErrorBoundary resetKey={`${view}-${selectedCountry}`}>
           {view === "intro"   && <IntroPage onNavigate={navTo} isAdmin={isAdmin} selectedCountry={selectedCountry} />}
           {view === "wizard"  && (
             <GuidedWizard
@@ -767,6 +769,7 @@ export default function App() {
               />
             </div>
           )}
+          </ErrorBoundary>
         </main>
         <footer style={{ background: C.navy, color: "#fff", padding: "12px 20px", fontSize: 12, textAlign: "center", opacity: 0.85 }}>
           TRACE Financial Dashboard · MRCT Center · Prototype {new Date().getFullYear()}
