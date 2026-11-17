@@ -319,7 +319,7 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
       <div style={{ background: "#fff", border: "1px solid #dde", borderRadius: 10, padding: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 8 }}>Master file</div>
         <p style={{ fontSize: 12.5, color: "#555", lineHeight: 1.6, marginBottom: 12 }}>
-          Every save keeps a working copy (last 5 are kept). Saving a milestone (Original, Midpoint, or Final)
+          Every save keeps a working copy (last 5 are kept). Saving a milestone (Original or Final)
           keeps that snapshot permanently, separate from the rolling new drafts.
         </p>
 
@@ -335,7 +335,7 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
                 style={{ padding: "6px 10px", fontSize: 12.5, border: "1px solid #ccd", borderRadius: 6, minHeight: 36, width: 150, background: "#f4f6f8", color: C.navy }}
               />
             </label>
-            {["original", "midpoint", "final"].map((kind) => {
+            {["original", "final"].map((kind) => {
               const savedForYear = versions.some((v) => v.kind === kind && yearOf(v.year_label) === cycleYear && (country !== "Nyika II" || v.created_by === currentUserEmail));
               const alreadySaved = (kind === "midpoint" || kind === "final") && (cycleHasMilestone(kind) || (cycleYear && savedForYear));
               // Nyika II's Original is the shared demo starting point: admins only.

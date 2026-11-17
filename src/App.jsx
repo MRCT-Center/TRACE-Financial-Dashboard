@@ -9,6 +9,7 @@ import { DEMO_MODE, isDemoCountry } from "./demoConfig";
 import { signOut, ensureProfile, recoveryFlow } from "./auth";
 import { addChangeLog } from "./utils/changeLog";
 import ErrorBoundary from "./components/ErrorBoundary";
+import ReminderBanner from "./components/ReminderBanner";
 import { diffCountryData } from "./utils/diffCountryData";
 import LoginPage from "./components/LoginPage";
 import IntroPage from "./components/IntroPage";
@@ -706,6 +707,9 @@ export default function App() {
         <NavBar views={views} current={view} onSelect={navTo} locked={sandbox ? ["wizard"] : []} />
         <main style={{ flex: 1, padding: "20px 16px", maxWidth: 1200, margin: "0 auto", width: "100%" }}>
           <ErrorBoundary resetKey={`${view}-${selectedCountry}`}>
+          {["intro", "wizard", "history"].includes(view) && !isDemoCountry(selectedCountry) && (
+            <ReminderBanner country={selectedCountry} email={session?.email} isAdmin={isAdmin} refreshKey={view} onGoToInputs={view === "history" ? undefined : () => setView("history")} />
+          )}
           {view === "intro"   && <IntroPage onNavigate={navTo} isAdmin={isAdmin} selectedCountry={selectedCountry} />}
           {view === "wizard"  && (
             <GuidedWizard

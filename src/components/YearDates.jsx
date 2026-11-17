@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { COLORS as C } from "../utils/metrics";
 import { supabase } from "../supabaseClient";
 
-// Self-designated Original/Midpoint/Final dates (2026-09-29), one set per
+// Self-designated Original/Final dates (2026-09-29), one set per
 // country per year, not tied to the calendar year and not auto-repeating --
 // see country_year_dates and spec_master_sandbox_final.md section 3. Reps
 // set these; admins can see them (read-only) but don't normally set them.
@@ -12,10 +12,17 @@ import { supabase } from "../supabaseClient";
 // can be changed in place. In Nyika II only admins may write dates (RLS), so
 // the parent passes canEdit=false for testers there.
 
+export const REMINDER_OPTIONS = [
+  { value: "none", label: "No reminders" },
+  { value: "biannual", label: "Bi-annual (one reminder six months into the year)" },
+  { value: "quarterly", label: "Quarterly (every three months)" },
+  { value: "monthly", label: "Monthly (end of each month)" },
+];
+const reminderLabel = (v) => (REMINDER_OPTIONS.find((o) => o.value === v) || REMINDER_OPTIONS[0]).label;
+
 const isFourDigitYear = (v) => /^\d{4}$/.test(v);
 const DATE_FIELDS = [
   { key: "original_date", label: "Original" },
-  { key: "midpoint_date", label: "Midpoint" },
   { key: "final_date", label: "Final" },
 ];
 
@@ -25,7 +32,7 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
   const [errorMsg, setErrorMsg] = useState("");
   const [yearLabel, setYearLabel] = useState("");
   const [original, setOriginal] = useState("");
-  const [midpoint, setMidpoint] = useState("");
+  const [reminder, setReminder] = useState("none");
   const [final, setFinal] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -37,7 +44,7 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
     try {
       const { data, error } = await supabase
         .from("country_year_dates")
-        .select("id, year_label, original_date, midpoint_date, final_date, notes, set_by, set_at")
+        .select("id, year_label, original_date, final_date, reminder_frequency, notes, set_by, set_at")
         .eq("country", country)
         .order("year_label", { ascending: false });
       if (error) throw error;
@@ -47,7 +54,7 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
       const me = (currentUserEmail || "").toLowerCase();
       const shown = (data || []).filter((r) => country !== "Nyika II" || !isAdmin || !r.set_by || r.set_by.toLowerCase() === me);
       // If a tester has made their own copy of a default year (to change its
-      // Midpoint/Final dates), show their copy instead of the default.
+      // Final date or reminders), show their copy instead of the default.
       const byYear = new Map();
       shown.forEach((r) => {
         const prev = byYear.get(r.year_label);
@@ -88,7 +95,7 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
       // Plain insert (not upsert) so the database itself refuses a repeat year.
       const { error } = await supabase.from("country_year_dates").insert({
         country, year_label: yearLabel,
-        original_date: original || null, midpoint_date: midpoint || null, final_date: final || null,
+        original_date: original || null, final_date: final || null, reminder_frequency: reminder,
         notes: notes.trim() || null,
       });
       if (error) {
@@ -96,7 +103,7 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
           ? `${yearLabel} already has dates. Use Edit next to them, or enter a new year.`
           : error.message);
       }
-      setYearLabel(""); setOriginal(""); setMidpoint(""); setFinal(""); setNotes("");
+      setYearLabel(""); setOriginal(""); setReminder("none"); setFinal(""); setNotes("");
       await load();
     } catch (err) {
       setErrorMsg(err.message || "Could not save dates.");
@@ -126,7 +133,9 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
     setSaving(true);
     setErrorMsg("");
     try {
-      const value = editing.key === "notes" ? (editValue.trim() || null) : (editValue || null);
+      const value = editing.key === "notes" ? (editValue.trim() || null)
+        : editing.key === "reminder_frequency" ? (editValue || "none")
+        : (editValue || null);
       const patch = { [editing.key]: value };
       const ownRow = country !== "Nyika II" || isMine(row) || (isAdmin && !row.set_by);
       if (ownRow) {
@@ -138,7 +147,7 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
         // with the change, so nobody else's dates move.
         const { error } = await supabase.from("country_year_dates").insert({
           country, year_label: row.year_label,
-          original_date: row.original_date, midpoint_date: row.midpoint_date, final_date: row.final_date,
+          original_date: row.original_date, final_date: row.final_date, reminder_frequency: row.reminder_frequency || "none",
           notes: row.notes, ...patch,
         });
         if (error) throw error;
@@ -156,7 +165,7 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
   const linkBtn = { background: "transparent", border: "none", color: C.teal, fontSize: 11.5, fontWeight: 600, cursor: "pointer", padding: "0 0 0 6px", textDecoration: "underline" };
   const canWrite = !readOnly && canEdit;
   // Nyika II: admins edit the shared default; a tester edits their own years,
-  // and can change Midpoint/Final dates and notes of a default year (which saves
+  // and can change the Final date, reminders and notes of a default year (which saves
   // their own copy). Nobody but an admin changes a default year's Original date.
   const rowEditable = (r, key) => {
     if (!canWrite) return false;
@@ -171,10 +180,10 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
       <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 8 }}>Year dates</div>
       <p style={{ fontSize: 12.5, color: "#555", lineHeight: 1.6, marginBottom: 12 }}>
         {readOnly
-          ? `${country}'s self-designated Original, Midpoint, and Final dates for the year, chosen once a year and not tied to the calendar.`
+          ? `${country}'s self-designated Original and Final dates for the year, chosen once a year and not tied to the calendar.`
           : canEdit
-            ? "Set your Original, Midpoint, and Final dates for the year -- a once-a-year choice that doesn't have to line up with the calendar year."
-            : `${country}'s Original, Midpoint, and Final dates for the year. These are set by an administrator.`}
+            ? "Set your Original and Final dates for the year -- a once-a-year choice that doesn't have to line up with the calendar year."
+            : `${country}'s Original and Final dates for the year. These are set by an administrator.`}
       </p>
 
       {errorMsg && (
@@ -212,12 +221,14 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
             <input type="date" value={original} onChange={(e) => setOriginal(e.target.value)} style={inputStyle} />
           </label>
           <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, color: "#555" }}>
-            Midpoint date
-            <input type="date" value={midpoint} onChange={(e) => setMidpoint(e.target.value)} style={inputStyle} />
-          </label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, color: "#555" }}>
             Final date
             <input type="date" value={final} onChange={(e) => setFinal(e.target.value)} style={inputStyle} />
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, color: "#555" }}>
+            Set reminders to update file drafts over the year
+            <select value={reminder} onChange={(e) => setReminder(e.target.value)} style={{ ...inputStyle, maxWidth: 340 }}>
+              {REMINDER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
           </label>
           <button
             onClick={save}
@@ -269,6 +280,25 @@ export default function YearDates({ country, canEdit, readOnly = false, onRowsCh
                   </span>
                 );
               })}
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexBasis: "100%", color: "#555" }}>
+                Reminders:{" "}
+                {editing?.id === r.id && editing?.key === "reminder_frequency" ? (
+                  <>
+                    <select value={editValue || "none"} onChange={(e) => setEditValue(e.target.value)} style={{ ...inputStyle, minHeight: 28, padding: "3px 6px" }}>
+                      {REMINDER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                    <button onClick={() => saveEdit(r)} disabled={saving} style={{ ...linkBtn, opacity: saving ? 0.5 : 1 }}>{saving ? "Saving…" : "Save"}</button>
+                    <button onClick={() => setEditing(null)} style={{ ...linkBtn, color: "#777" }}>Cancel</button>
+                  </>
+                ) : (
+                  <>
+                    <em>{reminderLabel(r.reminder_frequency)}</em>
+                    {rowEditable(r, "reminder_frequency") && (
+                      <button onClick={() => { setEditing({ id: r.id, key: "reminder_frequency" }); setEditValue(r.reminder_frequency || "none"); }} style={linkBtn}>Edit</button>
+                    )}
+                  </>
+                )}
+              </span>
               {(r.notes || rowEditable(r, "notes")) && (
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexBasis: "100%", color: "#555" }}>
                   Notes:{" "}
