@@ -18,7 +18,7 @@ export const DEMO_MODE = true;
 // of Nyika, used to validate Master/Sandbox/Final behavior against real
 // Supabase writes. As of 2026-10-07 (Hayat/Willyanne, batch 1) the five real
 // TRACE countries are also listed here so their reps can set year dates, save
-// Original/Midpoint/Final files, and have Inputs edits persist. Only plain
+// Original and Final files, and have Inputs edits persist. Only plain
 // "Nyika" remains a no-save demo. (Their country_data rows were reset to blank
 // at the same time -- the old rows still held May dummy numbers.)
 export const NON_DEMO_COUNTRIES = ["Nyika II", "Kenya", "Nigeria", "Rwanda", "Tanzania", "Zimbabwe"];

@@ -77,6 +77,12 @@ The single most useful thing to know: **screens live in `src/components/`, conte
 | Inline-editable table cells | `EditableCell.jsx` |
 | Year dates box (Original + Final dates, reminder frequency, notes) | `YearDates.jsx` |
 | Yellow "time to update your file" reminder banner | `ReminderBanner.jsx` |
+| Version History: saved files by year, Save as Original/Final, Start editing, change log + Export to Word | `VersionHistory.jsx` |
+| Sandbox tab: open a saved file and try out numbers without saving | `Sandbox.jsx` |
+| In-Kind results page (editable only inside the Sandbox) | `InKind.jsx` |
+| Admin screen to revoke/reinstate country reps | `ManageAccess.jsx` |
+| Forced "set a new password" screen after a password-recovery sign-in | `ResetPasswordScreen.jsx` |
+| Catches a crash on one page so it doesn't blank the whole app | `ErrorBoundary.jsx` |
 
 ### Other
 
@@ -87,6 +93,9 @@ The single most useful thing to know: **screens live in `src/components/`, conte
 | `src/demoConfig.js` | The `DEMO_MODE` switch — see Key decisions |
 | `src/utils/CurrencyContext.jsx` | Fallback exchange rates, `displayCode`/`convert()` |
 | `src/utils/metrics.js` | Metric definitions |
+| `src/utils/changeLog.js` | Permanent change log (`country_change_log` table): one entry per save with who, when, title, notes and changes; formatting for the log and its Word export |
+| `src/utils/diffCountryData.js` | Compares two saved versions of a country's data and lists what changed (the "Show changes" panel) |
+| `src/utils/sandboxEdit.js` | Applies one Sandbox edit to the in-memory copy and recomputes dependent totals; never saves |
 | `src/utils/reviewChecks.js` | Pre-submit checks on the wizard's Review page (outliers, unit/currency, sanity, before/after totals) |
 | `src/assets/trace-logo.svg` | Logo; header renders it white via `filter: brightness(0) invert(1)` |
 
