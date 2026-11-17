@@ -75,6 +75,8 @@ The single most useful thing to know: **screens live in `src/components/`, conte
 | "Instructions for this step" box in the wizard | `StepInstructions.jsx` |
 | Click-to-open callouts + term/definition helper | `InfoTip.jsx` |
 | Inline-editable table cells | `EditableCell.jsx` |
+| Year dates box (Original + Final dates, reminder frequency, notes) | `YearDates.jsx` |
+| Yellow "time to update your file" reminder banner | `ReminderBanner.jsx` |
 
 ### Other
 
@@ -85,6 +87,7 @@ The single most useful thing to know: **screens live in `src/components/`, conte
 | `src/demoConfig.js` | The `DEMO_MODE` switch — see Key decisions |
 | `src/utils/CurrencyContext.jsx` | Fallback exchange rates, `displayCode`/`convert()` |
 | `src/utils/metrics.js` | Metric definitions |
+| `src/utils/reviewChecks.js` | Pre-submit checks on the wizard's Review page (outliers, unit/currency, sanity, before/after totals) |
 | `src/assets/trace-logo.svg` | Logo; header renders it white via `filter: brightness(0) invert(1)` |
 
 ## Security rules (read before proposing any change)
@@ -239,6 +242,9 @@ This repo has a local clone, so it supports the full loop: branch, edit, preview
   sees responses, a country-role account and an anonymous request both
   get zero rows.
 - **The repository is private. The live site is not.** `trace-financial-dashboard.vercel.app` answers anyone who knows the address, with no account and no password required to *reach* the login screen. A `noindex` header keeps it out of search results, but **the link is the key** to who can attempt to sign in or request access. As of 2026-08-12, actually reading or writing country data additionally requires a real, active, approved account for that specific country (or admin) — see the two points above — so the login screen being reachable no longer means the data behind it is.
+- **Year dates are Original and Final only; Midpoint was removed (2026-11-17).** The "Save as Midpoint" button and the Midpoint date are gone from Version History and Year dates, and the instruction text no longer mentions them. No Midpoint files or dates had ever been saved, so nothing was orphaned. The `midpoint_date` column is still in `country_year_dates`, unused; leave it alone unless it is dropped through a reviewed migration.
+- **Reminders to update drafts (2026-11-17).** Each year's dates carry a `reminder_frequency` (`none`, `biannual`, `quarterly`, `monthly`), stored in `country_year_dates.reminder_frequency` (default `'none'`) and chosen in `YearDates.jsx`. `ReminderBanner.jsx` shows a yellow banner on the Introduction, Inputs and Version History views when the newest year has reminders on, has an Original but no Final, and its most recent saved file is older than the chosen interval (6, 3 or 1 months). It is in-app only and sends no email, in line with the Security rules. It does not show for plain Nyika, the no-save demo country (`isDemoCountry()` in `src/demoConfig.js`).
+- **Review page checks before submitting (2026-11-17).** The wizard's Review step runs `runReviewChecks()` from `src/utils/reviewChecks.js` against the file the user started from: any line item that moved more than 20% (`OUTLIER_PCT`), signs of a currency or unit mix-up, sanity problems such as negative amounts or a fee with no review count, plus a before/after table of headline totals. If anything is flagged, the Submit button stays disabled until the user ticks the confirmation box on the Review page. The checks only warn; they never change data.
 - **Country data status:** Kenya is the most accurate (April 17 workbook, real data). Nigeria, Rwanda, Tanzania and Zimbabwe are **placeholder data only** and need real figures.
 
 ## Known issues / to-do
