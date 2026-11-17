@@ -402,6 +402,51 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
       <div style={{ background: "#fff", border: "1px solid #dde", borderRadius: 10, padding: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 8 }}>File version history</div>
 
+        {tabYear && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+              <button
+                onClick={() => setLogOpen((o) => !o)}
+                style={{ padding: "6px 12px", minHeight: 32, borderRadius: 6, border: `1px solid ${logOpen ? C.teal : "#ccd"}`, background: logOpen ? "#e8f4f4" : "#fff", color: logOpen ? C.teal : C.navy, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
+              >
+                {logOpen ? `Hide change log for ${tabYear}` : `Show change log for ${tabYear}`}
+              </button>
+              <button
+                onClick={async () => { const e = logEntries || await fetchChangeLog(country, tabYear); exportLogToWord(country, tabYear, e); }}
+                style={{ padding: "6px 12px", minHeight: 32, borderRadius: 6, border: "none", background: C.teal, color: "#fff", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
+              >
+                Export {tabYear} change log to Word
+              </button>
+            </div>
+            {logOpen && (
+              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 14 }}>
+                {logEntries === null ? (
+                  <div style={{ fontSize: 12.5, color: "#999" }}>Loading…</div>
+                ) : logEntries.length === 0 ? (
+                  <div style={{ fontSize: 12.5, color: "#999", fontStyle: "italic" }}>No changes have been logged for {tabYear} yet.</div>
+                ) : logEntries.map((e) => (
+                  <div key={e.id} style={{ fontSize: 12.5, lineHeight: 1.55, borderBottom: "1px solid #eee", paddingBottom: 10 }}>
+                    <div style={{ fontWeight: 700, color: C.navy }}>{new Date(e.created_at).toLocaleString()} · {e.created_by}</div>
+                    <div style={{ color: "#666" }}>{kindLabel(e.kind)}{e.title && e.title !== kindLabel(e.kind) ? ` "${e.title}"` : ""}</div>
+                    {e.summary && <div style={{ fontStyle: "italic", color: "#666", margin: "2px 0 4px" }}>"{e.summary}"</div>}
+                    {(e.changes || []).length === 0 ? (
+                      <div style={{ color: "#999" }}>No input changes recorded for this save.</div>
+                    ) : (e.changes || []).map((c, i) => (
+                      <div key={i} style={{ marginTop: 3 }}>
+                        <span style={{ fontWeight: 600, color: C.navy }}>{c.label}: </span>
+                        <span style={{ textDecoration: "line-through", color: "#999" }}>{fmtVal(c.oldValue)}</span>
+                        {" → "}
+                        <span style={{ color: "#6b46c1", fontWeight: 600 }}>{fmtVal(c.newValue)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+
         {tabLock.hasFinal && tabLock.locked && (
           <div style={{ background: "#fdf0ef", border: "1px solid #e3b4b0", borderRadius: 8, padding: "12px 14px", marginBottom: 12, fontSize: 12.5, color: "#6b1d17", lineHeight: 1.6 }}>
             <strong>{tabYear} is locked.</strong> Its {tabLock.updateCount > 0 ? `Updated Final ${tabLock.updateCount}` : "Final"} has been saved, so files in this year can be viewed but not edited. If something needs to change, unlock the year, make the edits, and save them as Updated Final {tabLock.updateCount + 1}. The original Final is always kept.
@@ -566,51 +611,6 @@ export default function VersionHistory({ country, canEdit, isAdmin, onSaveMilest
             </div>
           ))}
         </div>
-        {tabYear && (
-          <div style={{ marginTop: 16, borderTop: "1px solid #eee", paddingTop: 12 }}>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-              <button
-                onClick={() => setLogOpen((o) => !o)}
-                style={{ padding: "6px 12px", minHeight: 32, borderRadius: 6, border: `1px solid ${logOpen ? C.teal : "#ccd"}`, background: logOpen ? "#e8f4f4" : "#fff", color: logOpen ? C.teal : C.navy, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
-              >
-                {logOpen ? `Hide change log for ${tabYear}` : `Show change log for ${tabYear}`}
-              </button>
-              {logOpen && logEntries && logEntries.length > 0 && (
-                <button
-                  onClick={() => exportLogToWord(country, tabYear, logEntries)}
-                  style={{ padding: "6px 12px", minHeight: 32, borderRadius: 6, border: "none", background: C.teal, color: "#fff", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
-                >
-                  Export to Word
-                </button>
-              )}
-            </div>
-            {logOpen && (
-              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 14 }}>
-                {logEntries === null ? (
-                  <div style={{ fontSize: 12.5, color: "#999" }}>Loading…</div>
-                ) : logEntries.length === 0 ? (
-                  <div style={{ fontSize: 12.5, color: "#999", fontStyle: "italic" }}>No changes have been logged for {tabYear} yet.</div>
-                ) : logEntries.map((e) => (
-                  <div key={e.id} style={{ fontSize: 12.5, lineHeight: 1.55, borderBottom: "1px solid #eee", paddingBottom: 10 }}>
-                    <div style={{ fontWeight: 700, color: C.navy }}>{new Date(e.created_at).toLocaleString()} · {e.created_by}</div>
-                    <div style={{ color: "#666" }}>{kindLabel(e.kind)}{e.title && e.title !== kindLabel(e.kind) ? ` "${e.title}"` : ""}</div>
-                    {e.summary && <div style={{ fontStyle: "italic", color: "#666", margin: "2px 0 4px" }}>"{e.summary}"</div>}
-                    {(e.changes || []).length === 0 ? (
-                      <div style={{ color: "#999" }}>No input changes recorded for this save.</div>
-                    ) : (e.changes || []).map((c, i) => (
-                      <div key={i} style={{ marginTop: 3 }}>
-                        <span style={{ fontWeight: 600, color: C.navy }}>{c.label}: </span>
-                        <span style={{ textDecoration: "line-through", color: "#999" }}>{fmtVal(c.oldValue)}</span>
-                        {" → "}
-                        <span style={{ color: "#6b46c1", fontWeight: 600 }}>{fmtVal(c.newValue)}</span>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
         </>
         )}
       </div>
