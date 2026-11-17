@@ -20,6 +20,7 @@ import InfoTip from "./InfoTip";
 import { supabase } from "../supabaseClient";
 import { fetchChangeLog, entriesForKeys, kindLabel, fmtVal, fetchYearLock } from "../utils/changeLog";
 import { diffCountryData, isRowChanged, isFieldChanged, changesForKeys } from "../utils/diffCountryData";
+import { runReviewChecks, OUTLIER_PCT } from "../utils/reviewChecks";
 
 const CURRENCIES = [
   { code: "USD", symbol: "$",   name: "US Dollar"        },
@@ -123,6 +124,7 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
   const [yearLocked, setYearLocked] = useState(false);
   // Year that has dates but no Original yet: submitting then saves the file as that year's Original.
   const [firstOriginalYear, setFirstOriginalYear] = useState("");
+  const [ackSig, setAckSig] = useState(""); // Review-page confirmation of flagged items
   // Locked once the year's Final is saved (until it is unlocked in Version History).
   const [yearLockedByFinal, setYearLockedByFinal] = useState(false);
   useEffect(() => {
@@ -515,6 +517,96 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
     );
   }
 
+  // Everything Submit saves, built from the current inputs (also used by the Review checks).
+  const buildUpdates = () => {
+      // Compute legacy ikReg/ikIrr shapes from the new row-based state
+      // for backward compat with Overview/GapView/AdminDashboard/metrics.js.
+      // `funder` is a dropdown from IN_KIND_FUNDING_SOURCE_OPTIONS;
+      // empty funder rows contribute to `total` but not the rollup buckets.
+      const ikRegRollup = (ikRegRowsEdits || []).reduce((acc, r) => {
+        const v = Number(r?.amount) || 0;
+        if (r?.funder === "In-kind contribution (federal)")            acc.federal       += v;
+        else if (r?.funder === "In-kind contribution (institutional)") acc.institutional += v;
+        else if (r?.funder === "In-kind contribution (other source)")  acc.other         += v;
+        return acc;
+      }, { federal: 0, institutional: 0, other: 0 });
+      const ikRegTotal = (ikRegRowsEdits || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
+      const ikRegFinal = { ...ikRegRollup, total: ikRegTotal };
+      // Irregular in-kind: roll up by funding source too (per Willyanne
+      // 2026-05-29) so the Overview In-Kind box can show federal /
+      // institutional / other combined across both in-kind tabs.
+      const ikIrrRollup = (ikIrrRowsEdits || []).reduce((acc, r) => {
+        const v = Number(r?.amount) || 0;
+        if (r?.funder === "In-kind contribution (federal)")            acc.federal       += v;
+        else if (r?.funder === "In-kind contribution (institutional)") acc.institutional += v;
+        else if (r?.funder === "In-kind contribution (other source)")  acc.other         += v;
+        return acc;
+      }, { federal: 0, institutional: 0, other: 0 });
+      const ikIrrTotal = (ikIrrRowsEdits || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
+      const ikIrrFinal = { ...ikIrrRollup, total: ikIrrTotal };
+      // Rebuild flat `er` from the new row-shape for backward
+      // compatibility with Overview/Expenses display. Only rows whose
+      // `key` matches a workbook-canonical key are included; user-added
+      // rows with generated keys are preserved in `erRows` only.
+      const erFlat = {};
+      for (const row of erRowsEdits || []) {
+        if (row && row.key) erFlat[row.key] = row.amount ?? null;
+      }
+      // Roll up revRegOther → flat `revOther` and revIrr → flat `ri.*`
+      // so Overview/Gap views continue to render without changes today.
+      // Country teams enter rows; Results-side reads the rolled-up totals.
+      const sumRows = (rows) => (rows || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
+      const revOtherTotal = sumRows(revRegOtherEdits);
+      const riRollup = (revIrrEdits || []).reduce((acc, r) => {
+        const v = Number(r?.amount) || 0;
+        if (r?.category === "Grant")                acc.grants    += v;
+        else if (r?.category === "Contract")        acc.contracts += v;
+        else if (r?.category === "Other 1-time payment") acc.other     += v;
+        else if (r?.category === "Deferred reserves") acc.reserves += v;
+        return acc;
+      }, { grants: 0, contracts: 0, other: 0, reserves: 0 });
+      const updates = {
+        activities:  activityRows,
+        hasRisks, riskText, hasOpps, oppText,
+        unit,
+        budgetYear,
+        currencyCode: currency.code,
+        ratesAsOf:    new Date().toISOString(),
+        er:      erFlat,
+        erRows:  erRowsEdits,
+        // Tier 10: fees rows carry the new `cells` shape + derived
+        // legacy fields (`ctPro`, `ctStu`, `ind`, `ngo`, `rev`) so
+        // GapView.jsx and Revenue.jsx keep working without rewrites.
+        fees:        feesEdits.map((r) => ({ ...r, ...deriveLegacyFeeFields(r) })),
+        feesColumns: feesColumnsEdits,
+        revFees:     totalFeesRevenue(feesEdits),
+        revRegOther: revRegOtherEdits,
+        revOther: revOtherTotal,
+        revIrr:  revIrrEdits,
+        ri:      riRollup,
+        irrProj: irrProjEdits,
+        ei:      { proj: irrProjEdits.reduce((s, p) => s + (p.amount || 0), 0) },
+        ikReg:     ikRegFinal,
+        ikRegRows: ikRegRowsEdits,
+        ikIrr:     ikIrrFinal,
+        ikIrrRows: ikIrrRowsEdits,
+        // Per-page Data source / Notes boxes (2026-10-02 fix): these
+        // were previously local-draft-only and never actually saved,
+        // so Restore could never bring back the real notes for a past
+        // version -- it would just leave whatever was last typed into
+        // this browser's in-progress draft sitting there. Now part of
+        // the submitted/versioned data like everything else.
+        stepSources, stepNotes,
+      };
+    return updates;
+  };
+
+  // Review-page checks against the file this edit started from.
+  const isReviewStep = step === STEPS.length - 1 && !viewOnly;
+  const proposed = isReviewStep ? buildUpdates() : null;
+  const checks = isReviewStep ? runReviewChecks(data, proposed) : null;
+  const blockedByAck = !!checks && checks.needsAck && ackSig !== checks.signature;
+
   return (
     <YearLogContext.Provider value={{ country, year: /^\d{4}$/.test(String(budgetYear || "").trim()) ? String(budgetYear).trim() : "" }}>
     <div className={viewOnly ? "trace-readonly" : undefined} style={{ maxWidth: 960, margin: "0 auto", width: "100%" }}>
@@ -657,7 +749,7 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
               showChanges={showChanges} setShowChanges={setShowChanges}
             />
           )}
-          {step === 5 && <StepReview  yearLockedByFinal={yearLockedByFinal} firstOriginalYear={firstOriginalYear} country={country} activityRows={activityRows} currency={currency} budgetYear={budgetYear} erRowsEdits={erRowsEdits} irrProjEdits={irrProjEdits} feesEdits={feesEdits} revRegOtherEdits={revRegOtherEdits} revIrrEdits={revIrrEdits} ikRegRowsEdits={ikRegRowsEdits} ikIrrRowsEdits={ikIrrRowsEdits} changeSummary={changeSummary} setChangeSummary={setChangeSummary} draftTitle={draftTitle} setDraftTitle={setDraftTitle} />}
+          {step === 5 && <StepReview  checks={checks} ackSig={ackSig} setAckSig={setAckSig} yearLockedByFinal={yearLockedByFinal} firstOriginalYear={firstOriginalYear} country={country} activityRows={activityRows} currency={currency} budgetYear={budgetYear} erRowsEdits={erRowsEdits} irrProjEdits={irrProjEdits} feesEdits={feesEdits} revRegOtherEdits={revRegOtherEdits} revIrrEdits={revIrrEdits} ikRegRowsEdits={ikRegRowsEdits} ikIrrRowsEdits={ikIrrRowsEdits} changeSummary={changeSummary} setChangeSummary={setChangeSummary} draftTitle={draftTitle} setDraftTitle={setDraftTitle} />}
 
           {/* Sources & Notes — required on every step except Setup (per
               Willyanne 2026-05-27 mid-day item #4) and Review. */}
@@ -744,85 +836,7 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
           <button
             onClick={async () => {
               setSaving(true);
-              // Compute legacy ikReg/ikIrr shapes from the new row-based state
-              // for backward compat with Overview/GapView/AdminDashboard/metrics.js.
-              // `funder` is a dropdown from IN_KIND_FUNDING_SOURCE_OPTIONS;
-              // empty funder rows contribute to `total` but not the rollup buckets.
-              const ikRegRollup = (ikRegRowsEdits || []).reduce((acc, r) => {
-                const v = Number(r?.amount) || 0;
-                if (r?.funder === "In-kind contribution (federal)")            acc.federal       += v;
-                else if (r?.funder === "In-kind contribution (institutional)") acc.institutional += v;
-                else if (r?.funder === "In-kind contribution (other source)")  acc.other         += v;
-                return acc;
-              }, { federal: 0, institutional: 0, other: 0 });
-              const ikRegTotal = (ikRegRowsEdits || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
-              const ikRegFinal = { ...ikRegRollup, total: ikRegTotal };
-              // Irregular in-kind: roll up by funding source too (per Willyanne
-              // 2026-05-29) so the Overview In-Kind box can show federal /
-              // institutional / other combined across both in-kind tabs.
-              const ikIrrRollup = (ikIrrRowsEdits || []).reduce((acc, r) => {
-                const v = Number(r?.amount) || 0;
-                if (r?.funder === "In-kind contribution (federal)")            acc.federal       += v;
-                else if (r?.funder === "In-kind contribution (institutional)") acc.institutional += v;
-                else if (r?.funder === "In-kind contribution (other source)")  acc.other         += v;
-                return acc;
-              }, { federal: 0, institutional: 0, other: 0 });
-              const ikIrrTotal = (ikIrrRowsEdits || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
-              const ikIrrFinal = { ...ikIrrRollup, total: ikIrrTotal };
-              // Rebuild flat `er` from the new row-shape for backward
-              // compatibility with Overview/Expenses display. Only rows whose
-              // `key` matches a workbook-canonical key are included; user-added
-              // rows with generated keys are preserved in `erRows` only.
-              const erFlat = {};
-              for (const row of erRowsEdits || []) {
-                if (row && row.key) erFlat[row.key] = row.amount ?? null;
-              }
-              // Roll up revRegOther → flat `revOther` and revIrr → flat `ri.*`
-              // so Overview/Gap views continue to render without changes today.
-              // Country teams enter rows; Results-side reads the rolled-up totals.
-              const sumRows = (rows) => (rows || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
-              const revOtherTotal = sumRows(revRegOtherEdits);
-              const riRollup = (revIrrEdits || []).reduce((acc, r) => {
-                const v = Number(r?.amount) || 0;
-                if (r?.category === "Grant")                acc.grants    += v;
-                else if (r?.category === "Contract")        acc.contracts += v;
-                else if (r?.category === "Other 1-time payment") acc.other     += v;
-                else if (r?.category === "Deferred reserves") acc.reserves += v;
-                return acc;
-              }, { grants: 0, contracts: 0, other: 0, reserves: 0 });
-              const updates = {
-                activities:  activityRows,
-                hasRisks, riskText, hasOpps, oppText,
-                unit,
-                budgetYear,
-                currencyCode: currency.code,
-                ratesAsOf:    new Date().toISOString(),
-                er:      erFlat,
-                erRows:  erRowsEdits,
-                // Tier 10: fees rows carry the new `cells` shape + derived
-                // legacy fields (`ctPro`, `ctStu`, `ind`, `ngo`, `rev`) so
-                // GapView.jsx and Revenue.jsx keep working without rewrites.
-                fees:        feesEdits.map((r) => ({ ...r, ...deriveLegacyFeeFields(r) })),
-                feesColumns: feesColumnsEdits,
-                revFees:     totalFeesRevenue(feesEdits),
-                revRegOther: revRegOtherEdits,
-                revOther: revOtherTotal,
-                revIrr:  revIrrEdits,
-                ri:      riRollup,
-                irrProj: irrProjEdits,
-                ei:      { proj: irrProjEdits.reduce((s, p) => s + (p.amount || 0), 0) },
-                ikReg:     ikRegFinal,
-                ikRegRows: ikRegRowsEdits,
-                ikIrr:     ikIrrFinal,
-                ikIrrRows: ikIrrRowsEdits,
-                // Per-page Data source / Notes boxes (2026-10-02 fix): these
-                // were previously local-draft-only and never actually saved,
-                // so Restore could never bring back the real notes for a past
-                // version -- it would just leave whatever was last typed into
-                // this browser's in-progress draft sitting there. Now part of
-                // the submitted/versioned data like everything else.
-                stepSources, stepNotes,
-              };
+              const updates = buildUpdates();
               if (onSave) await onSave(updates, changeSummary.trim(), draftTitle.trim(), firstOriginalYear || null, data);
               clearDraft(country);
               setChangeSummary("");
@@ -830,9 +844,9 @@ export default function GuidedWizard({ country, data, onSave, viewVersion = null
               setSaving(false);
               setSubmitted(true);
             }}
-            disabled={saving || yearLockedByFinal}
-            title={yearLockedByFinal ? "This year is locked because its Final was saved. Unlock it in Version History first." : undefined}
-            style={{ ...navBtnStyle, background: saving || yearLockedByFinal ? C.blueGrey : C.green, color: "#fff", opacity: yearLockedByFinal ? 0.6 : 1 }}
+            disabled={saving || yearLockedByFinal || blockedByAck}
+            title={yearLockedByFinal ? "This year is locked because its Final was saved. Unlock it in Version History first." : blockedByAck ? "Tick the box on the Review page to confirm the flagged items first." : undefined}
+            style={{ ...navBtnStyle, background: saving || yearLockedByFinal || blockedByAck ? C.blueGrey : C.green, color: "#fff", opacity: yearLockedByFinal || blockedByAck ? 0.6 : 1 }}
           >
             {saving ? "Saving…" : firstOriginalYear ? `Submit as ${firstOriginalYear} Original ✓` : "Submit ✓"}
           </button>
@@ -2834,7 +2848,69 @@ function ExpensesStep({ conv, erRowsEdits, setErRowsEdits, irrProjEdits, setIrrP
   );
 }
 
-function StepReview({ yearLockedByFinal, firstOriginalYear, country, activityRows, currency, budgetYear, erRowsEdits, irrProjEdits, feesEdits, revRegOtherEdits, revIrrEdits, ikRegRowsEdits, ikIrrRowsEdits, changeSummary, setChangeSummary, draftTitle, setDraftTitle }) {
+function ReviewChecksPanel({ checks, ackSig, setAckSig, fmt }) {
+  const pct = (p) => (p === null ? "new" : `${p > 0 ? "+" : ""}${(p * 100).toFixed(0)}%`);
+  const shownOut = checks.outliers.slice(0, 15);
+  const box = (bg, border, color) => ({ background: bg, border: `1px solid ${border}`, borderRadius: 8, padding: "12px 14px", fontSize: 12.5, color, lineHeight: 1.6 });
+  return (
+    <div data-keep="1" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {checks.comparable ? (
+        <div style={box("#f4f8fb", "#cfdbe6", C.navy)}>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>Before and after</div>
+          <div style={{ fontSize: 11.5, color: "#667", marginBottom: 6 }}>Compared with the file you started from (all amounts in USD).</div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+            <thead><tr style={{ textAlign: "right", color: "#667" }}><th style={{ textAlign: "left", padding: "3px 6px" }}></th><th style={{ padding: "3px 6px" }}>Before</th><th style={{ padding: "3px 6px" }}>Now</th><th style={{ padding: "3px 6px" }}>Change</th></tr></thead>
+            <tbody>
+              {checks.summary.map((s) => (
+                <tr key={s.key} style={{ borderTop: "1px solid #e3eaf0" }}>
+                  <td style={{ padding: "4px 6px" }}>{s.label}</td>
+                  <td style={{ padding: "4px 6px", textAlign: "right" }}>{fmt(s.before)}</td>
+                  <td style={{ padding: "4px 6px", textAlign: "right", fontWeight: 600 }}>{fmt(s.value)}</td>
+                  <td style={{ padding: "4px 6px", textAlign: "right", color: s.pct !== null && Math.abs(s.pct) > OUTLIER_PCT ? "#b3261e" : "#555" }}>{s.pct === null ? "" : pct(s.pct)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div style={box("#f4f8fb", "#cfdbe6", "#556")}>There is no earlier file to compare this one with, so the before-and-after summary and the change checks are skipped. The other checks below still run.</div>
+      )}
+      {checks.needsAck && (
+        <div style={box("#fff8e8", "#e0b84a", "#5a4000")}>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>Please double-check before submitting</div>
+          {checks.units.map((u) => <div key={u.id} style={{ marginBottom: 6 }}>⚠ {u.text}</div>)}
+          {checks.outliers.length > 0 && (
+            <div style={{ marginBottom: 6 }}>
+              <div>These items changed by more than {Math.round(OUTLIER_PCT * 100)}% from the file you started from:</div>
+              <ul style={{ margin: "4px 0 0 18px", padding: 0 }}>
+                {shownOut.map((o) => (
+                  <li key={o.id}><strong>{o.section}: {o.label}</strong> {fmt(o.oldValue)} → {fmt(o.newValue)} ({pct(o.pct)})</li>
+                ))}
+              </ul>
+              {checks.outliers.length > shownOut.length && <div>…and {checks.outliers.length - shownOut.length} more.</div>}
+            </div>
+          )}
+          {checks.sanity.length > 0 && (
+            <div style={{ marginBottom: 6 }}>
+              <div>Possible problems in this file:</div>
+              <ul style={{ margin: "4px 0 0 18px", padding: 0 }}>{checks.sanity.slice(0, 15).map((x) => <li key={x.id}>{x.text}</li>)}</ul>
+              {checks.sanity.length > 15 && <div>…and {checks.sanity.length - 15} more.</div>}
+            </div>
+          )}
+          <label style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 8, fontWeight: 600, cursor: "pointer" }}>
+            <input type="checkbox" checked={ackSig === checks.signature} onChange={(e) => setAckSig(e.target.checked ? checks.signature : "")} style={{ marginTop: 3 }} />
+            I have checked these items and they are correct. Use the notes box below to explain any large changes.
+          </label>
+        </div>
+      )}
+      {!checks.needsAck && checks.comparable && (
+        <div style={box("#eaf6f0", "#8cc7a4", "#1c4a33")}>No large changes or problems found. You can submit.</div>
+      )}
+    </div>
+  );
+}
+
+function StepReview({ checks, ackSig, setAckSig, yearLockedByFinal, firstOriginalYear, country, activityRows, currency, budgetYear, erRowsEdits, irrProjEdits, feesEdits, revRegOtherEdits, revIrrEdits, ikRegRowsEdits, ikIrrRowsEdits, changeSummary, setChangeSummary, draftTitle, setDraftTitle }) {
   const filledActivities = activityRows.filter((r) => r.nearTerm && r.longTerm);
   const sumRows = (rows) => (rows || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0);
   const totalRegExpenses = sumRows(erRowsEdits);
@@ -2851,6 +2927,7 @@ function StepReview({ yearLockedByFinal, firstOriginalYear, country, activityRow
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <p style={descStyle}>Review your responses before submitting. Submitting will save all changes to the TRACE database.</p>
+      {checks && <ReviewChecksPanel checks={checks} ackSig={ackSig} setAckSig={setAckSig} fmt={(n) => `$${Math.round(n).toLocaleString()}`} />}
       {yearLockedByFinal && (
         <div style={{ background: "#fdf0ef", border: "1px solid #e3b4b0", borderRadius: 8, padding: "10px 14px", fontSize: 12.5, color: "#6b1d17", lineHeight: 1.6 }}>
           <strong>This year is locked.</strong> Its Final has been saved, so Submit is turned off. To change it, go to Version History, unlock the year with a reason, then save your edits as an Updated Final.
